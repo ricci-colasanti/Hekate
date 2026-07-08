@@ -101,7 +101,9 @@ Navigate to `http://localhost:8080` in your browser.
 
 ## Authors
 
-[Your name / organization]
-```
 
-The Mermaid diagram now uses your preferred `flowchart LR` layout with the clean, minimal structure. You can customize the logo path, add more regions, or expand any section as needed.
+Nik Lomax  
+Alison Heppenstall  
+Hugh Rice  
+Andreas Hoehn  
+Ric Colasanti
