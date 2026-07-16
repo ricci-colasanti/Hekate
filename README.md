@@ -108,6 +108,7 @@ Get started with Hekate through our step-by-step tutorials. Each tutorial builds
 | [Tutorial 1: Building an Aging Model](tutorials/tutorial1_aging.md) | Learn the basics by creating a simple aging model. You'll create a population CSV, write your first configuration, run the simulation, and analyze the output. | ⭐ Beginner |
 | [Tutorial 2: Understanding YAML and Adding Mortality](tutorials/tutorial2_yaml_mortality.md) | Dive deeper into YAML rules. Learn how to add a mortality model with age-specific death probabilities and track population changes. | ⭐⭐ Intermediate |
 | [Tutorial 3: Adding Fertility](tutorials/tutorial3_fertility.md) | Complete the demographic cycle by adding fertility. Learn how to create new individuals (births), assign their characteristics, track population growth, and understand the full demographic cycle of aging, mortality, and fertility. | ⭐⭐⭐ Advanced |
+| [Tutorial 4: Understanding the Hekate Codebase](tutorials/tutorial4_programmers.md) | A comprehensive deep dive into the Hekate source code. Designed for Go programmers who want to understand how Hekate works under the hood. Includes 7 mini-demos that isolate and explain key concepts like dynamic YAML parsing, Lua embedding, Go-Lua conversion, and the simulation loop. | ⭐⭐⭐⭐⭐ Expert Programmer |
 
 ## Key Features
 
