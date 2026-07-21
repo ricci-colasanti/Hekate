@@ -641,12 +641,6 @@ Now let's put it all together. The configuration has two main sections:
 
 ---
 
-## When to Use Bulk vs Streaming Mode
-
-| Mode | When to Use | Memory | Speed |
-|------|-------------|--------|-------|
-| **Bulk** (`streaming_mode: false`) | Small populations (<1M), development, testing | Higher (~2MB per 1000 people) | Fastest |
-| **Streaming** (`streaming_mode: true`) | Large populations (1M+), limited memory, production | Lower (~20-50MB constant) | Good |
 
 **We'll cover Streaming Mode in depth in Tutorial 5.** For now, Bulk Mode is perfect for learning and small populations.
 
