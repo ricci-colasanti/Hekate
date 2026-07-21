@@ -20,7 +20,6 @@ If you've used **NetLogo**, you already understand Hekate's philosophy:
 | Easy to learn, shallow learning curve | ✅ | ✅ |
 | Build models without programming experience | ✅ | ✅ |
 | Rapid iteration: edit → run → see results | ✅ | ✅ |
-| Domain-specific language (not general-purpose) | ✅ | ✅ |
 | Built-in functions for common tasks | ✅ | ✅ |
 
 **The Hekate Promise:** Like NetLogo, you can go from zero to a working model in minutes. Unlike NetLogo, Hekate can scale to millions or billions of individuals with minimal memory.
