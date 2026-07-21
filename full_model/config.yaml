@@ -1,0 +1,230 @@
+simulation:
+  iterations: 5
+  population_file: population.csv
+  output_file: output.csv
+  random_seed: 42
+  verbose: false
+  id_column: id
+  area_column: region
+  streaming_mode: true
+
+models:
+  # MODEL 1: AGING
+  - name: aging_model
+    type: lua_model
+    priority: 1
+    enabled: true
+    description: "Age the population by 1 year each iteration"
+    parameters:
+      script: |
+        function transition(population, params)
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                
+                if alive then
+                    local age = tonumber(person.age) or 18
+                    person.age = age + 1
+                end
+            end
+            
+            return population
+        end
+
+  # MODEL 2: INCOME
+  - name: income_predictor
+    type: lua_model
+    priority: 2
+    enabled: true
+    description: "Predict income using linear regression"
+    parameters:
+      coefficients:
+        intercept: 15000
+        age: 300
+        education: 5000
+        gender: -3000
+        employed: 10000
+      script: |
+        function transition(population, params)
+            local coefs = params.coefficients
+            
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                
+                if alive then
+                    local age = tonumber(person.age) or 30
+                    
+                    local edu_score = 0
+                    if person.education == "tertiary" then
+                        edu_score = 3
+                    elseif person.education == "secondary" then
+                        edu_score = 2
+                    elseif person.education == "primary" then
+                        edu_score = 1
+                    end
+                    
+                    local gender_score = 0
+                    if person.gender == "female" then
+                        gender_score = 1
+                    end
+                    
+                    local employed_score = 0
+                    if person.employed == "true" or person.employed == true then
+                        employed_score = 1
+                    end
+                    
+                    local income = hekate_stats.linear_predict(
+                        coefs.intercept,
+                        coefs.age, age,
+                        coefs.education, edu_score,
+                        coefs.gender, gender_score,
+                        coefs.employed, employed_score
+                    )
+                    
+                    local noise = 1 + (math.random() * 0.15 - 0.075)
+                    person.income = math.floor(income * noise + 0.5)
+                    
+                    if person.income < 5000 then
+                        person.income = 5000
+                    end
+                end
+            end
+            
+            return population
+        end
+
+  # MODEL 3: HEALTH RISK
+  - name: health_risk_calculator
+    type: lua_model
+    priority: 3
+    enabled: true
+    description: "Calculate health risk score"
+    parameters:
+      coefficients:
+        intercept: -3.0
+        age: 0.8
+        bmi: 0.6
+        smoker: 1.2
+        chronic: 1.5
+      script: |
+        function transition(population, params)
+            local coefs = params.coefficients
+            
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                
+                if alive then
+                    local age = tonumber(person.age) or 40
+                    local bmi = tonumber(person.bmi) or 25
+                    
+                    local bmi_score = 0
+                    if bmi > 30 then
+                        bmi_score = 2
+                    elseif bmi > 25 then
+                        bmi_score = 1
+                    end
+                    
+                    local smoker_score = 0
+                    if person.smoker == "true" or person.smoker == true then
+                        smoker_score = 1
+                    end
+                    
+                    local chronic_score = 0
+                    if person.chronic_disease == "true" or person.chronic_disease == true then
+                        chronic_score = 1
+                    end
+                    
+                    local risk = hekate_stats.logistic_predict(
+                        coefs.intercept,
+                        coefs.age, age / 10,
+                        coefs.bmi, bmi_score,
+                        coefs.smoker, smoker_score,
+                        coefs.chronic, chronic_score
+                    )
+                    
+                    person.health_risk = math.floor(risk * 100 + 0.5)
+                end
+            end
+            
+            return population
+        end
+
+  # MODEL 4: MORTALITY (FIXED - NEVER KILL HEALTH_RISK == 0)
+  - name: mortality_model
+    type: lua_model
+    priority: 4
+    enabled: true
+    description: "Calculate mortality risk based on health and demographics"
+    parameters:
+      script: |
+        function transition(population, params)
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                
+                -- Skip if already dead
+                if not alive then
+                    goto continue
+                end
+                
+                local age = tonumber(person.age) or 40
+                local health_risk = tonumber(person.health_risk) or 0
+                
+                -- CRITICAL FIX: If health_risk is 0, DO NOT KILL
+                -- These people are perfectly healthy - they should survive
+                if health_risk == 0 then
+                    person.mortality_risk = "0.0001"
+                    -- EXTREMELY LOW chance of death (0.01%)
+                    if math.random() < 0.0001 then
+                        person.alive = false
+                    end
+                    goto continue
+                end
+                
+                -- Base mortality risk (increases with age)
+                local base_risk = 0.001 + (age - 18) * 0.0005
+                
+                -- Health risk contribution (linear)
+                local health_factor = (health_risk / 100) * 0.15
+                
+                -- Additional risk factors
+                local smoker_risk = 0
+                if person.smoker == "true" or person.smoker == true then
+                    smoker_risk = 0.03
+                end
+                
+                local chronic_risk = 0
+                if person.chronic_disease == "true" or person.chronic_disease == true then
+                    chronic_risk = 0.04
+                end
+                
+                -- Combined mortality risk
+                local mortality_risk = base_risk + health_factor + smoker_risk + chronic_risk
+                
+                -- Cap at reasonable level
+                if mortality_risk > 0.6 then
+                    mortality_risk = 0.6
+                end
+                
+                person.mortality_risk = string.format("%.4f", mortality_risk)
+                
+                -- Apply mortality (die if random number < risk)
+                if math.random() < mortality_risk then
+                    person.alive = false
+                end
+                
+                ::continue::
+            end
+            
+            return population
+        end
