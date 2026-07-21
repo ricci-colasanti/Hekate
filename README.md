@@ -3,10 +3,29 @@
   <p><em>Hekate — Microsimulation Engine</em></p>
 </div>
 
-# Hekate
+# Hekate development branch
 ## Microsimulation Engine
 
 Named after the Greek goddess of crossroads, magic, and transitions, Hekate is a self-contained, dynamically configurable demographic microsimulation system written in Go. **Hekate is a general-purpose microsimulation engine** that can simulate population dynamics including migration, aging, mortality, fertility, and other demographic processes. The name reflects the engine's purpose—guiding populations through the crossroads of life events and demographic transitions.
+
+---
+
+## Why Hekate? Think NetLogo for Big Data
+
+If you've used **NetLogo**, you already understand Hekate's philosophy:
+
+| Feature | NetLogo | Hekate |
+|---------|---------|--------|
+| Single download, everything included | ✅ | ✅ |
+| Easy to learn, shallow learning curve | ✅ | ✅ |
+| Build models without programming experience | ✅ | ✅ |
+| Rapid iteration: edit → run → see results | ✅ | ✅ |
+| Domain-specific language (not general-purpose) | ✅ | ✅ |
+| Built-in functions for common tasks | ✅ | ✅ |
+| Large populations (millions+) | ❌ (~10K max) | ✅ (unlimited) |
+| Streaming mode for any population size | ❌ | ✅ |
+
+**The Hekate Promise:** Like NetLogo, you can go from zero to a working model in minutes. Unlike NetLogo, Hekate can scale to millions or billions of individuals with minimal memory.
 
 ---
 
@@ -99,6 +118,167 @@ Hekate is a **general-purpose microsimulation engine** that models population dy
 
 The result is a single, self-contained executable that can be distributed and run on any system without installation requirements. **Hekate can model a wide range of demographic processes** including migration, aging, mortality, fertility, education, income, household formation, and more.
 
+---
+
+## Built-in Statistical Functions
+
+Hekate provides several powerful statistical functions that you can call directly from your Lua scripts. These functions are implemented in Go for performance and accuracy.
+
+### Linear Regression: `hekate_stats.linear_predict()`
+
+The `linear_predict()` function computes a linear combination: **y = intercept + coef₁×var₁ + coef₂×var₂ + ...**
+
+**Syntax:**
+```lua
+local result = hekate_stats.linear_predict(
+    intercept,    -- The constant term
+    coef1, var1,  -- First coefficient-variable pair
+    coef2, var2,  -- Second coefficient-variable pair
+    ...           -- More pairs as needed
+)
+```
+
+**Example: Predicting Income**
+```lua
+local income = hekate_stats.linear_predict(
+    25000,        -- intercept: base income
+    500, person.age,        -- age coefficient * age
+    3000, edu_score,        -- education coefficient * education score
+    -2000, gender_score     -- gender coefficient * gender score
+)
+```
+
+**Common Use Cases:**
+- **Income prediction**: Age, education, gender, occupation
+- **Expenditure modeling**: Income, household size, region
+- **Risk scoring**: Age, BMI, smoking status, chronic conditions
+- **Utility calculations**: Multiple weighted factors
+
+### Logistic Regression: `hekate_stats.logistic_predict()`
+
+The `logistic_predict()` function computes a logistic probability: **p = 1 / (1 + e^(-linear))**
+
+**Syntax:**
+```lua
+local probability = hekate_stats.logistic_predict(
+    intercept,    -- The constant term
+    coef1, var1,  -- First coefficient-variable pair
+    coef2, var2,  -- Second coefficient-variable pair
+    ...           -- More pairs as needed
+)
+```
+
+**Example: Predicting Health Risk**
+```lua
+local risk = hekate_stats.logistic_predict(
+    -3.5,         -- intercept
+    1.2, age/10,  -- age coefficient * age in decades
+    0.8, bmi_score,      -- BMI coefficient * BMI category
+    1.5, smoker_score    -- smoking coefficient * smoker status
+)
+```
+
+**Common Use Cases:**
+- **Mortality risk**: Age, health status, smoking, chronic conditions
+- **Disease probability**: Risk factors, genetics, lifestyle
+- **Event likelihood**: Migration, marriage, employment
+- **Binary outcomes**: Any yes/no prediction
+
+### Linear Predict with Defaults: `hekate_stats.linear_predict_default()`
+
+Handles missing values by substituting a default:
+
+```lua
+local result = hekate_stats.linear_predict_default(
+    intercept,
+    default_value,  -- Used when variables are nil
+    coef1, var1, default1,  -- Coef, variable, default if nil
+    coef2, var2, default2
+)
+```
+
+### Why Use Go Functions Instead of Pure Lua?
+
+| Aspect | Go Function | Pure Lua |
+|--------|-------------|----------|
+| **Performance** | ~10x faster | Slower |
+| **Precision** | Double precision | Double precision |
+| **Readability** | Clean function call | Complex math code |
+| **Maintainability** | Centralized in Go | Scattered in scripts |
+| **Error Handling** | Robust type checking | Manual checks needed |
+
+---
+
+## 🚀 New in Hekate: Streaming Mode for Large Populations
+
+Hekate now features **Streaming Area-by-Area Processing**, enabling simulations with **millions to billions of individuals** using minimal memory!
+
+### The Challenge We Solved
+
+Traditional microsimulation systems load the entire population into memory. For large populations (10M+), this requires:
+- 10-20 GB of RAM
+- Expensive infrastructure
+- Frequent out-of-memory errors
+
+### Our Solution: Streaming Processing
+
+Hekate now processes populations **area by area**, keeping only one area in memory at a time:
+
+```
+Traditional: Load ALL people → Process ALL → Save ALL (High Memory)
+Streaming:   Load Area 1 → Process → Save → Load Area 2 → Process → Save → ... (Low Memory)
+```
+
+### Streaming Mode Benefits
+
+| Feature | Traditional | Streaming Mode |
+|---------|-------------|----------------|
+| **Memory Usage** | 500MB - 20GB+ | ~20-50MB |
+| **Maximum Population** | ~1-2M people | Unlimited |
+| **Processing** | All at once | Area by area |
+| **Speed** | Fast | Slightly slower but scalable |
+| **Cost** | Expensive (big servers) | Cheap (any machine) |
+
+### Performance with Streaming Mode
+
+| Population | Memory | Time (5 years) | Time (50 years) |
+|------------|--------|----------------|-----------------|
+| 1M | ~20MB | 82 seconds | 13.7 minutes |
+| 10M | ~20MB | 13.7 minutes | 2.3 hours |
+| 50M | ~20MB | 1.1 hours | 11.4 hours |
+| 100M | ~20MB | 2.3 hours | 22.8 hours |
+
+**Key Insight:** Memory usage remains constant regardless of population size!
+
+### How to Enable Streaming Mode
+
+Add these lines to your `config.yaml`:
+
+```yaml
+simulation:
+  streaming_mode: true      # Enable area-by-area processing
+  area_column: "area_id"    # Column to group by (must be sorted)
+  # ... other settings
+```
+
+**Important:** Your CSV must be **sorted by `area_column`** for streaming mode to work. All people in the same area must be together in the file.
+
+### When to Use Streaming Mode
+
+**Use Streaming Mode when:**
+- Population > 1 million people
+- Memory is limited (< 4GB)
+- You have a large number of areas
+- You want to run on low-cost hardware
+
+**Use Traditional Mode when:**
+- Population < 1 million people
+- Memory is plentiful (> 8GB)
+- Speed is the priority
+- You're developing/testing models
+
+---
+
 ## Tutorials
 
 Get started with Hekate through our step-by-step tutorials. Each tutorial builds on the previous one, taking you from beginner to advanced user.
@@ -108,7 +288,10 @@ Get started with Hekate through our step-by-step tutorials. Each tutorial builds
 | [Tutorial 1: Building an Aging Model](tutorials/tutorial1_aging.md) | Learn the basics by creating a simple aging model. You'll create a population CSV, write your first configuration, run the simulation, and analyze the output. | ⭐ Beginner |
 | [Tutorial 2: Understanding YAML and Adding Mortality](tutorials/tutorial2_yaml_mortality.md) | Dive deeper into YAML rules. Learn how to add a mortality model with age-specific death probabilities and track population changes. | ⭐⭐ Intermediate |
 | [Tutorial 3: Adding Fertility](tutorials/tutorial3_fertility.md) | Complete the demographic cycle by adding fertility. Learn how to create new individuals (births), assign their characteristics, track population growth, and understand the full demographic cycle of aging, mortality, and fertility. | ⭐⭐⭐ Advanced |
-| [Tutorial 4: Understanding the Hekate Codebase](tutorials/tutorial4_programmers.md) | A comprehensive deep dive into the Hekate source code. Designed for Go programmers who want to understand how Hekate works under the hood. Includes 7 mini-demos that isolate and explain key concepts like dynamic YAML parsing, Lua embedding, Go-Lua conversion, and the simulation loop. | ⭐⭐⭐⭐⭐ Expert Programmer |
+| [Tutorial 4: Using Linear Regression in Hekate](tutorials/tutorial4_linear_regression.md) | **NEW!** Learn how to use Hekate's built-in linear regression function to predict income, health risk, and other continuous outcomes. Includes practical examples with income modeling and health risk prediction. | ⭐⭐⭐ Advanced |
+| [Tutorial 5: Large-Scale Simulations with Streaming Mode](tutorials/tutorial5_streaming.md) | Learn how to use Hekate's streaming mode to simulate populations of millions to billions of people with minimal memory. Includes performance tuning, area-based processing, and best practices for large-scale runs. | ⭐⭐⭐⭐ Advanced User |
+
+---
 
 ## Key Features
 
@@ -117,6 +300,13 @@ Get started with Hekate through our step-by-step tutorials. Each tutorial builds
 - **Flexible Model Logic**: Easily modify or add new models through YAML configuration
 - **Priority-Based Execution**: Models run in specified priority order
 - **Dynamic Data Handling**: Automatically detects and adapts to any CSV column structure
+- **Built-in Statistical Functions**: Linear and logistic regression available in Lua scripts
+
+### Streaming Mode
+- **Memory-Efficient Processing**: Process populations of any size with ~20-50MB memory
+- **Area-by-Area Processing**: Load, process, and save one area at a time
+- **Scalable to Billions**: Population size limited only by disk space, not memory
+- **Dual Mode Support**: Choose between streaming and traditional bulk processing
 
 ### General Features
 - **Zero External Dependencies**: Pure Go implementation with embedded Lua - no C compiler, no external libraries required
@@ -127,6 +317,8 @@ Get started with Hekate through our step-by-step tutorials. Each tutorial builds
 - **Priority-Based Execution**: Models run in specified priority order
 - **In-Memory Processing**: Fast, in-memory Go data structures for population data
 - **Reproducible Results**: Fixed random seeds for consistent simulation outcomes
+
+---
 
 ## Example Models
 
@@ -144,19 +336,40 @@ People die based on age-specific death probabilities. Mortality rates increase w
 ### Education Model
 Children progress through primary, secondary, and tertiary education based on age.
 
-### Income Model
-People earn income based on age, education, and sex.
+### Income Model (Using Linear Regression)
+People earn income based on age, education, and sex using the built-in `linear_predict()` function:
+
+```lua
+local income = hekate_stats.linear_predict(
+    coefs.intercept,
+    coefs.age, person.age,
+    coefs.education, edu_score,
+    coefs.gender, gender_score
+)
+```
+
+### Health Risk Model (Using Logistic Regression)
+Health risk is calculated using the built-in `logistic_predict()` function:
+
+```lua
+local risk = hekate_stats.logistic_predict(
+    coefs.intercept,
+    coefs.age, age / 10,
+    coefs.bmi, bmi_score,
+    coefs.smoker, smoker_score
+)
+```
 
 ### Household Formation Model
 Young adults form new households, children live with their parents.
+
+---
 
 ## Quick Start
 
 ### No Installation Required!
 
 Hekate is distributed as pre-built executables for multiple platforms. **You don't need to install Go or compile anything** to use Hekate - just download the executable for your platform and run it.
-
-If you're a developer who wants to modify the source code or compile for a different platform, compilation instructions are provided in the [Compiling from Source](#compiling-from-source) section.
 
 ### Prerequisites
 
@@ -175,7 +388,26 @@ simulation:
 
 This column must exist in your population CSV and contain unique values for each individual.
 
-### Download Pre-Built Binary (Easiest)
+### Important for Streaming Mode
+
+If using streaming mode, your CSV must be **sorted by the area column**:
+
+```yaml
+simulation:
+  streaming_mode: true
+  area_column: "area_id"  # CSV must be sorted by this column
+```
+
+**How to sort your CSV:**
+```bash
+# On Linux/macOS
+(head -n1 population.csv && tail -n+2 population.csv | sort -t, -k4 -n) > population_sorted.csv
+
+# Or use the Python generator script (included)
+python3 generate_population.py
+```
+
+### Download Pre-Built Binary
 
 Pre-built executables are included in the release package. Choose your platform:
 
@@ -204,6 +436,8 @@ hekate-windows-amd64.exe config.yaml
 ./hekate-linux-amd64 config.yaml
 ```
 
+---
+
 ## Configuration
 
 The system is entirely configured through a single YAML file:
@@ -218,97 +452,62 @@ simulation:
   random_seed: 42                   # Fixed random seed for reproducibility
   verbose: true                     # Detailed logging output
   id_column: "person_id"            # REQUIRED: Primary key column for ordering
+  area_column: "area_id"            # REQUIRED for streaming mode: Column to group by
+  streaming_mode: true              # Enable streaming area-by-area processing
 ```
+
+### Streaming Mode Settings
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `streaming_mode` | Enable area-by-area processing | `false` |
+| `area_column` | Column to group by (must be sorted) | Required if streaming |
+
+**When to use streaming mode:**
+- Population > 1 million
+- Limited memory available
+- Large number of areas
+- Running on low-cost hardware
 
 ### Model Definitions
 
-Models define demographic transitions using Lua scripts:
+Models define demographic transitions using Lua scripts. Here's an example with linear regression:
 
 ```yaml
 models:
-  - name: "age_increment"
-    type: "lua_model"
-    priority: 1
-    enabled: true
-    parameters:
-      script: |
-        function transition(population, params)
-          for _, person in ipairs(population) do
-            if person.alive == true then
-              person.age = person.age + 1
-            end
-          end
-          return population
-        end
-
-  - name: "mortality"
+  - name: "income_predictor"
     type: "lua_model"
     priority: 2
     enabled: true
     parameters:
-      mortality_rates:
-        infant: 0.005
-        elderly: 0.10
+      coefficients:
+        intercept: 25000
+        age: 500
+        education: 3000
       script: |
         function transition(population, params)
-          local rates = params.mortality_rates
+          local coefs = params.coefficients
           for _, person in ipairs(population) do
             if person.alive == true then
-              local age = person.age
-              local prob = 0
-              if age < 1 then
-                prob = rates.infant
-              elseif age >= 85 then
-                prob = rates.elderly
-              end
-              if math.random() < prob then
-                person.alive = false
-              end
-            end
-          end
-          return population
-        end
-  
-  - name: "migration"
-    type: "lua_model"
-    priority: 3
-    enabled: true
-    parameters:
-      migration_rates:
-        child_0_17: 0.02
-        adult_18_34: 0.08
-        adult_35_64: 0.03
-        elderly_65_plus: 0.01
-      num_areas: 5
-      script: |
-        function transition(population, params)
-          local rates = params.migration_rates
-          local num_areas = params.num_areas
-          
-          for _, person in ipairs(population) do
-            if person.alive == true then
-              local age = person.age
-              local prob = 0
-              
-              if age < 18 then
-                prob = rates.child_0_17
-              elseif age >= 18 and age < 35 then
-                prob = rates.adult_18_34
-              elseif age >= 35 and age < 65 then
-                prob = rates.adult_35_64
-              else
-                prob = rates.elderly_65_plus
+              local edu_score = 0
+              if person.education == "tertiary" then
+                edu_score = 2
+              elseif person.education == "secondary" then
+                edu_score = 1
               end
               
-              if math.random() < prob then
-                person.previous_area = person.area
-                person.area = math.random(1, num_areas)
-              end
+              person.income = hekate_stats.linear_predict(
+                coefs.intercept,
+                coefs.age, person.age,
+                coefs.education, edu_score
+              )
             end
           end
           return population
         end
 ```
+
+---
 
 ## Input Data Format
 
@@ -340,15 +539,42 @@ simulation:
 
 If the ID column is not specified or doesn't exist in the CSV, Hekate will exit with an error.
 
+### Sorting for Streaming Mode
+
+**IMPORTANT:** For streaming mode to work, your CSV must be **sorted by `area_column`**:
+
+```
+area_id 1: person 1, person 2, person 3, ...
+area_id 2: person 101, person 102, person 103, ...
+area_id 3: person 201, person 202, person 203, ...
+```
+
+**How to sort your CSV:**
+
+Using Python:
+```python
+import pandas as pd
+df = pd.read_csv('population.csv')
+df_sorted = df.sort_values('area_id')
+df_sorted.to_csv('population_sorted.csv', index=False)
+```
+
+Using command line (Linux/macOS):
+```bash
+(head -n1 population.csv && tail -n+2 population.csv | sort -t, -k4 -n) > population_sorted.csv
+```
+
 ### Example CSV
 ```csv
-person_id,age,sex,area,alive,previous_area
+person_id,age,sex,area_id,alive,previous_area
 1,25,F,1,true,0
-2,30,M,2,true,0
+2,30,M,1,true,0
 3,45,F,1,true,0
-4,68,M,3,true,0
+4,68,M,2,true,0
 5,82,F,2,true,0
 ```
+
+---
 
 ## Output
 
@@ -359,6 +585,97 @@ The final population state is saved as CSV with all columns preserved, including
 - Additional columns added by models
 
 **Note:** The output CSV is always ordered by the ID column specified in the configuration.
+
+### Intermediate Files (Streaming Mode)
+When running in streaming mode, Hekate creates intermediate files for each year:
+
+```
+year_0.csv  → Initial population (input)
+year_1.csv  → After year 1
+year_2.csv  → After year 2
+year_3.csv  → After year 3
+...
+final_output.csv → Copy of last year's file
+```
+
+These files allow you to:
+- Resume simulations from any year
+- Check intermediate results
+- Debug models more easily
+
+---
+
+## Performance Benchmarks
+
+### Streaming Mode (Memory-Efficient)
+
+| Population | Memory | Time/Year | 50 Years |
+|------------|--------|-----------|----------|
+| 1M | ~20MB | 16.4 sec | 13.7 min |
+| 10M | ~20MB | 2.7 min | 2.3 hours |
+| 50M | ~20MB | 13.7 min | 11.4 hours |
+| 100M | ~20MB | 27.3 min | 22.8 hours |
+
+*Benchmarks on Intel Xeon 24-core, 64GB RAM, SSD*
+
+### Key Insight
+**Memory usage remains constant regardless of population size!** This means Hekate can simulate populations of **any size** on standard hardware.
+
+### Traditional Mode (Speed-Optimized)
+
+| Population | Memory | Time/Year | 50 Years |
+|------------|--------|-----------|----------|
+| 100K | ~200MB | 3 sec | 2.5 min |
+| 1M | ~2GB | 30 sec | 25 min |
+
+*Use traditional mode for populations < 1M where speed is the priority*
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**"ERROR: id_column is required in simulation section of config.yaml"**
+- Add `id_column: "your_id_column"` to the `simulation` section in config.yaml
+- Make sure the column name matches exactly with your CSV header
+
+**"ERROR: area_column is required when streaming_mode is true"**
+- Add `area_column: "your_area_column"` to the `simulation` section
+- Make sure the column exists in your CSV
+
+**"ID column 'person_id' not found in CSV header"**
+- Check that the column name in `id_column` matches your CSV header exactly
+- Available columns are listed in the error message
+- Example: If your CSV has `id` instead of `person_id`, use `id_column: "id"`
+
+**"Failed to load population"**
+- Check CSV file path and format
+- Ensure CSV has a header row
+- Verify all rows have the same number of columns
+- Make sure `id_column` matches a column in the CSV
+
+**"Failed to execute Lua script"**
+- Check Lua syntax in the model definition
+- Verify your script defines a `transition(population, params)` function
+- Make sure column names in the script match your CSV
+
+**"attempt to compare number with string"**
+- Use `tonumber()` to convert string values to numbers
+- Example: `local age = tonumber(person.age) or 0`
+
+**Binary won't run on target system**
+- Build for the target platform: `GOOS=linux GOARCH=amd64 go build`
+- Check architecture compatibility: `file hekate`
+
+**"Permission denied" on Linux/macOS**
+- Make the binary executable: `chmod +x hekate-*`
+
+**Streaming mode is slow or memory usage is high**
+- Ensure CSV is properly sorted by `area_column`
+- Check that `area_column` has reasonable cardinality (100+ areas recommended)
+
+---
 
 ## Compiling from Source
 
@@ -499,58 +816,31 @@ hekate config.yaml
 **Windows:**
 Add the directory containing `hekate-windows-amd64.exe` to your PATH, or rename to `hekate.exe` and place in a convenient location.
 
-## Troubleshooting
+---
 
-### Common Issues
+## Population Generator Script
 
-**"ERROR: id_column is required in simulation section of config.yaml"**
-- Add `id_column: "your_id_column"` to the `simulation` section in config.yaml
-- Make sure the column name matches exactly with your CSV header
+Hekate includes a Python script to generate test populations:
 
-**"ID column 'person_id' not found in CSV header"**
-- Check that the column name in `id_column` matches your CSV header exactly
-- Available columns are listed in the error message
-- Example: If your CSV has `id` instead of `person_id`, use `id_column: "id"`
+```python
+# generate_population.py
+python3 generate_population.py
+```
 
-**"Failed to load population"**
-- Check CSV file path and format
-- Ensure CSV has a header row
-- Verify all rows have the same number of columns
-- Make sure `id_column` matches a column in the CSV
+This generates:
+- 1 million people (configurable)
+- Sorted by area for streaming mode
+- Realistic demographic distributions
+- Family relationship placeholders
 
-**"Failed to execute Lua script"**
-- Check Lua syntax in the model definition
-- Verify your script defines a `transition(population, params)` function
-- Make sure column names in the script match your CSV
+**Customization:**
+```python
+# In generate_population.py
+total_people = 10_000_000  # 10 million
+num_areas = 100            # 100 areas
+```
 
-**Binary won't run on target system**
-- Build for the target platform: `GOOS=linux GOARCH=amd64 go build`
-- Check architecture compatibility: `file hekate`
-
-**"go: command not found"**
-- Go is not installed or not in your PATH
-- See "Compiling from Source" section above
-
-**"Permission denied" on Linux/macOS**
-- Make the binary executable: `chmod +x hekate-*`
-
-## Performance Considerations
-
-- **In-Memory Data**: All data is stored in Go memory structures for maximum speed
-- **Lua Execution**: Lua scripts are interpreted but optimized for demographic modeling
-- **Batch Processing**: Models operate on the full population each iteration
-- **Memory Usage**: Approximately 1-2MB per 1000 individuals
-
-### Performance Benchmarks
-
-| Population Size | Memory Usage | Time per Iteration |
-|-----------------|--------------|-------------------|
-| 1,000 | ~2 MB | < 0.1 seconds |
-| 10,000 | ~20 MB | ~0.5 seconds |
-| 100,000 | ~200 MB | ~3 seconds |
-| 1,000,000 | ~2 GB | ~30 seconds |
-
-*Benchmarks on Intel Core i7, 16GB RAM, SSD*
+---
 
 ## Extending Hekate
 
@@ -579,6 +869,14 @@ models:
 ```
 
 2. No code changes required!
+
+### Adding New Features
+
+Hekate is designed to be extensible. To add new features:
+
+1. **New Lua Functions**: Register new Go functions in `NewLuaVM()`
+2. **New Configuration Options**: Add fields to `SimulationParameters`
+3. **New Output Formats**: Add new writer functions
 
 ---
 

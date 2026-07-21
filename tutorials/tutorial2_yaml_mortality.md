@@ -2,7 +2,7 @@
 
 ## Overview
 
-In this tutorial, we'll dive deeper into YAML and Lua. You'll learn how YAML rules work, how to add a mortality model to your simulation, and how to track population changes.
+In this tutorial, we'll dive deeper into YAML and Lua. You'll learn how YAML rules work, how to add a mortality model to your simulation, and how to track population changes. We'll keep using **Bulk Mode** (simple, loads everything into memory).
 
 ## What You'll Learn
 
@@ -10,6 +10,7 @@ By the end of this tutorial, you'll be able to:
 - Understand YAML formatting rules
 - Write a mortality model using Lua
 - Understand Lua in plain English
+- Add areas to your population data
 
 ## Prerequisites
 
@@ -107,7 +108,7 @@ end
 
 ```csv
 # CSV column names
-person_id,age,sex,area,alive
+person_id,age,sex,area_id,alive
 ```
 
 ```lua
@@ -144,8 +145,8 @@ Before we write more Lua, let's understand what Lua does in plain English.
 
 Think of your population as a list of people, where each person has properties:
 
-| person_id | age | sex | area | alive |
-|-----------|-----|-----|------|-------|
+| person_id | age | sex | area_id | alive |
+|-----------|-----|-----|---------|-------|
 | 1 | 25 | F | 1 | true |
 | 2 | 30 | M | 1 | true |
 | 3 | 45 | F | 1 | true |
@@ -182,8 +183,6 @@ Now let's add a mortality model to our simulation. This will make our model more
 **In plain English:** "Each year, check every person. If they are alive and under 30, there's a 0.1% chance they die. If they are alive and 30 or over, there's a 5% chance they die. If they die, mark them as dead."
 
 ### The Mortality Model in YAML with Lua
-
-Here's the mortality model as it appears in your `config.yaml`:
 
 ```yaml
 # Model 2: Mortality (runs second)
@@ -240,7 +239,9 @@ Here's the mortality model as it appears in your `config.yaml`:
 
 **What is `math.random()`?** In Lua, `math.random()` generates a random number between 0 and 1. So `math.random() < 0.001` means "there's a 0.1% chance this is true" (like flipping a weighted coin).
 
-### Creating the Full Configuration
+---
+
+## Part 4: Creating the Full Configuration
 
 Here's our complete configuration with both aging and mortality:
 
@@ -255,6 +256,7 @@ simulation:
   random_seed: 42
   verbose: true
   id_column: "person_id"
+  streaming_mode: false   # Use bulk mode (simple, fast for small populations)
 
 models:
   # Model 1: Age increment (runs first)
@@ -311,43 +313,134 @@ Notice we have **two models** now:
 
 **Why this order?** We want people to age first, then we check if they die at their new age. Someone who turns 30 this year should now face the higher 30+ mortality rate.
 
-### Running the Simulation
+---
 
-Save the configuration as `config_aging_mortality.yaml` and run it:
+## Part 5: Adding Areas to Your Population
+
+### Adding an Area Column
+
+Your CSV already has an `area_id` column from Tutorial 1:
+
+```csv
+person_id,age,sex,area_id,alive
+1,25,F,1,true
+2,30,M,1,true
+3,45,F,1,true
+4,68,M,1,true
+5,82,F,1,true
+6,2,M,2,true
+7,15,F,2,true
+8,35,M,2,true
+9,55,F,2,true
+10,70,M,2,true
+```
+
+**What is `area_id`?** It's a column that groups people by geographic area. In this case, area 1 and area 2.
+
+**Why include `area_id` even though we're in Bulk Mode?**
+1. It's good practice for when you move to larger populations
+2. It allows you to analyze results by area
+3. It prepares your data for future streaming mode (covered in Tutorial 5)
+
+### Area-Specific Mortality (Optional)
+
+If you want to experiment with area-specific rates, here's how:
+
+```yaml
+# Model 2: Area-specific mortality
+- name: "mortality"
+  type: "lua_model"
+  priority: 2
+  enabled: true
+  parameters:
+    script: |
+      function transition(population, params)
+        for _, person in ipairs(population) do
+          if person.alive == true then
+            local age = person.age
+            local area = person.area_id
+            local prob = 0
+            
+            -- Different rates by area
+            if area == 1 then
+              -- Area 1: Lower mortality
+              if age < 30 then
+                prob = 0.0005
+              else
+                prob = 0.03
+              end
+            elseif area == 2 then
+              -- Area 2: Higher mortality
+              if age < 30 then
+                prob = 0.002
+              else
+                prob = 0.08
+              end
+            else
+              -- Default rates
+              if age < 30 then
+                prob = 0.001
+              else
+                prob = 0.05
+              end
+            end
+            
+            if math.random() < prob then
+              person.alive = false
+            end
+          end
+        end
+        return population
+      end
+```
+
+**What this does in plain English:**
+- "If the person is in Area 1, they have lower death rates (0.05% for young, 3% for older)"
+- "If the person is in Area 2, they have higher death rates (0.2% for young, 8% for older)"
+
+---
+
+## Part 6: Running Your Simulation
+
+### Step 1: Use the Population CSV from Tutorial 1
+
+Make sure you have `population.csv` with `area_id` column:
+
+```csv
+person_id,age,sex,area_id,alive
+1,25,F,1,true
+2,30,M,1,true
+3,45,F,1,true
+4,68,M,1,true
+5,82,F,1,true
+6,2,M,2,true
+7,15,F,2,true
+8,35,M,2,true
+9,55,F,2,true
+10,70,M,2,true
+```
+
+### Step 2: Save the Configuration
+
+Save the full configuration from Part 4 as `config_aging_mortality.yaml`.
+
+### Step 3: Run It
 
 ```bash
 ./hekate config_aging_mortality.yaml
 ```
 
-### Expected Output
+### Step 4: Check the Results
 
-```
-2024/01/15 10:00:00 ═══ Hekate: Microsimulation Engine ═══
-2024/01/15 10:00:00 Iterations: 5
-...
-2024/01/15 10:00:00 ═══ Iteration 1/5 ═══
-2024/01/15 10:00:00   ▶ age_increment
-2024/01/15 10:00:00   ▶ mortality
+Open `population_aged_mortality.csv` and compare it to the original `population.csv`.
 
-2024/01/15 10:00:00 ═══ Iteration 2/5 ═══
-2024/01/15 10:00:00   ▶ age_increment
-2024/01/15 10:00:00   ▶ mortality
-
-...
-
-2024/01/15 10:00:00 ═══ Iteration 5/5 ═══
-2024/01/15 10:00:00   ▶ age_increment
-2024/01/15 10:00:00   ▶ mortality
-
-2024/01/15 10:00:00 ═══ Simulation Complete ═══
-2024/01/15 10:00:00 Results saved to population_aged_mortality.csv
-```
-
-Notice that the total population stays at 10, but some people are now marked as dead. They remain in the dataset but are excluded from future aging and mortality calculations. You can check this by examining the output CSV.
+You should see:
+- Ages increased by 5 years
+- Some people may have died (marked `false` in `alive`)
 
 ---
 
-## Part 4: What You've Accomplished
+## Part 7: What You've Accomplished
 
 Congratulations! You've now learned:
 
@@ -366,6 +459,11 @@ Congratulations! You've now learned:
    - Applied age-specific death probabilities
    - Used `math.random()` for probabilistic events
    - Understood priority ordering (age first, then mortality)
+
+4. ✅ **Areas**:
+   - Added area-based data to your CSV
+   - Learned about area-specific models
+   - Prepared your data for future expansion
 
 ---
 
@@ -390,14 +488,22 @@ In this tutorial, you've learned:
    - Used `math.random()` for probabilistic events
    - Understood priority ordering (age first, then mortality)
 
+4. **Areas**:
+   - Added area-based data to your CSV
+   - Learned about area-specific models
+   - Prepared your data for future expansion
+
+---
+
 ## Next Steps
 
 In the next tutorial, you'll learn how to:
 - Add fertility (births) to your model
 - Track population growth
-- Work with household-level data
 - Create complex models like household formation
+
+In Tutorial 5, we'll finally cover **Streaming Mode** for large populations.
 
 ---
 
-**Well done for completing Tutorial 2!** You now understand YAML rules, can write Lua models, and have built a working aging and mortality model. You're ready for more complex models.
+**Well done for completing Tutorial 2!** You now understand YAML rules, can write Lua models, have built a working aging and mortality model, and know how to work with areas. You're ready for more complex models!

@@ -1,16 +1,17 @@
-# Talos Tutorial 3: Adding Fertility
+# Hekate Tutorial 3: Adding Fertility
 
 ## Overview
 
-In this tutorial, you'll learn how to add fertility to your demographic model. We'll build on the aging and mortality model from Tutorial 2, adding births to create a more complete population simulation. You'll learn how to create new individuals, assign their characteristics, and track population growth.
+In this tutorial, you'll learn how to add fertility to your demographic model. We'll build on the aging and mortality model from Tutorial 2, adding births to create a more complete population simulation. You'll learn how to create new individuals, assign their characteristics, track population growth, and work with family relationships.
 
 ## What You'll Learn
 
 By the end of this tutorial, you'll be able to:
 - Add a fertility model to your simulation
 - Create new individuals (births) with appropriate characteristics
-- Understand how to work with household-level data
+- Understand how to work with family relationships
 - Write complex Lua models that modify the population
+- Track population growth across areas
 
 ## Prerequisites
 
@@ -25,6 +26,7 @@ By the end of this tutorial, you'll be able to:
 So far we have:
 - ✅ **Aging**: Everyone gets older each year
 - ✅ **Mortality**: Some people die based on their age
+- ✅ **Areas**: Population is organized by geographic areas
 
 Now we'll add:
 - **Fertility**: Women of childbearing age can give birth
@@ -61,7 +63,7 @@ table.insert(newborns, {
   person_id = 11,
   age = 0,
   sex = "F",
-  area = 1,
+  area_id = 1,
   alive = true
 })
 ```
@@ -75,7 +77,7 @@ local baby = {
   person_id = 11,
   age = 0,
   sex = "F",
-  area = 1,
+  area_id = 1,
   alive = true
 }
 ```
@@ -133,8 +135,13 @@ function transition(population, params)
             person_id = max_id,
             age = 0,
             sex = math.random() < 0.5 and "F" or "M",
-            area = person.area,
-            alive = true
+            area_id = person.area_id,
+            alive = true,
+            previous_area = 0,
+            partner_id = 0,
+            mother_id = person.person_id,
+            father_id = 0,
+            parity = 0
           }
           table.insert(newborns, baby)
         end
@@ -170,45 +177,6 @@ end
 | `table.insert(newborns, baby)` | Add to list | "...add the baby to the list of newborns" |
 | `table.insert(population, baby)` | Add to population | "...add the baby to the population" |
 
-### Understanding the New ID Generation
-
-```lua
--- Find the maximum ID
-local max_id = 0
-for _, person in ipairs(population) do
-  if person.person_id ~= nil and person.person_id > max_id then
-    max_id = person.person_id
-  end
-end
-
--- Then later, when creating a baby:
-max_id = max_id + 1
-local baby = {
-  person_id = max_id,
-  ...
-}
-```
-
-**Why do we need this?** We need unique IDs for each new person. If the highest ID is 10, the next should be 11, then 12, etc.
-
-### Understanding Random Sex Assignment
-
-```lua
-sex = math.random() < 0.5 and "F" or "M"
-```
-
-**In plain English:** "Flip a coin. If it's heads (50% chance), the baby is female. Otherwise, the baby is male."
-
-This is a Lua shorthand for:
-
-```lua
-if math.random() < 0.5 then
-  sex = "F"
-else
-  sex = "M"
-end
-```
-
 ---
 
 ## Part 4: Adding Fertility to Our Configuration
@@ -226,6 +194,7 @@ simulation:
   random_seed: 42
   verbose: true
   id_column: "person_id"
+  streaming_mode: false   # Use bulk mode (simple for small populations)
 
 models:
   # Model 1: Age increment (runs first)
@@ -303,8 +272,13 @@ models:
                     person_id = max_id,
                     age = 0,
                     sex = math.random() < 0.5 and "F" or "M",
-                    area = person.area,
-                    alive = true
+                    area_id = person.area_id,
+                    alive = true,
+                    previous_area = 0,
+                    partner_id = 0,
+                    mother_id = person.person_id,
+                    father_id = 0,
+                    parity = 0
                   }
                   table.insert(newborns, baby)
                 end
@@ -327,19 +301,19 @@ models:
 Save the configuration as `config_aging_mortality_fertility.yaml` and run it:
 
 ```bash
-./talos config_aging_mortality_fertility.yaml
+./hekate config_aging_mortality_fertility.yaml
 ```
 
 ### Expected Output
 
 ```
-2024/01/15 10:00:00 ═══ Talos-Pure: Migration Microsimulation ═══
+2024/01/15 10:00:00 ═══ Hekate: Microsimulation Engine ═══
 2024/01/15 10:00:00 Iterations: 10
 2024/01/15 10:00:00 Population file: population.csv
 2024/01/15 10:00:00 ID column: person_id
+2024/01/15 10:00:00 Mode: BULK (load all into memory)
 2024/01/15 10:00:00 Models loaded: 3
 2024/01/15 10:00:00 Loaded 10 individuals with 4 columns
-2024/01/15 10:00:00 Columns: [person_id age sex area alive]
 2024/01/15 10:00:00 Enabled models: 3
 2024/01/15 10:00:00   - age_increment (priority: 1)
 2024/01/15 10:00:00   - mortality (priority: 2)
@@ -350,17 +324,7 @@ Save the configuration as `config_aging_mortality_fertility.yaml` and run it:
 2024/01/15 10:00:00   ▶ mortality
 2024/01/15 10:00:00   ▶ fertility
 
-2024/01/15 10:00:00 ═══ Iteration 5/10 ═══
-2024/01/15 10:00:00   ▶ age_increment
-2024/01/15 10:00:00   ▶ mortality
-2024/01/15 10:00:00   ▶ fertility
-
 ...
-
-2024/01/15 10:00:00 ═══ Iteration 10/10 ═══
-2024/01/15 10:00:00   ▶ age_increment
-2024/01/15 10:00:00   ▶ mortality
-2024/01/15 10:00:00   ▶ fertility
 
 2024/01/15 10:00:00 ═══ Simulation Complete ═══
 2024/01/15 10:00:00 Results saved to population_complete.csv
@@ -412,36 +376,7 @@ End of Year
 
 ---
 
-## Part 7: Examining the Output CSV
-
-After running the simulation, open `population_complete.csv`:
-
-```csv
-person_id,age,sex,area,alive
-1,35,F,1,true
-2,40,M,1,true
-3,55,F,1,true
-4,78,M,1,true
-5,92,F,1,true
-6,12,M,1,true
-7,25,F,1,true
-8,45,M,1,true
-9,65,F,1,true
-10,80,M,1,false
-11,5,M,1,true
-12,3,F,1,true
-13,0,F,1,true
-14,0,M,1,true
-```
-
-**Notice:**
-- Person 10 is now dead (`alive = false`)
-- Person 11-14 are new (they weren't in the original population)
-- Persons 13 and 14 are age 0 (newborns from the final year)
-
----
-
-## Part 8: Advanced Fertility - Age-Specific Rates
+## Part 7: Advanced Fertility - Age-Specific Rates
 
 ### The Problem
 
@@ -492,8 +427,13 @@ function transition(population, params)
           person_id = max_id,
           age = 0,
           sex = math.random() < 0.5 and "F" or "M",
-          area = person.area,
-          alive = true
+          area_id = person.area_id,
+          alive = true,
+          previous_area = 0,
+          partner_id = 0,
+          mother_id = person.person_id,
+          father_id = 0,
+          parity = 0
         }
         table.insert(newborns, baby)
       end
@@ -522,59 +462,20 @@ end
 
 ---
 
-## Part 9: Advanced Fertility - Copying Mother's Characteristics
+## Part 8: Area-Specific Fertility
 
 ### The Problem
 
-In our current model, babies only inherit the mother's area. But in reality, babies inherit many characteristics from their parents.
+Different areas might have different fertility rates due to cultural, economic, or policy differences.
 
 ### What We Want to Do
 
-**In plain English:** "When a baby is born, copy the mother's ethnicity, education, and other characteristics to the baby."
-
-### The Updated CSV with Mother's Characteristics
-
-First, let's create a population file with the additional columns needed. Create a file called `population_with_ethnicity.csv`:
-
-```csv
-person_id,age,sex,area,alive,ethnicity,education,income
-1,25,F,1,true,White,tertiary,45000
-2,30,M,1,true,White,secondary,35000
-3,45,F,1,true,Asian,tertiary,52000
-4,68,M,1,true,Black,secondary,28000
-5,82,F,1,true,White,primary,15000
-6,2,M,1,true,Asian,primary,0
-7,15,F,1,true,White,secondary,0
-8,35,M,1,true,Black,tertiary,48000
-9,55,F,1,true,Asian,secondary,32000
-10,70,M,1,true,White,primary,18000
-11,5,F,1,true,Asian,primary,0
-12,40,M,1,true,Black,tertiary,55000
-13,60,F,1,true,White,secondary,30000
-14,75,M,1,true,Asian,primary,12000
-15,20,F,1,true,White,secondary,25000
-```
-
-**Columns explained:**
-
-| Column | Description |
-|--------|-------------|
-| `person_id` | Unique identifier for each individual |
-| `age` | Age in years |
-| `sex` | Gender (M/F) |
-| `area` | Geographic area (1-5) |
-| `alive` | Whether the person is alive (true/false) |
-| `ethnicity` | Ethnic group (White, Asian, Black, etc.) |
-| `education` | Highest education level (primary, secondary, tertiary) |
-| `income` | Annual income |
+**In plain English:** "Area 1 has low fertility (3%), Area 2 has high fertility (8%), and other areas have moderate fertility (5%)."
 
 ### The Updated Lua Script
 
-Now, update the fertility script to copy these characteristics from the mother:
-
 ```lua
 function transition(population, params)
-  local fertility_rate = params.fertility_rate or 0.05
   local newborns = {}
   
   local max_id = 0
@@ -587,22 +488,53 @@ function transition(population, params)
   for _, person in ipairs(population) do
     if person.alive == true and person.sex == "F" then
       local age = person.age
-      if age >= 15 and age < 50 then
-        if math.random() < fertility_rate then
-          max_id = max_id + 1
-          local baby = {
-            person_id = max_id,
-            age = 0,
-            sex = math.random() < 0.5 and "F" or "M",
-            area = person.area,
-            alive = true,
-            -- Copy mother's characteristics
-            ethnicity = person.ethnicity,
-            education = "none",  -- Babies have no education yet
-            income = 0           -- Babies have no income
-          }
-          table.insert(newborns, baby)
-        end
+      local area = person.area_id
+      local base_rate = 0
+      
+      -- Area-specific fertility rates
+      if area == 1 then
+        base_rate = 0.03   -- 3% (low fertility)
+      elseif area == 2 then
+        base_rate = 0.08   -- 8% (high fertility)
+      else
+        base_rate = 0.05   -- 5% (moderate fertility)
+      end
+      
+      -- Age adjustment (multiplier)
+      local age_multiplier = 0
+      if age >= 15 and age < 20 then
+        age_multiplier = 0.4
+      elseif age >= 20 and age < 25 then
+        age_multiplier = 1.6
+      elseif age >= 25 and age < 30 then
+        age_multiplier = 2.0
+      elseif age >= 30 and age < 35 then
+        age_multiplier = 1.6
+      elseif age >= 35 and age < 40 then
+        age_multiplier = 0.8
+      elseif age >= 40 and age < 45 then
+        age_multiplier = 0.2
+      elseif age >= 45 and age < 50 then
+        age_multiplier = 0.02
+      end
+      
+      local rate = base_rate * age_multiplier
+      
+      if math.random() < rate then
+        max_id = max_id + 1
+        local baby = {
+          person_id = max_id,
+          age = 0,
+          sex = math.random() < 0.5 and "F" or "M",
+          area_id = person.area_id,
+          alive = true,
+          previous_area = 0,
+          partner_id = 0,
+          mother_id = person.person_id,
+          father_id = 0,
+          parity = 0
+        }
+        table.insert(newborns, baby)
       end
     end
   end
@@ -615,193 +547,17 @@ function transition(population, params)
 end
 ```
 
-### What's Changed
+### Why Area-Specific Fertility Matters
 
-We added three new fields to the baby table:
-- `ethnicity = person.ethnicity` - Copy mother's ethnicity
-- `education = "none"` - Set a default for babies
-- `income = 0` - Set a default for babies
-
-Now babies inherit their mother's ethnicity!
-
-### The Complete Configuration with Ethnicity
-
-```yaml
-# config_aging_mortality_fertility_ethnicity.yaml
-# Complete demographic model with aging, mortality, and fertility
-# Including ethnicity inheritance
-
-simulation:
-  iterations: 10
-  population_file: "population_with_ethnicity.csv"
-  output_file: "population_ethnicity_output.csv"
-  random_seed: 42
-  verbose: true
-  id_column: "person_id"
-
-models:
-  # Model 1: Age increment
-  - name: "age_increment"
-    type: "lua_model"
-    priority: 1
-    enabled: true
-    description: "Increment everyone's age by 1 year"
-    parameters:
-      script: |
-        function transition(population, params)
-          for _, person in ipairs(population) do
-            if person.alive == true then
-              person.age = person.age + 1
-            end
-          end
-          return population
-        end
-
-  # Model 2: Mortality
-  - name: "mortality"
-    type: "lua_model"
-    priority: 2
-    enabled: true
-    description: "Age-specific mortality: 0.1% for under 30, 5% for 30+"
-    parameters:
-      script: |
-        function transition(population, params)
-          for _, person in ipairs(population) do
-            if person.alive == true then
-              local age = person.age
-              local prob = 0
-              
-              if age < 30 then
-                prob = 0.001
-              else
-                prob = 0.05
-              end
-              
-              if math.random() < prob then
-                person.alive = false
-              end
-            end
-          end
-          return population
-        end
-
-  # Model 3: Fertility with ethnicity inheritance
-  - name: "fertility"
-    type: "lua_model"
-    priority: 3
-    enabled: true
-    description: "Fertility with mother's characteristics copied to child"
-    parameters:
-      fertility_rate: 0.05
-      script: |
-        function transition(population, params)
-          local fertility_rate = params.fertility_rate
-          local newborns = {}
-          
-          local max_id = 0
-          for _, person in ipairs(population) do
-            if person.person_id ~= nil and person.person_id > max_id then
-              max_id = person.person_id
-            end
-          end
-          
-          for _, person in ipairs(population) do
-            if person.alive == true and person.sex == "F" then
-              local age = person.age
-              if age >= 15 and age < 50 then
-                if math.random() < fertility_rate then
-                  max_id = max_id + 1
-                  local baby = {
-                    person_id = max_id,
-                    age = 0,
-                    sex = math.random() < 0.5 and "F" or "M",
-                    area = person.area,
-                    alive = true,
-                    ethnicity = person.ethnicity,
-                    education = "none",
-                    income = 0
-                  }
-                  table.insert(newborns, baby)
-                end
-              end
-            end
-          end
-          
-          for _, baby in ipairs(newborns) do
-            table.insert(population, baby)
-          end
-          
-          return population
-        end
-```
-
-### Running the Model with Ethnicity
-
-Save the configuration as `config_aging_mortality_fertility_ethnicity.yaml` and run it:
-
-```bash
-./talos config_aging_mortality_fertility_ethnicity.yaml
-```
-
-### Expected Output
-
-```
-2024/01/15 10:00:00 ═══ Talos-Pure: Migration Microsimulation ═══
-2024/01/15 10:00:00 Iterations: 10
-2024/01/15 10:00:00 Population file: population_with_ethnicity.csv
-2024/01/15 10:00:00 ID column: person_id
-2024/01/15 10:00:00 Models loaded: 3
-2024/01/15 10:00:00 Loaded 15 individuals with 7 columns
-2024/01/15 10:00:00 Columns: [person_id age sex area alive ethnicity education income]
-2024/01/15 10:00:00 Enabled models: 3
-2024/01/15 10:00:00   - age_increment (priority: 1)
-2024/01/15 10:00:00   - mortality (priority: 2)
-2024/01/15 10:00:00   - fertility (priority: 3)
-
-2024/01/15 10:00:00 ═══ Iteration 1/10 ═══
-2024/01/15 10:00:00   ▶ age_increment
-2024/01/15 10:00:00   ▶ mortality
-2024/01/15 10:00:00   ▶ fertility
-
-...
-
-2024/01/15 10:00:00 ═══ Simulation Complete ═══
-2024/01/15 10:00:00 Results saved to population_ethnicity_output.csv
-```
-
-### Examining the Output CSV
-
-After running the simulation, open `population_ethnicity_output.csv`:
-
-```csv
-person_id,age,sex,area,alive,ethnicity,education,income
-1,35,F,1,true,White,tertiary,45000
-2,40,M,1,true,White,secondary,35000
-3,55,F,1,true,Asian,tertiary,52000
-4,78,M,1,true,Black,secondary,28000
-5,92,F,1,true,White,primary,15000
-6,12,M,1,true,Asian,primary,0
-7,25,F,1,true,White,secondary,0
-8,45,M,1,true,Black,tertiary,48000
-9,65,F,1,true,Asian,secondary,32000
-10,80,M,1,true,White,primary,18000
-11,15,F,1,true,Asian,primary,0
-12,50,M,1,true,Black,tertiary,55000
-13,70,F,1,true,White,secondary,30000
-14,85,M,1,true,Asian,primary,12000
-15,30,F,1,true,White,secondary,25000
-16,0,M,1,true,White,none,0
-17,0,F,1,true,Asian,none,0
-```
-
-**Notice:**
-- Person 16 is a newborn male with `ethnicity = White` (inherited from mother)
-- Person 17 is a newborn female with `ethnicity = Asian` (inherited from mother)
-- Both have `education = "none"` and `income = 0`
+This allows you to model:
+- **Urban vs. rural differences** in fertility
+- **Regional policy impacts** (e.g., childcare subsidies)
+- **Cultural differences** between areas
+- **Economic factors** affecting fertility decisions
 
 ---
 
-## Part 10: Advanced Fertility - Tracking Mother-Child Relationships
+## Part 9: Advanced Fertility - Tracking Mother-Child Relationships
 
 ### The Problem
 
@@ -811,27 +567,22 @@ We want to track which mother had which child.
 
 **In plain English:** "When a baby is born, record the mother's ID. This allows us to track family relationships."
 
-### The Updated CSV with Mother-Child Tracking
+### The Updated CSV with Family Columns
 
 Create a file called `population_with_family.csv`:
 
 ```csv
-person_id,age,sex,area,alive,partner_id,mother_id,father_id,parity,ethnicity,education,income
-1,25,F,1,true,0,0,0,0,White,tertiary,45000
-2,30,M,1,true,1,0,0,0,White,secondary,35000
-3,45,F,1,true,0,0,0,2,Asian,tertiary,52000
-4,68,M,1,true,0,0,0,0,Black,secondary,28000
-5,82,F,1,true,0,0,0,0,White,primary,15000
-6,2,M,1,true,0,3,0,0,Asian,primary,0
-7,15,F,1,true,0,0,0,0,White,secondary,0
-8,35,M,1,true,0,0,0,0,Black,tertiary,48000
-9,55,F,1,true,0,0,0,3,Asian,secondary,32000
-10,70,M,1,true,0,0,0,0,White,primary,18000
-11,5,F,1,true,0,9,0,0,Asian,primary,0
-12,40,M,1,true,0,0,0,0,Black,tertiary,55000
-13,60,F,1,true,0,0,0,0,White,secondary,30000
-14,75,M,1,true,0,0,0,0,Asian,primary,12000
-15,20,F,1,true,0,0,0,0,White,secondary,25000
+person_id,age,sex,area_id,alive,previous_area,partner_id,mother_id,father_id,parity
+1,25,F,1,true,0,2,0,0,0
+2,27,M,1,true,0,1,0,0,0
+3,45,F,1,true,0,4,0,0,2
+4,48,M,1,true,0,3,0,0,0
+5,82,F,1,true,0,0,0,0,0
+6,3,M,2,true,0,0,3,4,0
+7,15,F,2,true,0,0,0,0,0
+8,38,M,2,true,0,0,0,0,0
+9,55,F,2,true,0,10,0,0,3
+10,58,M,2,true,0,9,0,0,0
 ```
 
 **New columns explained:**
@@ -868,14 +619,13 @@ function transition(population, params)
             person_id = max_id,
             age = 0,
             sex = math.random() < 0.5 and "F" or "M",
-            area = person.area,
+            area_id = person.area_id,
             alive = true,
-            mother_id = person.person_id,  -- Track the mother
-            father_id = person.partner_id or 0,  -- Track the father (if known)
-            parity = 0,                    -- First child
-            ethnicity = person.ethnicity,
-            education = "none",
-            income = 0
+            previous_area = 0,
+            partner_id = 0,
+            mother_id = person.person_id,     -- Track the mother
+            father_id = person.partner_id or 0, -- Track the father (if known)
+            parity = 0                        -- First child
           }
           table.insert(newborns, baby)
           
@@ -905,15 +655,6 @@ function transition(population, params)
 end
 ```
 
-### What's Changed
-
-We added:
-1. **`mother_id = person.person_id`** - Track which mother had the baby
-2. **`father_id = person.partner_id or 0`** - Track the father if the mother has a partner
-3. **`parity = 0`** - Each baby starts with parity 0 (their own children count)
-4. **`mothers_to_update`** - Track which mothers need their parity updated
-5. **Second pass** - Update each mother's parity
-
 ### Understanding Parity
 
 **Parity** is the number of children a woman has had.
@@ -925,54 +666,9 @@ When a woman gives birth, her parity increases by 1.
 
 ---
 
-## Part 11: Complete Configuration with Advanced Fertility
+## Part 10: Complete Configuration
 
-Here's the full configuration with advanced fertility features:
-
-### The Advanced Population CSV
-
-First, let's create a population file with the additional columns needed for the advanced fertility model. Create a file called `population_advanced.csv`:
-
-```csv
-person_id,age,sex,area,alive,previous_area,partner_id,mother_id,father_id,parity,ethnicity,education,income
-1,25,F,1,true,0,0,0,0,0,White,tertiary,45000
-2,30,M,1,true,0,1,0,0,0,White,secondary,35000
-3,45,F,1,true,0,0,0,0,2,Asian,tertiary,52000
-4,68,M,1,true,0,0,0,0,0,Black,secondary,28000
-5,82,F,1,true,0,0,0,0,0,White,primary,15000
-6,2,M,1,true,0,0,0,3,0,Asian,primary,0
-7,15,F,1,true,0,0,0,0,0,White,secondary,0
-8,35,M,1,true,0,0,0,0,0,Black,tertiary,48000
-9,55,F,1,true,0,0,0,0,3,Asian,secondary,32000
-10,70,M,1,true,0,0,0,0,0,White,primary,18000
-11,5,F,1,true,0,0,0,9,0,Asian,primary,0
-12,40,M,1,true,0,0,0,0,0,Black,tertiary,55000
-13,60,F,1,true,0,0,0,0,0,White,secondary,30000
-14,75,M,1,true,0,0,0,0,0,Asian,primary,12000
-15,20,F,1,true,0,0,0,0,0,White,secondary,25000
-```
-
-**Columns explained:**
-
-| Column | Description |
-|--------|-------------|
-| `person_id` | Unique identifier for each individual |
-| `age` | Age in years |
-| `sex` | Gender (M/F) |
-| `area` | Geographic area (1-5) |
-| `alive` | Whether the person is alive (true/false) |
-| `previous_area` | Previous area before migration (for tracking) |
-| `partner_id` | ID of partner/spouse (0 if none) |
-| `mother_id` | ID of mother (0 if unknown) |
-| `father_id` | ID of father (0 if unknown) |
-| `parity` | Number of children a woman has had |
-| `ethnicity` | Ethnic group (White, Asian, Black, etc.) |
-| `education` | Highest education level (primary, secondary, tertiary) |
-| `income` | Annual income |
-
-### The Advanced Fertility Configuration
-
-Now, here's the complete configuration:
+Here's the full configuration with advanced fertility:
 
 ```yaml
 # config_advanced_fertility.yaml
@@ -980,11 +676,12 @@ Now, here's the complete configuration:
 
 simulation:
   iterations: 10
-  population_file: "population_advanced.csv"
-  output_file: "population_advanced_output.csv"
+  population_file: "population_with_family.csv"
+  output_file: "population_advanced.csv"
   random_seed: 42
   verbose: true
   id_column: "person_id"
+  streaming_mode: false   # Use bulk mode for simplicity
 
 models:
   # Model 1: Age increment
@@ -992,7 +689,6 @@ models:
     type: "lua_model"
     priority: 1
     enabled: true
-    description: "Increment everyone's age by 1 year"
     parameters:
       script: |
         function transition(population, params)
@@ -1009,7 +705,6 @@ models:
     type: "lua_model"
     priority: 2
     enabled: true
-    description: "Age-specific mortality"
     parameters:
       script: |
         function transition(population, params)
@@ -1018,14 +713,13 @@ models:
               local age = person.age
               local prob = 0
               
-              -- Age-specific mortality rates
               if age < 1 then
-                prob = 0.005   -- Infant mortality
-              elseif age >= 1 and age < 5 then
-                prob = 0.0005
-              elseif age >= 18 and age < 65 then
+                prob = 0.005
+              elseif age < 18 then
                 prob = 0.001
-              elseif age >= 65 and age < 85 then
+              elseif age < 65 then
+                prob = 0.01
+              elseif age < 85 then
                 prob = 0.10
               else
                 prob = 0.20
@@ -1039,15 +733,16 @@ models:
           return population
         end
 
-  # Model 3: Advanced Fertility
+  # Model 3: Advanced Fertility with parity tracking
   - name: "fertility"
     type: "lua_model"
     priority: 3
     enabled: true
-    description: "Age-specific fertility with parity tracking"
     parameters:
+      fertility_rate: 0.05
       script: |
         function transition(population, params)
+          local fertility_rate = params.fertility_rate
           local newborns = {}
           local mothers_to_update = {}
           
@@ -1061,53 +756,42 @@ models:
           for _, person in ipairs(population) do
             if person.alive == true and person.sex == "F" then
               local age = person.age
-              local rate = 0
+              local area = person.area_id
               
-              -- Age-specific fertility rates
-              if age >= 15 and age < 20 then
-                rate = 0.02
-              elseif age >= 20 and age < 25 then
-                rate = 0.08
-              elseif age >= 25 and age < 30 then
-                rate = 0.10
-              elseif age >= 30 and age < 35 then
-                rate = 0.08
-              elseif age >= 35 and age < 40 then
-                rate = 0.04
-              elseif age >= 40 and age < 45 then
-                rate = 0.01
-              elseif age >= 45 and age < 50 then
-                rate = 0.001
+              -- Area-specific fertility rates
+              local base_rate = fertility_rate
+              if area == 1 then
+                base_rate = 0.03
+              elseif area == 2 then
+                base_rate = 0.08
               end
               
-              if math.random() < rate then
-                max_id = max_id + 1
-                local baby = {
-                  person_id = max_id,
-                  age = 0,
-                  sex = math.random() < 0.5 and "F" or "M",
-                  area = person.area,
-                  alive = true,
-                  previous_area = person.area,
-                  mother_id = person.person_id,
-                  father_id = person.partner_id or 0,
-                  parity = 0,
-                  ethnicity = person.ethnicity or "Unknown",
-                  education = "none",
-                  income = 0
-                }
-                table.insert(newborns, baby)
-                mothers_to_update[person.person_id] = true
+              if age >= 15 and age < 50 then
+                if math.random() < base_rate then
+                  max_id = max_id + 1
+                  local baby = {
+                    person_id = max_id,
+                    age = 0,
+                    sex = math.random() < 0.5 and "F" or "M",
+                    area_id = person.area_id,
+                    alive = true,
+                    previous_area = 0,
+                    partner_id = 0,
+                    mother_id = person.person_id,
+                    father_id = person.partner_id or 0,
+                    parity = 0
+                  }
+                  table.insert(newborns, baby)
+                  mothers_to_update[person.person_id] = true
+                end
               end
             end
           end
           
-          -- Add newborns
           for _, baby in ipairs(newborns) do
             table.insert(population, baby)
           end
           
-          -- Update mother parity
           for mother_id in pairs(mothers_to_update) do
             for _, person in ipairs(population) do
               if person.person_id == mother_id then
@@ -1121,72 +805,9 @@ models:
         end
 ```
 
-### Running the Advanced Fertility Model
-
-Save the configuration as `config_advanced_fertility.yaml` and run it:
-
-```bash
-./talos config_advanced_fertility.yaml
-```
-
-### Expected Output
-
-```
-2024/01/15 10:00:00 ═══ Talos-Pure: Migration Microsimulation ═══
-2024/01/15 10:00:00 Iterations: 10
-2024/01/15 10:00:00 Population file: population_advanced.csv
-2024/01/15 10:00:00 ID column: person_id
-2024/01/15 10:00:00 Models loaded: 3
-2024/01/15 10:00:00 Loaded 15 individuals with 13 columns
-2024/01/15 10:00:00 Columns: [person_id age sex area alive previous_area partner_id mother_id father_id parity ethnicity education income]
-2024/01/15 10:00:00 Enabled models: 3
-2024/01/15 10:00:00   - age_increment (priority: 1)
-2024/01/15 10:00:00   - mortality (priority: 2)
-2024/01/15 10:00:00   - fertility (priority: 3)
-
-2024/01/15 10:00:00 ═══ Iteration 1/10 ═══
-2024/01/15 10:00:00   ▶ age_increment
-2024/01/15 10:00:00   ▶ mortality
-2024/01/15 10:00:00   ▶ fertility
-
-...
-
-2024/01/15 10:00:00 ═══ Simulation Complete ═══
-2024/01/15 10:00:00 Results saved to population_advanced_output.csv
-```
-
-### Examining the Output CSV
-
-After running the simulation, open `population_advanced_output.csv`:
-
-```csv
-person_id,age,sex,area,alive,previous_area,partner_id,mother_id,father_id,parity,ethnicity,education,income
-1,35,F,1,true,0,0,0,0,1,White,tertiary,45000
-2,40,M,1,true,0,1,0,0,0,White,secondary,35000
-3,55,F,1,true,0,0,0,0,3,Asian,tertiary,52000
-4,78,M,1,true,0,0,0,0,0,Black,secondary,28000
-5,92,F,1,true,0,0,0,0,0,White,primary,15000
-6,12,M,1,true,0,0,0,3,0,Asian,primary,0
-7,25,F,1,true,0,0,0,0,0,White,secondary,0
-8,45,M,1,true,0,0,0,0,0,Black,tertiary,48000
-9,65,F,1,true,0,0,0,0,4,Asian,secondary,32000
-10,80,M,1,true,0,0,0,0,0,White,primary,18000
-11,15,F,1,true,0,0,0,9,0,Asian,primary,0
-12,50,M,1,true,0,0,0,0,0,Black,tertiary,55000
-13,70,F,1,true,0,0,0,0,0,White,secondary,30000
-14,85,M,1,true,0,0,0,0,0,Asian,primary,12000
-15,30,F,1,true,0,0,0,0,0,White,secondary,25000
-16,0,M,1,true,1,1,0,15,0,White,none,0
-```
-
-Notice that:
-- Person 15 (age 20 in the original) is now 30 after 10 iterations
-- Person 16 is a newborn (age 0) with `mother_id = 15`, inheriting the mother's area, ethnicity, and other characteristics
-- Mothers' parity has been updated as they had children
-
 ---
 
-## Part 12: What You've Accomplished
+## Part 11: What You've Accomplished
 
 Congratulations! You now have a complete demographic microsimulation model with:
 
@@ -1194,9 +815,10 @@ Congratulations! You now have a complete demographic microsimulation model with:
 2. ✅ **Mortality**: Age-specific death probabilities
 3. ✅ **Fertility**: Women of childbearing age can give birth
 4. ✅ **Age-Specific Fertility**: Different rates for different age groups
-5. ✅ **Mother-Child Links**: Track which mother had which child
-6. ✅ **Parity Tracking**: Track how many children each woman has
-7. ✅ **Population Growth**: Births and deaths change population size
+5. ✅ **Area-Specific Fertility**: Different rates for different areas
+6. ✅ **Mother-Child Links**: Track which mother had which child
+7. ✅ **Parity Tracking**: Track how many children each woman has
+8. ✅ **Population Growth**: Births and deaths change population size
 
 ### The Full Demographic Cycle
 
@@ -1204,6 +826,7 @@ Congratulations! You now have a complete demographic microsimulation model with:
     ┌─────────────────────────────────────┐
     │                                     │
     │          POPULATION                 │
+    │    (Distributed across areas)       │
     │                                     │
     └─────────────┬───────────────────────┘
                   │
@@ -1211,6 +834,7 @@ Congratulations! You now have a complete demographic microsimulation model with:
     ┌─────────────────────────────────────┐
     │                                     │
     │   1. AGE (everyone gets older)      │
+    │      - Same for all areas           │
     │                                     │
     └─────────────┬───────────────────────┘
                   │
@@ -1218,6 +842,7 @@ Congratulations! You now have a complete demographic microsimulation model with:
     ┌─────────────────────────────────────┐
     │                                     │
     │   2. MORTALITY (some people die)    │
+    │      - Can vary by area             │
     │                                     │
     └─────────────┬───────────────────────┘
                   │
@@ -1225,6 +850,9 @@ Congratulations! You now have a complete demographic microsimulation model with:
     ┌─────────────────────────────────────┐
     │                                     │
     │   3. FERTILITY (some women give birth)
+    │      - Varies by area and age       │
+    │      - Mother-child links tracked   │
+    │      - Parity updated               │
     │                                     │
     └─────────────┬───────────────────────┘
                   │
@@ -1238,21 +866,21 @@ Congratulations! You now have a complete demographic microsimulation model with:
 
 ---
 
-## Part 13: What You Can Do Next
+## Part 12: What You Can Do Next
 
 ### 1. Add Education Models
-
 ```lua
 function transition(population, params)
   for _, person in ipairs(population) do
     if person.alive == true and person.age >= 5 and person.age <= 18 then
-      -- Progress through education
       if person.education == "none" then
         person.education = "primary"
       elseif person.education == "primary" and person.age >= 11 then
         person.education = "secondary"
       elseif person.education == "secondary" and person.age >= 16 then
-        -- Could go to tertiary or leave
+        if math.random() < 0.3 then
+          person.education = "tertiary"
+        end
       end
     end
   end
@@ -1261,12 +889,10 @@ end
 ```
 
 ### 2. Add Income Models
-
 ```lua
 function transition(population, params)
   for _, person in ipairs(population) do
     if person.alive == true and person.age >= 18 then
-      -- Income depends on age, education, and sex
       local base = 20000
       local education_bonus = 0
       if person.education == "tertiary" then
@@ -1274,11 +900,8 @@ function transition(population, params)
       elseif person.education == "secondary" then
         education_bonus = 5000
       end
-      local age_factor = math.min(1, (person.age - 18) / 20)  -- Peaks around 38
-      local sex_factor = 0.8
-      if person.sex == "M" then
-        sex_factor = 1.0
-      end
+      local age_factor = math.min(1, (person.age - 18) / 20)
+      local sex_factor = person.sex == "M" and 1.0 or 0.8
       person.income = (base + education_bonus) * age_factor * sex_factor
     end
   end
@@ -1287,21 +910,13 @@ end
 ```
 
 ### 3. Add Household Formation
-
 ```lua
 function transition(population, params)
-  -- Add household_id column
-  for _, person in ipairs(population) do
-    if person.household_id == nil then
-      person.household_id = person.person_id  -- Each person starts as their own household
-    end
-  end
-  
   -- Young adults form households
   for _, person in ipairs(population) do
     if person.alive == true and person.age >= 18 and person.age <= 25 then
-      if math.random() < 0.05 then  -- 5% chance per year
-        person.household_id = person.person_id  -- New household
+      if math.random() < 0.05 then
+        person.household_id = person.person_id
       end
     end
   end
@@ -1309,45 +924,11 @@ function transition(population, params)
   -- Children live with mothers
   for _, person in ipairs(population) do
     if person.alive == true and person.age < 18 and person.mother_id ~= nil then
-      -- Find mother
       for _, mother in ipairs(population) do
         if mother.person_id == person.mother_id and mother.alive == true then
           person.household_id = mother.household_id
           break
         end
-      end
-    end
-  end
-  
-  return population
-end
-```
-
-### 4. Add Migration
-
-```lua
-function transition(population, params)
-  local migration_rate = params.migration_rate or 0.05
-  local num_areas = params.num_areas or 5
-  
-  for _, person in ipairs(population) do
-    if person.alive == true then
-      -- Migration probability by age
-      local age = person.age
-      local rate = 0
-      if age < 18 then
-        rate = migration_rate * 0.4
-      elseif age >= 18 and age < 35 then
-        rate = migration_rate * 1.5
-      elseif age >= 35 and age < 65 then
-        rate = migration_rate * 0.6
-      else
-        rate = migration_rate * 0.2
-      end
-      
-      if math.random() < rate then
-        person.previous_area = person.area
-        person.area = math.random(1, num_areas)
       end
     end
   end
@@ -1368,7 +949,38 @@ end
 | `{}` | Create table | `{ name = "John", age = 25 }` |
 | `for` loop | Iterate | `for _, person in ipairs(population) do` |
 | `if-elseif-else` | Conditions | `if age < 18 then ... end` |
+| `pairs()` | Iterate dictionary | `for key, value in pairs(table) do` |
+| `or` | Default value | `rate = params.rate or 0.05` |
 
 ---
 
-**Well done for completing Tutorial 3!** You now have a complete demographic simulation with aging, mortality, and fertility. You understand the full demographic cycle and can build on this foundation for more complex models. You're ready to build your own microsimulation models!
+## Summary
+
+In this tutorial, you've learned:
+
+1. **Fertility Model**: How to add births to your simulation
+2. **Creating New Individuals**: How to create new people with unique IDs
+3. **Family Relationships**: How to track mother-child relationships
+4. **Parity Tracking**: How to count how many children a woman has had
+5. **Age-Specific Fertility**: Different rates for different age groups
+6. **Area-Specific Fertility**: Different rates for different areas
+7. **Model Priority**: Why order matters (age → mortality → fertility)
+8. **Population Growth**: How births and deaths change population size
+
+---
+
+## Next Steps
+
+In the next tutorial (**Tutorial 4: Using Linear Regression in Hekate**), you'll learn how to:
+- Use Hekate's built-in linear regression function
+- Predict income, health risk, and other continuous outcomes
+- Define coefficients in YAML
+- Handle categorical variables (education, gender, etc.)
+- Add randomness to make predictions realistic
+- Validate your model results
+
+In **Tutorial 5**, you'll learn about Streaming Mode for large populations.
+
+---
+
+**Well done for completing Tutorial 3!** You now have a complete demographic simulation with aging, mortality, and fertility. You understand the full demographic cycle, can work with areas, and can track family relationships. You're ready to move on to using linear regression models in Tutorial 4!

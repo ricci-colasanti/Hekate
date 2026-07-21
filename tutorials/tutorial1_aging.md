@@ -127,7 +127,7 @@ For Hekate, you only need to know a handful of Lua concepts:
 First, let's create a small population to work with. Create a file called `population.csv`:
 
 ```csv
-person_id,age,sex,area,alive
+person_id,age,sex,area_id,alive
 1,25,F,1,true
 2,30,M,1,true
 3,45,F,1,true
@@ -144,8 +144,10 @@ This gives us 10 individuals with various ages. The columns are:
 - `person_id`: Unique identifier for each person
 - `age`: Age in years
 - `sex`: Gender (M/F)
-- `area`: Geographic area (we'll use just one area for now)
+- `area_id`: Geographic area (we'll use just one area for now)
 - `alive`: Whether the person is alive (true/false)
+
+**Note about `area_id`:** This column is used by Hekate's streaming mode to process populations area-by-area. We'll cover streaming mode in detail in **Tutorial 5: Large-Scale Simulations with Streaming Mode**. For now, we'll use the simpler **Bulk Mode** which loads everything into memory at once.
 
 ---
 
@@ -174,6 +176,7 @@ simulation:
   random_seed: 42                   # For reproducibility
   verbose: true                     # Show detailed output
   id_column: "person_id"            # REQUIRED: Unique identifier column
+  streaming_mode: false             # Use bulk mode (simpler for small populations)
 
 models:
   - name: "age_increment"
@@ -192,6 +195,8 @@ models:
           return population
         end
 ```
+
+**Note about `streaming_mode: false`:** We're using **Bulk Mode** in this tutorial. This loads the entire population into memory at once, which is simpler and faster for small populations. For large populations (1M+), we'll use Streaming Mode which processes area-by-area. We'll cover this in depth in **Tutorial 5: Large-Scale Simulations with Streaming Mode**.
 
 ---
 
@@ -216,9 +221,10 @@ You should see output similar to this:
 2024/01/15 10:00:00 Iterations: 5
 2024/01/15 10:00:00 Population file: population.csv
 2024/01/15 10:00:00 ID column: person_id
+2024/01/15 10:00:00 Mode: BULK (load all into memory)
 2024/01/15 10:00:00 Models loaded: 1
 2024/01/15 10:00:00 Loaded 10 individuals with 4 columns
-2024/01/15 10:00:00 Columns: [person_id age sex area alive]
+2024/01/15 10:00:00 Columns: [person_id age sex area_id alive]
 2024/01/15 10:00:00 Enabled models: 1
 2024/01/15 10:00:00   - age_increment (priority: 1)
 
@@ -248,7 +254,7 @@ You should see output similar to this:
 Open `population_aged.csv`:
 
 ```csv
-person_id,age,sex,area,alive
+person_id,age,sex,area_id,alive
 1,30,F,1,true
 2,35,M,1,true
 3,50,F,1,true
@@ -289,6 +295,7 @@ simulation:
   random_seed: 42                   # For reproducibility
   verbose: true                     # Show detailed output
   id_column: "person_id"            # REQUIRED: Unique identifier column
+  streaming_mode: false             # Use bulk mode (simpler for small populations)
 ```
 
 This tells Hekate:
@@ -298,8 +305,13 @@ This tells Hekate:
 - **What random seed** to use for reproducible results (`random_seed: 42`)
 - **Whether to show detailed output** (`verbose: true`)
 - **Which column is the unique identifier** (`id_column: "person_id"`)
+- **Whether to use streaming mode** (`streaming_mode: false`)
 
 **Why is `id_column` required?** Every individual in your population needs a unique identifier. This is how Hekate keeps track of each person throughout the simulation. When people age, die, or have children, Hekate uses this ID to ensure it's updating the right person. Without a unique ID column, Hekate wouldn't be able to distinguish between individuals or link family members together. The `id_column` tells Hekate which column in your CSV contains these unique identifiers. Ordering the output by this column is a secondary benefit that makes it easier to compare results across different runs.
+
+**Why `streaming_mode: false`?** We're using **Bulk Mode** in this tutorial. This is the simplest mode - it loads the entire population into memory, processes all people, then saves the results. It's perfect for small populations like our 10-person example.
+
+For **large populations** (1M+ people), we use **Streaming Mode** (`streaming_mode: true`). This processes the population area-by-area, keeping memory usage low regardless of population size. We'll cover Streaming Mode in detail in **Tutorial 5: Large-Scale Simulations with Streaming Mode**.
 
 ### 2. The Models Section
 
@@ -480,7 +492,7 @@ This is a crucial question: **"How does `person.age` connect to my CSV column ca
 
 **1. Your CSV file:**
 ```csv
-person_id,age,sex,area,alive
+person_id,age,sex,area_id,alive
 1,25,F,1,true
 2,30,M,1,true
 ```
@@ -494,7 +506,7 @@ When Hekate reads row 1, it creates a table like this:
   person_id = 1,
   age = 25,
   sex = "F",
-  area = 1,
+  area_id = 1,
   alive = true
 }
 ```
@@ -521,7 +533,7 @@ person.alive      -- Returns true
 | `person_id` | `person.person_id` | 1 |
 | `age` | `person.age` | 25 |
 | `sex` | `person.sex` | "F" |
-| `area` | `person.area` | 1 |
+| `area_id` | `person.area_id` | 1 |
 | `alive` | `person.alive` | true |
 
 **Important:** The column names are **case-sensitive**!
@@ -578,8 +590,8 @@ person.age = person.age + 1
 **Before the model runs:**
 ```
 Population = {
-  { person_id = 1, age = 25, sex = "F", area = 1, alive = true },
-  { person_id = 2, age = 30, sex = "M", area = 1, alive = true },
+  { person_id = 1, age = 25, sex = "F", area_id = 1, alive = true },
+  { person_id = 2, age = 30, sex = "M", area_id = 1, alive = true },
   ...
 }
 ```
@@ -587,8 +599,8 @@ Population = {
 **After the model runs:**
 ```
 Population = {
-  { person_id = 1, age = 26, sex = "F", area = 1, alive = true },
-  { person_id = 2, age = 31, sex = "M", area = 1, alive = true },
+  { person_id = 1, age = 26, sex = "F", area_id = 1, alive = true },
+  { person_id = 2, age = 31, sex = "M", area_id = 1, alive = true },
   ...
 }
 ```
@@ -617,6 +629,7 @@ Now let's put it all together. The configuration has two main sections:
 - `population_file`: Where to read data from
 - `output_file`: Where to save results
 - `id_column`: Which column contains the unique ID (REQUIRED)
+- `streaming_mode`: Whether to use bulk or streaming mode
 
 ### 2. Models Section
 - Defines what happens each year
@@ -625,6 +638,17 @@ Now let's put it all together. The configuration has two main sections:
   - `type`: What kind of model (`lua_model`)
   - `priority`: When to run it (lower = earlier)
   - `script`: The Lua code that does the work (MUST have a `transition` function)
+
+---
+
+## When to Use Bulk vs Streaming Mode
+
+| Mode | When to Use | Memory | Speed |
+|------|-------------|--------|-------|
+| **Bulk** (`streaming_mode: false`) | Small populations (<1M), development, testing | Higher (~2MB per 1000 people) | Fastest |
+| **Streaming** (`streaming_mode: true`) | Large populations (1M+), limited memory, production | Lower (~20-50MB constant) | Good |
+
+**We'll cover Streaming Mode in depth in Tutorial 5.** For now, Bulk Mode is perfect for learning and small populations.
 
 ---
 
@@ -639,6 +663,7 @@ Congratulations! You've successfully:
 5. ✅ Understood how Lua connects to your CSV data
 6. ✅ Learned that model functions must be called `transition`
 7. ✅ Understood why the `id_column` is required
+8. ✅ Learned about Bulk Mode vs Streaming Mode
 
 You now know the basic workflow for using Hekate.
 
@@ -650,11 +675,12 @@ In the next tutorial, we'll dive deeper into YAML and Lua. You'll learn:
 
 - **YAML rules**: Why indentation matters, why you need the pipe (`|`) for multi-line strings, and how to avoid common mistakes
 - **More Lua**: Working with age and conditions in your models
-- **Column name matching**: Why column names must match your CSV exactly
 - **Mortality**: Adding a mortality model to make your simulation more realistic
+- **Streaming Mode**: How to use it effectively for large populations (Tutorial 5)
 
 For now, take a moment to appreciate what you've built - a working demographic microsimulation model!
 
 ---
 
 **Tutorial 2 Preview:** We'll explore the YAML and Lua rules in detail and add a mortality model with age-specific death probabilities.
+```
