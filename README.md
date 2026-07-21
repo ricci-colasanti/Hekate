@@ -3,7 +3,7 @@
   <p><em>Hekate — Microsimulation Engine</em></p>
 </div>
 
-# Hekate development branch
+# Hekate
 ## Microsimulation Engine
 
 Named after the Greek goddess of crossroads, magic, and transitions, Hekate is a self-contained, dynamically configurable demographic microsimulation system written in Go. **Hekate is a general-purpose microsimulation engine** that can simulate population dynamics including migration, aging, mortality, fertility, and other demographic processes. The name reflects the engine's purpose—guiding populations through the crossroads of life events and demographic transitions.
@@ -22,8 +22,6 @@ If you've used **NetLogo**, you already understand Hekate's philosophy:
 | Rapid iteration: edit → run → see results | ✅ | ✅ |
 | Domain-specific language (not general-purpose) | ✅ | ✅ |
 | Built-in functions for common tasks | ✅ | ✅ |
-| Large populations (millions+) | ❌ (~10K max) | ✅ (unlimited) |
-| Streaming mode for any population size | ❌ | ✅ |
 
 **The Hekate Promise:** Like NetLogo, you can go from zero to a working model in minutes. Unlike NetLogo, Hekate can scale to millions or billions of individuals with minimal memory.
 
