@@ -112,7 +112,7 @@ For Hekate, you only need to know a handful of Lua concepts:
 | Concept | What it does | Example |
 |---------|--------------|---------|
 | `function` | Defines a model | `function transition(population, params)` |
-| `for` | Loops through people | `for _, person in ipairs(population) do` |
+| `for` | Loops through people | `for person in pairs(population) do` |
 | `if` | Checks a condition | `if person.alive == true then` |
 | `==` | Compares values | `person.alive == true` |
 | `=` | Assigns a value | `person.age = person.age + 1` |
@@ -187,7 +187,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for _, person in ipairs(population) do
+          for person in pairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
@@ -325,7 +325,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for _, person in ipairs(population) do
+          for person in pairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
@@ -351,7 +351,7 @@ Let's look at our model's Lua script:
 
 ```lua
 function transition(population, params)
-  for _, person in ipairs(population) do
+  for person in pairs(population) do
     if person.alive == true then
       person.age = person.age + 1
     end
@@ -400,7 +400,7 @@ ERROR: script must define a 'transition' function
 ```lua
 -- ❌ WRONG - Hekate won't find this
 function my_model(population, params)
-  for _, person in ipairs(population) do
+  for person in pairs(population) do
     person.age = person.age + 1
   end
   return population
@@ -408,7 +408,7 @@ end
 
 -- ✅ CORRECT - Hekate finds this
 function transition(population, params)
-  for _, person in ipairs(population) do
+  for person in pairs(population) do
     person.age = person.age + 1
   end
   return population
@@ -427,58 +427,65 @@ end
 |---------|-----------|
 | `function transition(population, params)` | `function Transition(population, params)` |
 
-### Understanding `ipairs`
+### Understanding `pairs`
 
-You might also wonder: **"What is `ipairs` and why do we use it?"**
+You might wonder: **"What is `pairs` and why do we use it?"**
 
-`ipairs` is a Lua function that helps us **loop through a list in order**. Think of it like this:
+`pairs` is a Lua function that helps us **loop through a collection of items**. Think of it like this:
 
 ```lua
-for _, person in ipairs(population) do
+for person in pairs(population) do
   -- Do something with each person
 end
 ```
 
-**In plain English:** "For each person in the population list, one at a time, do the following..."
+**In plain English:** "For each person in the population, one at a time, do the following..."
 
 **Breaking down the parts:**
 
 | Part | What it means | In plain English |
 |------|---------------|------------------|
 | `for` | Start a loop | "For each..." |
-| `_` | The position/index (we don't need it) | "Ignore the position number" |
 | `person` | The current item | "...this person..." |
-| `in` | From the list | "...from the list..." |
-| `ipairs(population)` | The list to loop through | "...the population list, in order" |
+| `in` | From the collection | "...from the collection..." |
+| `pairs(population)` | The collection to loop through | "...the population" |
 | `do` | Start the instructions | "...do this:" |
 
-**Why do we use `ipairs` and not just `for`?**
+**Why do we use `pairs` and not something else?**
 
-Lua has two ways to loop through lists:
+Lua has two main ways to loop through collections:
 
 | Method | What it does | When to use |
 |--------|--------------|-------------|
-| `ipairs(list)` | Loops in order, stops at first nil | For lists like our population |
-| `pairs(list)` | Loops in any order, includes all items | For dictionaries/maps |
+| `pairs(collection)` | Loops through all items, order doesn't matter | For demographic models where order doesn't matter |
+| `ipairs(collection)` | Loops in order, requires indexes | When order matters or you need the index |
 
-Since our population is a simple list of people in order, we use `ipairs`.
+**Why do we choose `pairs` for Hekate?**
 
-**What about the underscore (`_`)?**
+1. **Cleaner syntax**: `for person in pairs(population) do` is more readable
+2. **Order doesn't matter**: In demographic models, each person is processed independently
+3. **More like plain English**: "For each person in the population..."
+4. **Easier for beginners**: One less concept to learn (no need to worry about the underscore or indexes)
 
-In Lua, `_` is a convention meaning "I don't need this value." When we loop with `ipairs`, we get both the position number and the person:
+**What about the index?** If you ever need to know the position or ID of a person, you can get both the key and value:
 
 ```lua
-for index, person in ipairs(population) do
-  -- index = 1, 2, 3, ...
-  -- person = the person at that position
+-- If you need both the ID and the person
+for id, person in pairs(population) do
+  print("Processing person: " .. id)
+  if person.alive == true then
+    person.age = person.age + 1
+  end
 end
 ```
 
-Since we only care about the person, not their position, we use `_` instead of `index`:
-
+**But most of the time, you just need the person:**
 ```lua
-for _, person in ipairs(population) do
-  -- We ignore the position and just work with each person
+-- Clean and simple
+for person in pairs(population) do
+  if person.alive == true then
+    person.age = person.age + 1
+  end
 end
 ```
 
@@ -610,8 +617,7 @@ Population = {
 | Concept | Explanation |
 |---------|-------------|
 | `transition` | **Required name** for model functions |
-| `ipairs` | Loops through a list in order |
-| `_` | Means "I don't need this value" |
+| `pairs` | Loops through a collection (order doesn't matter) |
 | `person` | The current person being processed |
 | `person.age` | Accesses the `age` column from the CSV |
 | `person.alive` | Accesses the `alive` column from the CSV |
@@ -677,4 +683,3 @@ For now, take a moment to appreciate what you've built - a working demographic m
 ---
 
 **Tutorial 2 Preview:** We'll explore the YAML and Lua rules in detail and add a mortality model with age-specific death probabilities.
-```

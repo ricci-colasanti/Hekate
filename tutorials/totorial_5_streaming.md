@@ -128,7 +128,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-            for _, person in ipairs(population) do
+            for person in pairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -154,7 +154,7 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for _, person in ipairs(population) do
+            for person in pairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -508,7 +508,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-            for _, person in ipairs(population) do
+            for person in pairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -531,7 +531,7 @@ models:
       script: |
         function transition(population, params)
             local coefs = params.coefficients
-            for _, person in ipairs(population) do
+            for person in pairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -560,6 +560,48 @@ python3 generate_streaming_population.py  # Modify to 1000000
 # Analyze
 python3 analyze_streaming_results.py
 ```
+
+---
+
+## Why `pairs` Works Perfectly in Streaming Mode
+
+In streaming mode, Hekate processes one area at a time. Each area's population is a complete list of people living in that area. When we iterate with `pairs`:
+
+```lua
+for person in pairs(population) do
+    -- Process each person in this area
+end
+```
+
+**Order still doesn't matter!** Each person is processed independently within their area. Whether we process person A before person B or vice versa doesn't change the result.
+
+### When Would Order Matter in Streaming?
+
+**Almost never!** The only time order matters is when adding newborns, and even then:
+
+```lua
+-- Collect newborns
+local newborns = {}
+for person in pairs(population) do
+    -- Check fertility...
+    table.insert(newborns, baby)
+end
+
+-- Add newborns (order doesn't matter here either)
+for _, baby in ipairs(newborns) do
+    table.insert(population, baby)
+end
+```
+
+But even for newborns, we could use `pairs`:
+```lua
+-- Also works fine!
+for baby in pairs(newborns) do
+    table.insert(population, baby)
+end
+```
+
+**The bottom line:** `pairs` works perfectly for all demographic models in Hekate, whether in Bulk Mode or Streaming Mode.
 
 ---
 

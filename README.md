@@ -104,6 +104,33 @@ Hekate is a single, self-contained executable that:
 
 ---
 
+## Lua: Simple and Readable
+
+Hekate uses **Lua** because it's designed for non-programmers. Here's what a model looks like:
+
+```lua
+-- Age everyone by one year
+for person in pairs(population) do
+    if person.alive == true then
+        person.age = person.age + 1
+    end
+end
+```
+
+**In plain English:** "For each person in the population, if they are alive, add 1 to their age."
+
+### Why This Works for Non-Programmers
+
+| Concept | Lua Code | Plain English |
+|---------|----------|---------------|
+| Loop through people | `for person in pairs(population) do` | "For each person..." |
+| Check if alive | `if person.alive == true then` | "If they are alive..." |
+| Change age | `person.age = person.age + 1` | "Add 1 to their age" |
+
+**That's it!** You don't need to be a programmer to use Hekate. Just these 3 concepts let you build demographic models.
+
+---
+
 ## Overview
 
 Hekate is a **general-purpose microsimulation engine** that models population dynamics through individual-level simulation. Unlike traditional microsimulation systems that require code changes for each new model, Hekate uses:
@@ -321,44 +348,160 @@ Get started with Hekate through our step-by-step tutorials. Each tutorial builds
 
 Hekate can model a wide range of demographic processes. Here are some examples:
 
-### Migration Model
-People move between areas based on age-specific probabilities. Young adults are most mobile, elderly are least mobile.
-
-### Fertility Model
-Women of childbearing age give birth based on age-specific fertility rates. Babies inherit characteristics from their mothers.
-
-### Mortality Model
-People die based on age-specific death probabilities. Mortality rates increase with age.
-
-### Education Model
-Children progress through primary, secondary, and tertiary education based on age.
-
-### Income Model (Using Linear Regression)
-People earn income based on age, education, and sex using the built-in `linear_predict()` function:
+### Aging Model
+Everyone gets older by one year each iteration:
 
 ```lua
-local income = hekate_stats.linear_predict(
-    coefs.intercept,
-    coefs.age, person.age,
-    coefs.education, edu_score,
-    coefs.gender, gender_score
-)
+for person in pairs(population) do
+    if person.alive == true then
+        person.age = person.age + 1
+    end
+end
+```
+
+### Mortality Model
+People die based on age-specific death probabilities:
+
+```lua
+for person in pairs(population) do
+    if person.alive == true then
+        if person.age < 30 then
+            prob = 0.001  -- 0.1% chance
+        else
+            prob = 0.05   -- 5% chance
+        end
+        if math.random() < prob then
+            person.alive = false
+        end
+    end
+end
+```
+
+### Fertility Model
+Women of childbearing age give birth based on age-specific fertility rates:
+
+```lua
+local newborns = {}
+for person in pairs(population) do
+    if person.alive == true and person.sex == "F" then
+        if person.age >= 15 and person.age < 50 then
+            if math.random() < 0.05 then
+                table.insert(newborns, {
+                    person_id = new_id,
+                    age = 0,
+                    sex = "F",
+                    area_id = person.area_id,
+                    alive = true
+                })
+            end
+        end
+    end
+end
+for _, baby in ipairs(newborns) do
+    table.insert(population, baby)
+end
+```
+
+### Income Model (Using Linear Regression)
+People earn income based on age, education, and sex:
+
+```lua
+for person in pairs(population) do
+    if person.alive == true then
+        local income = hekate_stats.linear_predict(
+            coefs.intercept,
+            coefs.age, person.age,
+            coefs.education, edu_score,
+            coefs.gender, gender_score
+        )
+        person.income = math.floor(income + 0.5)
+    end
+end
 ```
 
 ### Health Risk Model (Using Logistic Regression)
-Health risk is calculated using the built-in `logistic_predict()` function:
+Health risk is calculated using age, BMI, and smoking status:
 
 ```lua
-local risk = hekate_stats.logistic_predict(
-    coefs.intercept,
-    coefs.age, age / 10,
-    coefs.bmi, bmi_score,
-    coefs.smoker, smoker_score
-)
+for person in pairs(population) do
+    if person.alive == true then
+        local risk = hekate_stats.logistic_predict(
+            coefs.intercept,
+            coefs.age, age / 10,
+            coefs.bmi, bmi_score,
+            coefs.smoker, smoker_score
+        )
+        person.health_risk = math.floor(risk * 100 + 0.5)
+    end
+end
+```
+
+### Migration Model
+People move between areas based on age-specific probabilities:
+
+```lua
+for person in pairs(population) do
+    if person.alive == true then
+        local prob = 0
+        if person.age < 30 then
+            prob = 0.05  -- Young adults move more
+        elseif person.age < 65 then
+            prob = 0.02
+        else
+            prob = 0.005 -- Elderly move less
+        end
+        if math.random() < prob then
+            person.previous_area = person.area_id
+            person.area_id = math.random(1, 10)
+        end
+    end
+end
+```
+
+### Education Model
+Children progress through primary, secondary, and tertiary education:
+
+```lua
+for person in pairs(population) do
+    if person.alive == true then
+        if person.age >= 5 and person.age <= 18 then
+            if person.education == "none" and person.age >= 5 then
+                person.education = "primary"
+            elseif person.education == "primary" and person.age >= 11 then
+                person.education = "secondary"
+            elseif person.education == "secondary" and person.age >= 16 then
+                if math.random() < 0.3 then
+                    person.education = "tertiary"
+                end
+            end
+        end
+    end
+end
 ```
 
 ### Household Formation Model
-Young adults form new households, children live with their parents.
+Young adults form new households, children live with parents:
+
+```lua
+-- Young adults form households
+for person in pairs(population) do
+    if person.alive == true and person.age >= 18 then
+        person.household_id = person.person_id
+    end
+end
+
+-- Children live with mothers
+for person in pairs(population) do
+    if person.alive == true and person.age < 18 then
+        for mother in pairs(population) do
+            if mother.person_id == person.mother_id and mother.alive == true then
+                person.household_id = mother.household_id
+                break
+            end
+        end
+    end
+end
+```
 
 ---
 
@@ -484,7 +627,7 @@ models:
       script: |
         function transition(population, params)
           local coefs = params.coefficients
-          for _, person in ipairs(population) do
+          for person in pairs(population) do
             if person.alive == true then
               local edu_score = 0
               if person.education == "tertiary" then
@@ -856,7 +999,7 @@ models:
       rate: 0.01
       script: |
         function transition(population, params)
-          for _, person in ipairs(population) do
+          for person in pairs(population) do
             if person.alive == true then
               -- Your model logic here
             end
