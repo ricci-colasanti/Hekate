@@ -187,7 +187,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
