@@ -153,7 +153,7 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for person in pairs(population) do
+            for i, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -368,7 +368,7 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for person in pairs(population) do
+            for i, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -434,7 +434,7 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for person in pairs(population) do
+            for i, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -504,7 +504,7 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for person in pairs(population) do
+            for i, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -561,7 +561,7 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for person in pairs(population) do
+            for i, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -707,7 +707,7 @@ local income = hekate_stats.linear_predict(
 ### Pitfall 3: Forgetting to Handle Alive Status
 **Wrong:**
 ```lua
-for person in pairs(population) do
+for i, person in ipairs(population) do
     -- Updates everyone, including dead people!
     person.income = predict_income(person)
 end
@@ -715,7 +715,7 @@ end
 
 **Correct:**
 ```lua
-for person in pairs(population) do
+for i, person in ipairs(population) do
     local alive = false
     if person.alive == true or person.alive == "true" then
         alive = true

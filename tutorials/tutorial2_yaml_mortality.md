@@ -49,7 +49,7 @@ In Tutorial 1, we used this in our model:
 ```yaml
 script: |
   function transition(population, params)
-    for person in pairs(population) do
+    for i, person in ipairs(population) do
       if person.alive == true then
         person.age = person.age + 1
       end
@@ -65,7 +65,7 @@ The pipe (`|`) tells YAML: "Everything that follows, indented, is a single strin
 ```yaml
 # ❌ WRONG - YAML sees three separate values
 script: function transition(population, params)
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.alive == true then
       person.age = person.age + 1
     end
@@ -82,7 +82,7 @@ YAML would see this as multiple separate lines and throw an error because it exp
 # ✅ CORRECT - content is indented
 script: |
   function transition(population, params)
-    for person in pairs(population) do
+    for i, person in ipairs(population) do
       if person.alive == true then
         person.age = person.age + 1
       end
@@ -93,7 +93,7 @@ script: |
 # ❌ WRONG - content is not indented
 script: |
 function transition(population, params)
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.alive == true then
       person.age = person.age + 1
     end
@@ -154,7 +154,7 @@ Think of your population as a list of people, where each person has properties:
 
 Lua lets you:
 
-- **Loop through people**: `for person in pairs(population) do`
+- **Loop through people**: `for i, person in ipairs(population) do`
 - **Check conditions**: `if person.alive == true then`
 - **Make changes**: `person.age = person.age + 1`
 - **Return results**: `return population`
@@ -166,23 +166,11 @@ That's it! You don't need to know anything else about programming.
 | Lua Concept | What it does | Example | Plain English |
 |-------------|--------------|---------|---------------|
 | `function` | Define a function | `function transition(population, params)` | "Here's a model that runs each year" |
-| `for` | Loop through a collection | `for person in pairs(population) do` | "For each person in the population..." |
+| `for` | Loop through a list | `for i, person in ipairs(population) do` | "For each person in the population..." |
 | `if` | Check a condition | `if person.alive == true then` | "If they are alive..." |
 | `==` | Compare values | `person.alive == true` | "Is alive equal to true?" |
 | `=` | Assign a value | `person.age = person.age + 1` | "Set age to age plus 1" |
 | `return` | Return a value | `return population` | "Send back the updated population" |
-
-### Understanding `pairs` vs `ipairs` (Quick Refresher)
-
-| Method | Syntax | Order | When to Use |
-|--------|--------|-------|-------------|
-| `pairs` | `for person in pairs(population) do` | Unordered | Most demographic models (cleaner, simpler) |
-| `ipairs` | `for _, person in ipairs(population) do` | Ordered | When order matters or you need the index |
-
-**For Hekate, we use `pairs` because:**
-1. Order doesn't matter in demographic models
-2. The syntax is cleaner and easier to read
-3. It's more like plain English: "For each person..."
 
 ---
 
@@ -206,7 +194,7 @@ Now let's add a mortality model to our simulation. This will make our model more
   parameters:
     script: |
       function transition(population, params)
-        for person in pairs(population) do
+        for i, person in ipairs(population) do
           if person.alive == true then
             local age = person.age
             local prob = 0
@@ -238,7 +226,7 @@ Now let's add a mortality model to our simulation. This will make our model more
 | `enabled: true` | Activates the model | "This model is turned on" |
 | `script: |` | Starts the Lua code | "Here comes the Lua script..." |
 | `function transition(population, params)` | Defines the model | "This is the model that runs each year" |
-| `for person in pairs(population) do` | Loops through people | "For each person in the population..." |
+| `for i, person in ipairs(population) do` | Loops through people | "For each person in the population..." |
 | `if person.alive == true then` | Checks if alive | "...if they are alive..." |
 | `local age = person.age` | Gets their age | "...get their age..." |
 | `if age < 30 then` | Checks age group | "...if they're under 30..." |
@@ -280,7 +268,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
@@ -297,7 +285,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true then
               local age = person.age
               local prob = 0
@@ -367,7 +355,7 @@ If you want to experiment with area-specific rates, here's how:
   parameters:
     script: |
       function transition(population, params)
-        for person in pairs(population) do
+        for i, person in ipairs(population) do
           if person.alive == true then
             local age = person.age
             local area = person.area_id
@@ -463,7 +451,7 @@ Congratulations! You've now learned:
 
 2. ✅ **Lua in Plain English**:
    - `function` = "Here's a model"
-   - `for person in pairs(population) do` = "For each person"
+   - `for i, person in ipairs(population) do` = "For each person"
    - `if` = "If this is true"
    - `math.random()` = "Roll a dice"
 
@@ -491,7 +479,7 @@ In this tutorial, you've learned:
 2. **Lua in Plain English**:
    - Lua is just instructions that read like English
    - `function` = "Here's a model"
-   - `for person in pairs(population) do` = "For each person"
+   - `for i, person in ipairs(population) do` = "For each person"
    - `if` = "If this is true"
    - `math.random()` = "Roll a dice"
 

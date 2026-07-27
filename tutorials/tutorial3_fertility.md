@@ -88,7 +88,7 @@ To create new unique IDs, we need to find the highest existing ID:
 
 ```lua
 local max_id = 0
-for person in pairs(population) do
+for i, person in ipairs(population) do
   if person.person_id > max_id then
     max_id = person.person_id
   end
@@ -115,14 +115,14 @@ function transition(population, params)
   
   -- Find the maximum ID
   local max_id = 0
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.person_id ~= nil and person.person_id > max_id then
       max_id = person.person_id
     end
   end
   
   -- Process each person
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     -- Check if this person is a fertile woman
     if person.alive == true and person.sex == "F" then
       local age = person.age
@@ -150,7 +150,7 @@ function transition(population, params)
   end
   
   -- Add newborns to population
-  for _, baby in ipairs(newborns) do
+  for i, baby in ipairs(newborns) do
     table.insert(population, baby)
   end
   
@@ -168,7 +168,7 @@ end
 |------|--------------|------------------|
 | `local fertility_rate = params.fertility_rate or 0.05` | Get rate | "Use the rate from the config, or 5% if not specified" |
 | `local newborns = {}` | Create list | "Create an empty list for babies born this year" |
-| `for person in pairs(population) do` | Loop through people | "For each person in the population..." |
+| `for i, person in ipairs(population) do` | Loop through people | "For each person in the population..." |
 | `if person.alive == true and person.sex == "F" then` | Check woman | "...if they are a woman and alive..." |
 | `if age >= 15 and age < 50 then` | Check age | "...and they're of childbearing age (15-49)..." |
 | `if math.random() < fertility_rate then` | Roll dice | "...roll a random number..." |
@@ -176,17 +176,6 @@ end
 | `local baby = { ... }` | Create baby | "...create a new baby with properties" |
 | `table.insert(newborns, baby)` | Add to list | "...add the baby to the list of newborns" |
 | `table.insert(population, baby)` | Add to population | "...add the baby to the population" |
-
-**Note:** We use `ipairs` when adding newborns to the population because we need to iterate through the `newborns` list **in order**. This is one of the few places where order matters in Hekate!
-
-### Why Use `ipairs` for Newborns?
-
-| Method | Why We Use It |
-|--------|---------------|
-| `pairs` | For iterating through the population (order doesn't matter) |
-| `ipairs` | For iterating through the `newborns` list (we want to add them in order) |
-
-**Why does order matter for newborns?** It doesn't really - we could use `pairs` too. But `ipairs` is slightly more efficient for lists where order is preserved, and it's a good habit when you're working with lists rather than dictionaries.
 
 ---
 
@@ -217,7 +206,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
@@ -234,7 +223,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true then
               local age = person.age
               local prob = 0
@@ -267,13 +256,13 @@ models:
           local newborns = {}
           
           local max_id = 0
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.person_id ~= nil and person.person_id > max_id then
               max_id = person.person_id
             end
           end
           
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true and person.sex == "F" then
               local age = person.age
               if age >= 15 and age < 50 then
@@ -297,7 +286,7 @@ models:
             end
           end
           
-          for _, baby in ipairs(newborns) do
+          for i, baby in ipairs(newborns) do
             table.insert(population, baby)
           end
           
@@ -404,13 +393,13 @@ function transition(population, params)
   local newborns = {}
   
   local max_id = 0
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.person_id ~= nil and person.person_id > max_id then
       max_id = person.person_id
     end
   end
   
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.alive == true and person.sex == "F" then
       local age = person.age
       local rate = 0
@@ -451,7 +440,7 @@ function transition(population, params)
     end
   end
   
-  for _, baby in ipairs(newborns) do
+  for i, baby in ipairs(newborns) do
     table.insert(population, baby)
   end
   
@@ -490,13 +479,13 @@ function transition(population, params)
   local newborns = {}
   
   local max_id = 0
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.person_id ~= nil and person.person_id > max_id then
       max_id = person.person_id
     end
   end
   
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.alive == true and person.sex == "F" then
       local age = person.age
       local area = person.area_id
@@ -550,7 +539,7 @@ function transition(population, params)
     end
   end
   
-  for _, baby in ipairs(newborns) do
+  for i, baby in ipairs(newborns) do
     table.insert(population, baby)
   end
   
@@ -614,13 +603,13 @@ function transition(population, params)
   local mothers_to_update = {}
   
   local max_id = 0
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.person_id ~= nil and person.person_id > max_id then
       max_id = person.person_id
     end
   end
   
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.alive == true and person.sex == "F" then
       local age = person.age
       if age >= 15 and age < 50 then
@@ -648,13 +637,13 @@ function transition(population, params)
   end
   
   -- Add newborns to population
-  for _, baby in ipairs(newborns) do
+  for i, baby in ipairs(newborns) do
     table.insert(population, baby)
   end
   
   -- Update mother parity (number of children)
   for mother_id in pairs(mothers_to_update) do
-    for person in pairs(population) do
+    for i, person in ipairs(population) do
       if person.person_id == mother_id then
         person.parity = (person.parity or 0) + 1
         break
@@ -703,7 +692,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
@@ -719,7 +708,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true then
               local age = person.age
               local prob = 0
@@ -758,13 +747,13 @@ models:
           local mothers_to_update = {}
           
           local max_id = 0
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.person_id ~= nil and person.person_id > max_id then
               max_id = person.person_id
             end
           end
           
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true and person.sex == "F" then
               local age = person.age
               local area = person.area_id
@@ -799,12 +788,12 @@ models:
             end
           end
           
-          for _, baby in ipairs(newborns) do
+          for i, baby in ipairs(newborns) do
             table.insert(population, baby)
           end
           
           for mother_id in pairs(mothers_to_update) do
-            for person in pairs(population) do
+            for i, person in ipairs(population) do
               if person.person_id == mother_id then
                 person.parity = (person.parity or 0) + 1
                 break
@@ -882,7 +871,7 @@ Congratulations! You now have a complete demographic microsimulation model with:
 ### 1. Add Education Models
 ```lua
 function transition(population, params)
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.alive == true and person.age >= 5 and person.age <= 18 then
       if person.education == "none" then
         person.education = "primary"
@@ -902,7 +891,7 @@ end
 ### 2. Add Income Models
 ```lua
 function transition(population, params)
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.alive == true and person.age >= 18 then
       local base = 20000
       local education_bonus = 0
@@ -924,7 +913,7 @@ end
 ```lua
 function transition(population, params)
   -- Young adults form households
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.alive == true and person.age >= 18 and person.age <= 25 then
       if math.random() < 0.05 then
         person.household_id = person.person_id
@@ -933,9 +922,9 @@ function transition(population, params)
   end
   
   -- Children live with mothers
-  for person in pairs(population) do
+  for i, person in ipairs(population) do
     if person.alive == true and person.age < 18 and person.mother_id ~= nil then
-      for mother in pairs(population) do
+      for j, mother in ipairs(population) do
         if mother.person_id == person.mother_id and mother.alive == true then
           person.household_id = mother.household_id
           break
@@ -958,20 +947,10 @@ end
 | `math.random()` | Random number | `math.random()` or `math.random(1, 10)` |
 | `and` / `or` | Logical operators | `if person.alive and person.sex == "F"` |
 | `{}` | Create table | `{ name = "John", age = 25 }` |
-| `for` loop | Iterate | `for person in pairs(population) do` |
+| `for` loop | Iterate | `for i, person in ipairs(population) do` |
 | `if-elseif-else` | Conditions | `if age < 18 then ... end` |
-| `pairs()` | Iterate collection | `for person in pairs(population) do` |
-| `ipairs()` | Iterate list in order | `for _, baby in ipairs(newborns) do` |
+| `pairs()` | Iterate dictionary | `for key, value in pairs(table) do` |
 | `or` | Default value | `rate = params.rate or 0.05` |
-
-### When to Use `pairs` vs `ipairs` in Hekate
-
-| Situation | Use | Why |
-|-----------|-----|-----|
-| Iterating through population | `pairs` | Cleaner syntax, order doesn't matter |
-| Iterating through newborns list | `ipairs` | We want to preserve order (optional) |
-| Iterating through any list where order matters | `ipairs` | Order is preserved |
-| Iterating through any collection where order doesn't matter | `pairs` | Simpler, more readable |
 
 ---
 
@@ -987,7 +966,6 @@ In this tutorial, you've learned:
 6. **Area-Specific Fertility**: Different rates for different areas
 7. **Model Priority**: Why order matters (age → mortality → fertility)
 8. **Population Growth**: How births and deaths change population size
-9. **`pairs` vs `ipairs`**: When to use each in your models
 
 ---
 

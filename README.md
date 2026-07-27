@@ -1,10 +1,11 @@
+
+# Hekate
+## Microsimulation Engine
+
 <div align="left">
   <img src="img/Hekate.png" alt="Hekate Logo" width="300" height="300">
   <p><em>Hekate — Microsimulation Engine</em></p>
 </div>
-
-# Hekate
-## Microsimulation Engine
 
 Named after the Greek goddess of crossroads, magic, and transitions, Hekate is a self-contained, dynamically configurable demographic microsimulation system written in Go. **Hekate is a general-purpose microsimulation engine** that can simulate population dynamics including migration, aging, mortality, fertility, and other demographic processes. The name reflects the engine's purpose—guiding populations through the crossroads of life events and demographic transitions.
 
@@ -110,20 +111,20 @@ Hekate uses **Lua** because it's designed for non-programmers. Here's what a mod
 
 ```lua
 -- Age everyone by one year
-for person in pairs(population) do
+for i, person in ipairs(population) do
     if person.alive == true then
         person.age = person.age + 1
     end
 end
 ```
 
-**In plain English:** "For each person in the population, if they are alive, add 1 to their age."
+**In plain English:** "For each person in the population (with index i), if they are alive, add 1 to their age."
 
 ### Why This Works for Non-Programmers
 
 | Concept | Lua Code | Plain English |
 |---------|----------|---------------|
-| Loop through people | `for person in pairs(population) do` | "For each person..." |
+| Loop through people | `for i, person in ipairs(population) do` | "For each person..." |
 | Check if alive | `if person.alive == true then` | "If they are alive..." |
 | Change age | `person.age = person.age + 1` | "Add 1 to their age" |
 
@@ -352,7 +353,7 @@ Hekate can model a wide range of demographic processes. Here are some examples:
 Everyone gets older by one year each iteration:
 
 ```lua
-for person in pairs(population) do
+for i, person in ipairs(population) do
     if person.alive == true then
         person.age = person.age + 1
     end
@@ -363,7 +364,7 @@ end
 People die based on age-specific death probabilities:
 
 ```lua
-for person in pairs(population) do
+for i, person in ipairs(population) do
     if person.alive == true then
         if person.age < 30 then
             prob = 0.001  -- 0.1% chance
@@ -382,7 +383,7 @@ Women of childbearing age give birth based on age-specific fertility rates:
 
 ```lua
 local newborns = {}
-for person in pairs(population) do
+for i, person in ipairs(population) do
     if person.alive == true and person.sex == "F" then
         if person.age >= 15 and person.age < 50 then
             if math.random() < 0.05 then
@@ -406,7 +407,7 @@ end
 People earn income based on age, education, and sex:
 
 ```lua
-for person in pairs(population) do
+for i, person in ipairs(population) do
     if person.alive == true then
         local income = hekate_stats.linear_predict(
             coefs.intercept,
@@ -423,7 +424,7 @@ end
 Health risk is calculated using age, BMI, and smoking status:
 
 ```lua
-for person in pairs(population) do
+for i, person in ipairs(population) do
     if person.alive == true then
         local risk = hekate_stats.logistic_predict(
             coefs.intercept,
@@ -440,7 +441,7 @@ end
 People move between areas based on age-specific probabilities:
 
 ```lua
-for person in pairs(population) do
+for i, person in ipairs(population) do
     if person.alive == true then
         local prob = 0
         if person.age < 30 then
@@ -462,7 +463,7 @@ end
 Children progress through primary, secondary, and tertiary education:
 
 ```lua
-for person in pairs(population) do
+for i, person in ipairs(population) do
     if person.alive == true then
         if person.age >= 5 and person.age <= 18 then
             if person.education == "none" and person.age >= 5 then
@@ -484,16 +485,16 @@ Young adults form new households, children live with parents:
 
 ```lua
 -- Young adults form households
-for person in pairs(population) do
+for i, person in ipairs(population) do
     if person.alive == true and person.age >= 18 then
         person.household_id = person.person_id
     end
 end
 
 -- Children live with mothers
-for person in pairs(population) do
+for i, person in ipairs(population) do
     if person.alive == true and person.age < 18 then
-        for mother in pairs(population) do
+        for j, mother in ipairs(population) do
             if mother.person_id == person.mother_id and mother.alive == true then
                 person.household_id = mother.household_id
                 break
@@ -627,7 +628,7 @@ models:
       script: |
         function transition(population, params)
           local coefs = params.coefficients
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true then
               local edu_score = 0
               if person.education == "tertiary" then
@@ -999,7 +1000,7 @@ models:
       rate: 0.01
       script: |
         function transition(population, params)
-          for person in pairs(population) do
+          for i, person in ipairs(population) do
             if person.alive == true then
               -- Your model logic here
             end
@@ -1065,3 +1066,4 @@ Alison Heppenstall
 Hugh Rice  
 Andreas Hoehn  
 Ric Colasanti
+
