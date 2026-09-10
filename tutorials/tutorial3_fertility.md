@@ -1,8 +1,8 @@
-# Hekate Tutorial 3: Adding Fertility
+# Hekate Tutorial 3: Adding Fertility with Streaming Mode and Areas
 
 ## Overview
 
-In this tutorial, you'll learn how to add fertility to your demographic model. We'll build on the aging and mortality model from Tutorial 2, adding births to create a more complete population simulation. You'll learn how to create new individuals, assign their characteristics, track population growth, and work with family relationships.
+In this tutorial, you'll learn how to add fertility to your demographic model. We'll build on the aging and mortality model from Tutorial 2, adding births to create a more complete population simulation. You'll learn how to create new individuals, assign their characteristics, track population growth, and work with area-based data using streaming mode.
 
 ## What You'll Learn
 
@@ -11,6 +11,7 @@ By the end of this tutorial, you'll be able to:
 - Create new individuals (births) with appropriate characteristics
 - Understand how to work with family relationships
 - Write complex Lua models that modify the population
+- Use streaming mode with fertility models
 - Track population growth across areas
 
 ## Prerequisites
@@ -27,6 +28,7 @@ So far we have:
 - ✅ **Aging**: Everyone gets older each year
 - ✅ **Mortality**: Some people die based on their age
 - ✅ **Areas**: Population is organized by geographic areas
+- ✅ **Streaming Mode**: Process large populations with low memory
 
 Now we'll add:
 - **Fertility**: Women of childbearing age can give birth
@@ -88,7 +90,7 @@ To create new unique IDs, we need to find the highest existing ID:
 
 ```lua
 local max_id = 0
-for i, person in ipairs(population) do
+for _, person in ipairs(population) do
   if person.person_id > max_id then
     max_id = person.person_id
   end
@@ -115,14 +117,14 @@ function transition(population, params)
   
   -- Find the maximum ID
   local max_id = 0
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.person_id ~= nil and person.person_id > max_id then
       max_id = person.person_id
     end
   end
   
   -- Process each person
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     -- Check if this person is a fertile woman
     if person.alive == true and person.sex == "F" then
       local age = person.age
@@ -150,7 +152,7 @@ function transition(population, params)
   end
   
   -- Add newborns to population
-  for i, baby in ipairs(newborns) do
+  for _, baby in ipairs(newborns) do
     table.insert(population, baby)
   end
   
@@ -168,7 +170,7 @@ end
 |------|--------------|------------------|
 | `local fertility_rate = params.fertility_rate or 0.05` | Get rate | "Use the rate from the config, or 5% if not specified" |
 | `local newborns = {}` | Create list | "Create an empty list for babies born this year" |
-| `for i, person in ipairs(population) do` | Loop through people | "For each person in the population..." |
+| `for _, person in ipairs(population) do` | Loop through people | "For each person in the population..." |
 | `if person.alive == true and person.sex == "F" then` | Check woman | "...if they are a woman and alive..." |
 | `if age >= 15 and age < 50 then` | Check age | "...and they're of childbearing age (15-49)..." |
 | `if math.random() < fertility_rate then` | Roll dice | "...roll a random number..." |
@@ -194,7 +196,8 @@ simulation:
   random_seed: 42
   verbose: true
   id_column: "person_id"
-  streaming_mode: false   # Use bulk mode (simple for small populations)
+  area_column: "area_id"
+  streaming_mode: false  # Use bulk mode for small population
 
 models:
   # Model 1: Age increment (runs first)
@@ -206,7 +209,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
@@ -223,7 +226,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.alive == true then
               local age = person.age
               local prob = 0
@@ -256,13 +259,13 @@ models:
           local newborns = {}
           
           local max_id = 0
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.person_id ~= nil and person.person_id > max_id then
               max_id = person.person_id
             end
           end
           
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.alive == true and person.sex == "F" then
               local age = person.age
               if age >= 15 and age < 50 then
@@ -286,7 +289,7 @@ models:
             end
           end
           
-          for i, baby in ipairs(newborns) do
+          for _, baby in ipairs(newborns) do
             table.insert(population, baby)
           end
           
@@ -332,7 +335,177 @@ Save the configuration as `config_aging_mortality_fertility.yaml` and run it:
 
 ---
 
-## Part 6: Why Model Order Matters
+## Part 6: Adding Streaming Mode for Larger Populations
+
+### Create a Population with Areas for Streaming
+
+For streaming mode, create a CSV sorted by `area_id`:
+
+```csv
+person_id,age,sex,area_id,alive,previous_area,partner_id,mother_id,father_id,parity
+1,25,F,1,true,0,0,0,0,0
+2,30,M,1,true,0,1,0,0,0
+3,45,F,1,true,0,0,0,0,2
+4,68,M,1,true,0,0,0,0,0
+5,82,F,1,true,0,0,0,0,0
+6,2,M,2,true,0,0,0,3,0
+7,15,F,2,true,0,0,0,0,0
+8,35,M,2,true,0,0,0,0,0
+9,55,F,2,true,0,0,0,0,3
+10,70,M,2,true,0,0,0,0,0
+```
+
+### Streaming Mode Configuration
+
+```yaml
+# config_aging_mortality_fertility_streaming.yaml
+# Streaming mode with aging, mortality, and fertility
+
+simulation:
+  iterations: 10
+  population_file: "population_with_areas.csv"
+  output_file: "final_output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+  area_column: "area_id"          # REQUIRED for streaming mode
+  streaming_mode: true            # Enable area-by-area processing
+
+models:
+  # Model 1: Age increment
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end
+
+  # Model 2: Mortality
+  - name: "mortality"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              local age = person.age
+              local prob = 0
+              
+              if age < 30 then
+                prob = 0.001
+              else
+                prob = 0.05
+              end
+              
+              if math.random() < prob then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end
+
+  # Model 3: Fertility with area awareness
+  - name: "fertility"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    parameters:
+      fertility_rate: 0.05
+      script: |
+        function transition(population, params)
+          local fertility_rate = params.fertility_rate
+          local newborns = {}
+          
+          local max_id = 0
+          for _, person in ipairs(population) do
+            if person.person_id ~= nil and person.person_id > max_id then
+              max_id = person.person_id
+            end
+          end
+          
+          for _, person in ipairs(population) do
+            if person.alive == true and person.sex == "F" then
+              local age = person.age
+              if age >= 15 and age < 50 then
+                if math.random() < fertility_rate then
+                  max_id = max_id + 1
+                  local baby = {
+                    person_id = max_id,
+                    age = 0,
+                    sex = math.random() < 0.5 and "F" or "M",
+                    area_id = person.area_id,
+                    alive = true,
+                    previous_area = 0,
+                    partner_id = 0,
+                    mother_id = person.person_id,
+                    father_id = 0,
+                    parity = 0
+                  }
+                  table.insert(newborns, baby)
+                end
+              end
+            end
+          end
+          
+          for _, baby in ipairs(newborns) do
+            table.insert(population, baby)
+          end
+          
+          return population
+        end
+```
+
+### Running Streaming Mode
+
+```bash
+./hekate config_aging_mortality_fertility_streaming.yaml
+```
+
+### Expected Output with Streaming
+
+```
+2024/01/15 10:00:00 ═══ Hekate: Microsimulation Engine ═══
+2024/01/15 10:00:00 Iterations: 10
+2024/01/15 10:00:00 Population file: population_with_areas.csv
+2024/01/15 10:00:00 ID column: person_id
+2024/01/15 10:00:00 Mode: STREAMING (area-by-area)
+2024/01/15 10:00:00 Area column: area_id
+2024/01/15 10:00:00 Models loaded: 3
+2024/01/15 10:00:00 Detected 10 columns
+2024/01/15 10:00:00 
+═══ Iteration 1/10 ═══
+2024/01/15 10:00:00   ▶ age_increment
+2024/01/15 10:00:00   ▶ mortality
+2024/01/15 10:00:00   ▶ fertility
+2024/01/15 10:00:00   Processed 2 areas
+...
+```
+
+### Output Files in Streaming Mode
+
+```
+year_0.csv  → Initial population (input)
+year_1.csv  → After year 1
+year_2.csv  → After year 2
+...
+year_10.csv → After year 10
+final_output.csv → Copy of year_10.csv
+```
+
+---
+
+## Part 7: Why Model Order Matters
 
 The order of models is crucial. Here's why we run them in this specific order:
 
@@ -376,7 +549,7 @@ End of Year
 
 ---
 
-## Part 7: Advanced Fertility - Age-Specific Rates
+## Part 8: Advanced Fertility - Age-Specific Rates
 
 ### The Problem
 
@@ -393,13 +566,13 @@ function transition(population, params)
   local newborns = {}
   
   local max_id = 0
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.person_id ~= nil and person.person_id > max_id then
       max_id = person.person_id
     end
   end
   
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.alive == true and person.sex == "F" then
       local age = person.age
       local rate = 0
@@ -440,7 +613,7 @@ function transition(population, params)
     end
   end
   
-  for i, baby in ipairs(newborns) do
+  for _, baby in ipairs(newborns) do
     table.insert(population, baby)
   end
   
@@ -462,7 +635,7 @@ end
 
 ---
 
-## Part 8: Area-Specific Fertility
+## Part 9: Area-Specific Fertility
 
 ### The Problem
 
@@ -479,13 +652,13 @@ function transition(population, params)
   local newborns = {}
   
   local max_id = 0
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.person_id ~= nil and person.person_id > max_id then
       max_id = person.person_id
     end
   end
   
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.alive == true and person.sex == "F" then
       local age = person.age
       local area = person.area_id
@@ -539,7 +712,7 @@ function transition(population, params)
     end
   end
   
-  for i, baby in ipairs(newborns) do
+  for _, baby in ipairs(newborns) do
     table.insert(population, baby)
   end
   
@@ -557,7 +730,7 @@ This allows you to model:
 
 ---
 
-## Part 9: Advanced Fertility - Tracking Mother-Child Relationships
+## Part 10: Advanced Fertility - Tracking Mother-Child Relationships
 
 ### The Problem
 
@@ -603,13 +776,13 @@ function transition(population, params)
   local mothers_to_update = {}
   
   local max_id = 0
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.person_id ~= nil and person.person_id > max_id then
       max_id = person.person_id
     end
   end
   
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.alive == true and person.sex == "F" then
       local age = person.age
       if age >= 15 and age < 50 then
@@ -637,13 +810,13 @@ function transition(population, params)
   end
   
   -- Add newborns to population
-  for i, baby in ipairs(newborns) do
+  for _, baby in ipairs(newborns) do
     table.insert(population, baby)
   end
   
   -- Update mother parity (number of children)
   for mother_id in pairs(mothers_to_update) do
-    for i, person in ipairs(population) do
+    for _, person in ipairs(population) do
       if person.person_id == mother_id then
         person.parity = (person.parity or 0) + 1
         break
@@ -666,22 +839,23 @@ When a woman gives birth, her parity increases by 1.
 
 ---
 
-## Part 10: Complete Configuration
+## Part 11: Complete Configuration with Advanced Fertility and Streaming
 
-Here's the full configuration with advanced fertility:
+Here's the full configuration with all advanced features:
 
 ```yaml
-# config_advanced_fertility.yaml
-# Complete model with advanced fertility
+# config_advanced_fertility_streaming.yaml
+# Complete model with advanced fertility and streaming mode
 
 simulation:
   iterations: 10
   population_file: "population_with_family.csv"
-  output_file: "population_advanced.csv"
+  output_file: "final_output.csv"
   random_seed: 42
   verbose: true
   id_column: "person_id"
-  streaming_mode: false   # Use bulk mode for simplicity
+  area_column: "area_id"
+  streaming_mode: true
 
 models:
   # Model 1: Age increment
@@ -692,7 +866,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
@@ -708,7 +882,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.alive == true then
               local age = person.age
               local prob = 0
@@ -747,13 +921,13 @@ models:
           local mothers_to_update = {}
           
           local max_id = 0
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.person_id ~= nil and person.person_id > max_id then
               max_id = person.person_id
             end
           end
           
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.alive == true and person.sex == "F" then
               local age = person.age
               local area = person.area_id
@@ -788,12 +962,12 @@ models:
             end
           end
           
-          for i, baby in ipairs(newborns) do
+          for _, baby in ipairs(newborns) do
             table.insert(population, baby)
           end
           
           for mother_id in pairs(mothers_to_update) do
-            for i, person in ipairs(population) do
+            for _, person in ipairs(population) do
               if person.person_id == mother_id then
                 person.parity = (person.parity or 0) + 1
                 break
@@ -807,7 +981,7 @@ models:
 
 ---
 
-## Part 11: What You've Accomplished
+## Part 12: What You've Accomplished
 
 Congratulations! You now have a complete demographic microsimulation model with:
 
@@ -818,9 +992,10 @@ Congratulations! You now have a complete demographic microsimulation model with:
 5. ✅ **Area-Specific Fertility**: Different rates for different areas
 6. ✅ **Mother-Child Links**: Track which mother had which child
 7. ✅ **Parity Tracking**: Track how many children each woman has
-8. ✅ **Population Growth**: Births and deaths change population size
+8. ✅ **Streaming Mode**: Process large populations with low memory
+9. ✅ **Population Growth**: Births and deaths change population size
 
-### The Full Demographic Cycle
+### The Full Demographic Cycle with Areas
 
 ```
     ┌─────────────────────────────────────┐
@@ -860,27 +1035,27 @@ Congratulations! You now have a complete demographic microsimulation model with:
     ┌─────────────────────────────────────┐
     │                                     │
     │   Next year: repeat!                │
+    │   (Streaming mode: area by area)    │
     │                                     │
     └─────────────────────────────────────┘
 ```
 
 ---
 
-## Part 12: What You Can Do Next
+## Part 13: What You Can Do Next
 
 ### 1. Add Education Models
 ```lua
 function transition(population, params)
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.alive == true and person.age >= 5 and person.age <= 18 then
+      -- Progress through education
       if person.education == "none" then
         person.education = "primary"
       elseif person.education == "primary" and person.age >= 11 then
         person.education = "secondary"
       elseif person.education == "secondary" and person.age >= 16 then
-        if math.random() < 0.3 then
-          person.education = "tertiary"
-        end
+        -- Could go to tertiary or leave
       end
     end
   end
@@ -891,8 +1066,9 @@ end
 ### 2. Add Income Models
 ```lua
 function transition(population, params)
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.alive == true and person.age >= 18 then
+      -- Income depends on age, education, and sex
       local base = 20000
       local education_bonus = 0
       if person.education == "tertiary" then
@@ -900,7 +1076,7 @@ function transition(population, params)
       elseif person.education == "secondary" then
         education_bonus = 5000
       end
-      local age_factor = math.min(1, (person.age - 18) / 20)
+      local age_factor = math.min(1, (person.age - 18) / 20)  -- Peaks around 38
       local sex_factor = person.sex == "M" and 1.0 or 0.8
       person.income = (base + education_bonus) * age_factor * sex_factor
     end
@@ -913,7 +1089,7 @@ end
 ```lua
 function transition(population, params)
   -- Young adults form households
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.alive == true and person.age >= 18 and person.age <= 25 then
       if math.random() < 0.05 then
         person.household_id = person.person_id
@@ -922,13 +1098,45 @@ function transition(population, params)
   end
   
   -- Children live with mothers
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.alive == true and person.age < 18 and person.mother_id ~= nil then
-      for j, mother in ipairs(population) do
+      for _, mother in ipairs(population) do
         if mother.person_id == person.mother_id and mother.alive == true then
           person.household_id = mother.household_id
           break
         end
+      end
+    end
+  end
+  
+  return population
+end
+```
+
+### 4. Add Migration Between Areas
+```lua
+function transition(population, params)
+  local migration_rate = params.migration_rate or 0.05
+  local num_areas = params.num_areas or 5
+  
+  for _, person in ipairs(population) do
+    if person.alive == true then
+      -- Migration probability by age
+      local age = person.age
+      local rate = 0
+      if age < 18 then
+        rate = migration_rate * 0.4
+      elseif age >= 18 and age < 35 then
+        rate = migration_rate * 1.5
+      elseif age >= 35 and age < 65 then
+        rate = migration_rate * 0.6
+      else
+        rate = migration_rate * 0.2
+      end
+      
+      if math.random() < rate then
+        person.previous_area = person.area_id
+        person.area_id = math.random(1, num_areas)
       end
     end
   end
@@ -947,40 +1155,35 @@ end
 | `math.random()` | Random number | `math.random()` or `math.random(1, 10)` |
 | `and` / `or` | Logical operators | `if person.alive and person.sex == "F"` |
 | `{}` | Create table | `{ name = "John", age = 25 }` |
-| `for` loop | Iterate | `for i, person in ipairs(population) do` |
+| `for` loop | Iterate | `for _, person in ipairs(population) do` |
 | `if-elseif-else` | Conditions | `if age < 18 then ... end` |
 | `pairs()` | Iterate dictionary | `for key, value in pairs(table) do` |
-| `or` | Default value | `rate = params.rate or 0.05` |
 
 ---
 
-## Summary
+## Performance Considerations with Streaming Mode
 
-In this tutorial, you've learned:
+| Feature | Bulk Mode | Streaming Mode |
+|---------|-----------|----------------|
+| **Memory Usage** | Increases with population | Constant (~20-50MB) |
+| **Speed** | Faster for small populations | Slightly slower but scalable |
+| **Best For** | < 1M people | 1M+ people |
+| **Output Files** | Single file | Year-by-year files |
 
-1. **Fertility Model**: How to add births to your simulation
-2. **Creating New Individuals**: How to create new people with unique IDs
-3. **Family Relationships**: How to track mother-child relationships
-4. **Parity Tracking**: How to count how many children a woman has had
-5. **Age-Specific Fertility**: Different rates for different age groups
-6. **Area-Specific Fertility**: Different rates for different areas
-7. **Model Priority**: Why order matters (age → mortality → fertility)
-8. **Population Growth**: How births and deaths change population size
+### When to Use Streaming Mode with Fertility
 
----
+**Use streaming mode when:**
+- Population > 1 million
+- Multiple areas (100+)
+- Limited memory available
+- Long simulations (50+ years)
 
-## Next Steps
-
-In the next tutorial (**Tutorial 4: Using Linear Regression in Hekate**), you'll learn how to:
-- Use Hekate's built-in linear regression function
-- Predict income, health risk, and other continuous outcomes
-- Define coefficients in YAML
-- Handle categorical variables (education, gender, etc.)
-- Add randomness to make predictions realistic
-- Validate your model results
-
-In **Tutorial 5**, you'll learn about Streaming Mode for large populations.
+**Use bulk mode when:**
+- Population < 1 million
+- Speed is the priority
+- You have plenty of memory
+- You're developing/debugging models
 
 ---
 
-**Well done for completing Tutorial 3!** You now have a complete demographic simulation with aging, mortality, and fertility. You understand the full demographic cycle, can work with areas, and can track family relationships. You're ready to move on to using linear regression models in Tutorial 4!
+**Well done for completing Tutorial 3!** You now have a complete demographic simulation with aging, mortality, and fertility. You understand the full demographic cycle, can work with areas and streaming mode, and can track family relationships. You're ready to build your own microsimulation models!

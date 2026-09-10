@@ -1,0 +1,56 @@
+# config_aging_mortality.yaml
+# Aging and mortality model with area support
+
+simulation:
+  iterations: 5
+  population_file: "population.csv"
+  output_file: "population_aged_mortality1.csv"
+  random_seed: 42
+  verbose: false
+  id_column: "person_id"
+
+models:
+  # Model 1: Age increment (runs first)
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Increment everyone's age by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end
+
+  # Model 2: Mortality (runs second)
+  - name: "mortality"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    description: "Age-specific mortality: 0.1% for under 30, 5% for 30+"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              local age = person.age
+              local prob = 0
+
+              if age < 30 then
+                prob = 0.001  -- 0.1% chance
+              else
+                prob = 0.05   -- 5% chance
+              end
+
+              if math.random() < prob then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end

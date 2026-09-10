@@ -26,6 +26,18 @@ No complex programming, no compilation - just simple instructions that read like
 
 ---
 
+## New in Hekate: Streaming Mode for Large Populations
+
+Hekate now supports **Streaming Mode**, which processes populations area-by-area instead of loading everything into memory. This means:
+
+- **Memory usage stays low** (~20-50MB) regardless of population size
+- **Simulate millions or billions** of people on standard hardware
+- **Perfect for large-scale** demographic simulations
+
+For this tutorial, we'll use the traditional **Bulk Mode** (load everything into memory) which is simpler and faster for small populations. But we'll also show you how to enable Streaming Mode for larger populations.
+
+---
+
 ## Why Lua Code Inside YAML?
 
 You might wonder: **"Why do I need to write Lua code inside a YAML configuration file?"**
@@ -112,7 +124,7 @@ For Hekate, you only need to know a handful of Lua concepts:
 | Concept | What it does | Example |
 |---------|--------------|---------|
 | `function` | Defines a model | `function transition(population, params)` |
-| `for` | Loops through people | `for i, person in ipairs(population) do` |
+| `for` | Loops through people | `for _, person in ipairs(population) do` |
 | `if` | Checks a condition | `if person.alive == true then` |
 | `==` | Compares values | `person.alive == true` |
 | `=` | Assigns a value | `person.age = person.age + 1` |
@@ -147,7 +159,7 @@ This gives us 10 individuals with various ages. The columns are:
 - `area_id`: Geographic area (we'll use just one area for now)
 - `alive`: Whether the person is alive (true/false)
 
-**Note about `area_id`:** This column is used by Hekate's streaming mode to process populations area-by-area. We'll cover streaming mode in detail in **Tutorial 5: Large-Scale Simulations with Streaming Mode**. For now, we'll use the simpler **Bulk Mode** which loads everything into memory at once.
+**Note about `area_id`:** This column is used by Hekate's streaming mode to process populations area-by-area. Even in bulk mode, it's good practice to include it for future flexibility.
 
 ---
 
@@ -176,7 +188,6 @@ simulation:
   random_seed: 42                   # For reproducibility
   verbose: true                     # Show detailed output
   id_column: "person_id"            # REQUIRED: Unique identifier column
-  streaming_mode: false             # Use bulk mode (simpler for small populations)
 
 models:
   - name: "age_increment"
@@ -187,7 +198,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
@@ -195,8 +206,6 @@ models:
           return population
         end
 ```
-
-**Note about `streaming_mode: false`:** We're using **Bulk Mode** in this tutorial. This loads the entire population into memory at once, which is simpler and faster for small populations. For large populations (1M+), we'll use Streaming Mode which processes area-by-area. We'll cover this in depth in **Tutorial 5: Large-Scale Simulations with Streaming Mode**.
 
 ---
 
@@ -281,6 +290,73 @@ Notice that everyone has aged exactly 5 years:
 
 ---
 
+## Optional: Running with Streaming Mode
+
+If you have a large population (1M+ people), you can use Streaming Mode to process it with minimal memory:
+
+```yaml
+# config_aging_streaming.yaml
+# Streaming mode for large populations
+
+simulation:
+  iterations: 5
+  population_file: "population.csv"
+  output_file: "final_output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+  area_column: "area_id"        # REQUIRED for streaming mode
+  streaming_mode: true          # Enable area-by-area processing
+
+models:
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end
+```
+
+**Important:** For streaming mode, your CSV must be **sorted by `area_id`**:
+
+```csv
+person_id,age,sex,area_id,alive
+1,25,F,1,true
+2,30,M,1,true
+3,45,F,1,true
+... all area 1 people together ...
+11,25,F,2,true
+12,30,M,2,true
+... all area 2 people together ...
+```
+
+**When to use streaming mode:**
+- Population > 1 million people
+- Memory is limited (< 4GB)
+- Running on low-cost hardware
+- Large number of geographic areas
+
+**Output files in streaming mode:**
+```
+year_0.csv  → Initial population (input)
+year_1.csv  → After year 1
+year_2.csv  → After year 2
+...
+final_output.csv → Copy of last year's file
+```
+
+These intermediate files let you resume simulations from any year!
+
+---
+
 ## Understanding Your Configuration
 
 Now let's break down what the configuration does. The structure is simple - two main sections:
@@ -295,7 +371,9 @@ simulation:
   random_seed: 42                   # For reproducibility
   verbose: true                     # Show detailed output
   id_column: "person_id"            # REQUIRED: Unique identifier column
-  streaming_mode: false             # Use bulk mode (simpler for small populations)
+  # Optional for streaming mode:
+  # area_column: "area_id"          # Column to group by
+  # streaming_mode: true            # Enable area-by-area processing
 ```
 
 This tells Hekate:
@@ -305,13 +383,8 @@ This tells Hekate:
 - **What random seed** to use for reproducible results (`random_seed: 42`)
 - **Whether to show detailed output** (`verbose: true`)
 - **Which column is the unique identifier** (`id_column: "person_id"`)
-- **Whether to use streaming mode** (`streaming_mode: false`)
 
 **Why is `id_column` required?** Every individual in your population needs a unique identifier. This is how Hekate keeps track of each person throughout the simulation. When people age, die, or have children, Hekate uses this ID to ensure it's updating the right person. Without a unique ID column, Hekate wouldn't be able to distinguish between individuals or link family members together. The `id_column` tells Hekate which column in your CSV contains these unique identifiers. Ordering the output by this column is a secondary benefit that makes it easier to compare results across different runs.
-
-**Why `streaming_mode: false`?** We're using **Bulk Mode** in this tutorial. This is the simplest mode - it loads the entire population into memory, processes all people, then saves the results. It's perfect for small populations like our 10-person example.
-
-For **large populations** (1M+ people), we use **Streaming Mode** (`streaming_mode: true`). This processes the population area-by-area, keeping memory usage low regardless of population size. We'll cover Streaming Mode in detail in **Tutorial 5: Large-Scale Simulations with Streaming Mode**.
 
 ### 2. The Models Section
 
@@ -325,7 +398,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
@@ -351,7 +424,7 @@ Let's look at our model's Lua script:
 
 ```lua
 function transition(population, params)
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.alive == true then
       person.age = person.age + 1
     end
@@ -400,7 +473,7 @@ ERROR: script must define a 'transition' function
 ```lua
 -- ❌ WRONG - Hekate won't find this
 function my_model(population, params)
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     person.age = person.age + 1
   end
   return population
@@ -408,7 +481,7 @@ end
 
 -- ✅ CORRECT - Hekate finds this
 function transition(population, params)
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     person.age = person.age + 1
   end
   return population
@@ -429,12 +502,12 @@ end
 
 ### Understanding `ipairs`
 
-You might wonder: **"What is `ipairs` and why do we use it?"**
+You might also wonder: **"What is `ipairs` and why do we use it?"**
 
 `ipairs` is a Lua function that helps us **loop through a list in order**. Think of it like this:
 
 ```lua
-for i, person in ipairs(population) do
+for _, person in ipairs(population) do
   -- Do something with each person
 end
 ```
@@ -446,7 +519,7 @@ end
 | Part | What it means | In plain English |
 |------|---------------|------------------|
 | `for` | Start a loop | "For each..." |
-| `i` | The position/index | "...the position number..." |
+| `_` | The position/index (we don't need it) | "Ignore the position number" |
 | `person` | The current item | "...this person..." |
 | `in` | From the list | "...from the list..." |
 | `ipairs(population)` | The list to loop through | "...the population list, in order" |
@@ -463,16 +536,24 @@ Lua has two ways to loop through lists:
 
 Since our population is a simple list of people in order, we use `ipairs`.
 
-**What about `i`?**
+**What about the underscore (`_`)?**
 
-In our loop, `i` is the position of the person in the list. For example:
-- First person: `i = 1`
-- Second person: `i = 2`
-- And so on...
+In Lua, `_` is a convention meaning "I don't need this value." When we loop with `ipairs`, we get both the position number and the person:
 
-While we don't always use `i` in our logic, it's useful to know that it's available if you need it. You might use `i` for:
-- Logging: `print("Processing person " .. i .. " of " .. #population)`
-- Debugging: `print("Person " .. person.person_id .. " is at position " .. i)`
+```lua
+for index, person in ipairs(population) do
+  -- index = 1, 2, 3, ...
+  -- person = the person at that position
+end
+```
+
+Since we only care about the person, not their position, we use `_` instead of `index`:
+
+```lua
+for _, person in ipairs(population) do
+  -- We ignore the position and just work with each person
+end
+```
 
 ### How CSV Headers Link to `person.age`
 
@@ -603,7 +684,7 @@ Population = {
 |---------|-------------|
 | `transition` | **Required name** for model functions |
 | `ipairs` | Loops through a list in order |
-| `i` | The position/index of the current person |
+| `_` | Means "I don't need this value" |
 | `person` | The current person being processed |
 | `person.age` | Accesses the `age` column from the CSV |
 | `person.alive` | Accesses the `alive` column from the CSV |
@@ -621,7 +702,7 @@ Now let's put it all together. The configuration has two main sections:
 - `population_file`: Where to read data from
 - `output_file`: Where to save results
 - `id_column`: Which column contains the unique ID (REQUIRED)
-- `streaming_mode`: Whether to use bulk or streaming mode
+- Optional: `area_column` and `streaming_mode` for large populations
 
 ### 2. Models Section
 - Defines what happens each year
@@ -633,7 +714,16 @@ Now let's put it all together. The configuration has two main sections:
 
 ---
 
-**We'll cover Streaming Mode in depth in Tutorial 5.** For now, Bulk Mode is perfect for learning and small populations.
+## Performance and Scalability
+
+Hekate can handle populations of any size:
+
+| Mode | Memory Usage | Best For |
+|------|--------------|----------|
+| **Bulk** | ~2MB per 1000 people | Small populations (<1M), speed |
+| **Streaming** | ~20-50MB constant | Large populations (1M+), memory efficiency |
+
+**With streaming mode, Hekate can simulate millions or billions of people on standard hardware!**
 
 ---
 
@@ -648,7 +738,7 @@ Congratulations! You've successfully:
 5. ✅ Understood how Lua connects to your CSV data
 6. ✅ Learned that model functions must be called `transition`
 7. ✅ Understood why the `id_column` is required
-8. ✅ Learned about Bulk Mode vs Streaming Mode
+8. ✅ Learned about Streaming Mode for large populations
 
 You now know the basic workflow for using Hekate.
 
@@ -660,8 +750,9 @@ In the next tutorial, we'll dive deeper into YAML and Lua. You'll learn:
 
 - **YAML rules**: Why indentation matters, why you need the pipe (`|`) for multi-line strings, and how to avoid common mistakes
 - **More Lua**: Working with age and conditions in your models
+- **Column name matching**: Why column names must match your CSV exactly
 - **Mortality**: Adding a mortality model to make your simulation more realistic
-- **Streaming Mode**: How to use it effectively for large populations (Tutorial 5)
+- **Streaming Mode**: How to use it effectively for large populations
 
 For now, take a moment to appreciate what you've built - a working demographic microsimulation model!
 

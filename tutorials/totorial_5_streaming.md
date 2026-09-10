@@ -128,7 +128,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-            for i, person in ipairs(population) do
+            for _, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -154,7 +154,7 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for i, person in ipairs(population) do
+            for _, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -508,7 +508,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-            for i, person in ipairs(population) do
+            for _, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -531,7 +531,7 @@ models:
       script: |
         function transition(population, params)
             local coefs = params.coefficients
-            for i, person in ipairs(population) do
+            for _, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -560,59 +560,6 @@ python3 generate_streaming_population.py  # Modify to 1000000
 # Analyze
 python3 analyze_streaming_results.py
 ```
-
----
-
-## Why `ipairs` Works Perfectly in Streaming Mode
-
-In streaming mode, Hekate processes one area at a time. Each area's population is a complete list of people living in that area. When we iterate with `ipairs`:
-
-```lua
-for i, person in ipairs(population) do
-    -- Process each person in this area
-end
-```
-
-**Order is preserved!** Each person is processed in the order they appear in the CSV, which is useful for debugging and logging.
-
-### Using `i` (The Index)
-
-Unlike `pairs`, `ipairs` gives us both the index and the person:
-
-```lua
-for i, person in ipairs(population) do
-    print("Processing person " .. i .. " of " .. #population)
-    if person.alive == true then
-        person.age = person.age + 1
-    end
-end
-```
-
-This is great for:
-- **Logging**: "Processing person 1 of 10..."
-- **Debugging**: "Error at index 5"
-- **Progress tracking**: Knowing which person we're processing
-- **Ordered operations**: When order matters (rare in demographics)
-
-### When Would Order Matter in Streaming?
-
-**Almost never!** The only time order matters is when adding newborns, and even then:
-
-```lua
--- Collect newborns (order doesn't matter here)
-local newborns = {}
-for i, person in ipairs(population) do
-    -- Check fertility...
-    table.insert(newborns, baby)
-end
-
--- Add newborns (order doesn't matter here either)
-for i, baby in ipairs(newborns) do
-    table.insert(population, baby)
-end
-```
-
-**The bottom line:** `ipairs` works perfectly for all demographic models in Hekate, whether in Bulk Mode or Streaming Mode. And the `i` variable is there if you need it!
 
 ---
 

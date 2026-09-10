@@ -1,13 +1,217 @@
-
-# Hekate
-## Microsimulation Engine
-
 <div align="left">
   <img src="img/Hekate.png" alt="Hekate Logo" width="300" height="300">
   <p><em>Hekate — Microsimulation Engine</em></p>
 </div>
 
+
+## Microsimulation Engine
+
 Named after the Greek goddess of crossroads, magic, and transitions, Hekate is a self-contained, dynamically configurable demographic microsimulation system written in Go. **Hekate is a general-purpose microsimulation engine** that can simulate population dynamics including migration, aging, mortality, fertility, and other demographic processes. The name reflects the engine's purpose—guiding populations through the crossroads of life events and demographic transitions.
+
+---
+
+## ⚡ Try It in 5 Minutes
+
+No installation. No compilation. Just download and run.
+
+### Step 1: Download the Binary
+
+Pick the binary for your platform from the [latest release](https://github.com/your-repo/hekate/releases/latest):
+
+| Platform | Download |
+|----------|----------|
+| **Linux** (x86_64) | `hekate-linux-amd64` |
+| **Linux** (ARM64) | `hekate-linux-arm64` |
+| **macOS** (Apple Silicon — M1/M2/M3/M4) | `hekate-darwin-arm64` |
+| **macOS** (Intel) | `hekate-darwin-amd64` |
+| **Windows** (x86_64) | `hekate-windows-amd64.exe` |
+
+> **Not sure which macOS binary you need?** Open Terminal and run `uname -m`:
+> - `arm64` → use `hekate-darwin-arm64`
+> - `x86_64` → use `hekate-darwin-amd64`
+
+Make the binary executable (Linux/macOS only):
+
+```bash
+chmod +x hekate-*
+```
+
+### Step 2: Save the Example Files
+
+Create a new folder and save these two files inside it.
+
+**`population.csv`** — a small starting population:
+
+```csv
+person_id,age,sex,area_id,alive
+1,25,F,1,true
+2,30,M,1,true
+3,45,F,1,true
+4,68,M,1,true
+5,82,F,1,true
+6,2,M,1,true
+7,15,F,1,true
+8,35,M,1,true
+9,55,F,1,true
+10,70,M,1,true
+```
+
+**`config.yaml`** — a simple aging + mortality model:
+
+```yaml
+simulation:
+  iterations: 5
+  population_file: "population.csv"
+  output_file: "output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+
+models:
+  - name: "aging"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Increment everyone's age by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              person.age = (tonumber(person.age) or 0) + 1
+            end
+          end
+          return population
+        end
+
+  - name: "mortality"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    description: "Age-based mortality"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              local age = tonumber(person.age) or 40
+              if hekate_stats.logistic_draw(-6.0, 0.09, age) then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end
+```
+
+### Step 3: Run It
+
+From inside that folder:
+
+```bash
+# Linux
+./hekate-linux-amd64 config.yaml
+
+# macOS (Apple Silicon)
+./hekate-darwin-arm64 config.yaml
+
+# macOS (Intel)
+./hekate-darwin-amd64 config.yaml
+
+# Windows
+hekate-windows-amd64.exe config.yaml
+```
+
+You should see something like this:
+
+```
+═══ Hekate: Microsimulation Engine ═══
+Iterations: 5
+Population file: population.csv
+ID column: person_id
+Mode: BULK (load all into memory)
+Random seed: 42
+Models loaded: 2
+Enabled models: 2
+  - aging (priority: 1)
+  - mortality (priority: 2)
+
+════════════════════════════════════════════════════════
+  Lua Script Pre-Flight Validation
+════════════════════════════════════════════════════════
+
+  ✅ aging                          (priority: 1)
+  ✅ mortality                      (priority: 2)
+
+════════════════════════════════════════════════════════
+  ✅ All 2 models validated successfully
+════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════
+  Runtime Validation: Column Names vs CSV
+════════════════════════════════════════════════════════
+
+  CSV columns: person_id, age, sex, area_id, alive
+
+  ✅ aging                          (priority: 1)
+  ✅ mortality                      (priority: 2)
+
+════════════════════════════════════════════════════════
+  ✅ All 2 models reference valid columns
+════════════════════════════════════════════════════════
+
+--- Using Bulk Processing (load all into memory) ---
+Loaded 10 individuals with 5 columns
+
+═══ Iteration 1/5 ═══
+  ▶ aging
+  ▶ mortality
+...
+
+═══ Simulation Complete ═══
+Results saved to output.csv
+```
+
+### Step 4: Open the Result
+
+Open `output.csv` in any spreadsheet app or text editor. You'll see the same 10 people, but **5 years older** — and some will have died:
+
+```csv
+person_id,age,sex,area_id,alive
+1,30,F,1,true
+2,35,M,1,true
+3,50,F,1,true
+4,73,M,1,true
+5,87,F,1,false   ← died
+6,7,M,1,true
+7,20,F,1,true
+8,40,M,1,true
+9,60,F,1,true
+10,75,M,1,true
+```
+
+**That's it.** You've just run a demographic microsimulation in under 5 minutes.
+
+### ✅ Verify Reproducibility
+
+Run it again — you'll get the exact same output:
+
+```bash
+./hekate-linux-amd64 config.yaml
+cp output.csv run1.csv
+./hekate-linux-amd64 config.yaml
+cp output.csv run2.csv
+diff run1.csv run2.csv   # no differences, ever
+```
+
+Try changing `random_seed: 42` to `random_seed: 999`. Different results — but still reproducible.
+
+### 🚀 Next Steps
+
+- **[Read Tutorial 1](tutorials/tutorial1_aging.md)** — learn how to build your own models
+- **[Read Tutorial 6](tutorials/tutorial6_stats.md)** — use regression coefficients from real studies
+- **[Read the LLM Prompt Template](LLM_PROMPT_TEMPLATE.md)** — get an AI to write models for you
+- **[Explore Streaming Mode](#-new-in-hekate-streaming-mode-for-large-populations)** — scale to billions of people
 
 ---
 
@@ -21,9 +225,13 @@ If you've used **NetLogo**, you already understand Hekate's philosophy:
 | Easy to learn, shallow learning curve | ✅ | ✅ |
 | Build models without programming experience | ✅ | ✅ |
 | Rapid iteration: edit → run → see results | ✅ | ✅ |
+| Domain-specific language (not general-purpose) | ✅ | ✅ |
 | Built-in functions for common tasks | ✅ | ✅ |
+| Large populations (millions+) | ❌ (~10K max) | ✅ (unlimited) |
+| Streaming mode for any population size | ❌ | ✅ |
+| Fully reproducible results | ❌ | ✅ |
 
-**The Hekate Promise:** Like NetLogo, you can go from zero to a working model in minutes. Unlike NetLogo, Hekate can scale to millions or billions of individuals with minimal memory.
+**The Hekate Promise:** Like NetLogo, you can go from zero to a working model in minutes. Unlike NetLogo, Hekate can scale to millions or billions of individuals with minimal memory — and every result is reproducible.
 
 ---
 
@@ -97,38 +305,13 @@ Hekate is a single, self-contained executable that:
 - Rapid iteration: edit and rerun in seconds
 - Full transparency: the model is visible in the config
 - Easy collaboration: share config files, not code
+- Reproducible: verify others' results independently
 
 **For Developers:**
 - One binary for all models
 - No dependency management
 - Easy distribution
-
----
-
-## Lua: Simple and Readable
-
-Hekate uses **Lua** because it's designed for non-programmers. Here's what a model looks like:
-
-```lua
--- Age everyone by one year
-for i, person in ipairs(population) do
-    if person.alive == true then
-        person.age = person.age + 1
-    end
-end
-```
-
-**In plain English:** "For each person in the population (with index i), if they are alive, add 1 to their age."
-
-### Why This Works for Non-Programmers
-
-| Concept | Lua Code | Plain English |
-|---------|----------|---------------|
-| Loop through people | `for i, person in ipairs(population) do` | "For each person..." |
-| Check if alive | `if person.alive == true then` | "If they are alive..." |
-| Change age | `person.age = person.age + 1` | "Add 1 to their age" |
-
-**That's it!** You don't need to be a programmer to use Hekate. Just these 3 concepts let you build demographic models.
+- Modular codebase
 
 ---
 
@@ -145,13 +328,256 @@ The result is a single, self-contained executable that can be distributed and ru
 
 ---
 
+## Reproducibility Guarantees
+
+**Hekate produces scientifically reproducible results.** When you set a `random_seed` in your configuration, running the same simulation twice will produce byte-for-byte identical output, no matter when, where, or how many times you run it.
+
+### The Promise
+
+```bash
+# Run 1
+./hekate config.yaml
+cp output.csv run1.csv
+
+# Run 2 (days later, on a different machine)
+./hekate config.yaml
+cp output.csv run2.csv
+
+# Result:
+diff run1.csv run2.csv
+# (no output - files are identical)
+```
+
+### Why Reproducibility Matters
+
+- **Scientific research**: Other researchers can verify your results
+- **Debugging**: You can reliably reproduce bugs
+- **Validation**: You can compare model versions objectively
+- **Collaboration**: Your colleagues get the same results as you
+- **Peer review**: Reviewers can independently verify your findings
+
+### How It Works
+
+Hekate uses a **dedicated random number generator (RNG)** for each Lua VM instance, seeded deterministically for each model execution:
+
+```
+seed = random_seed + (iteration × 1000) + model_index
+```
+
+This ensures:
+1. **No dependency on system time** or global random state
+2. **Independent randomness** between different models
+3. **Fully reproducible** results across runs, machines, and time
+
+### Requirements for Reproducibility
+
+For reproducible results, you must:
+
+| Requirement | Why |
+|-------------|-----|
+| **Set `random_seed` in config.yaml** | Provides the base for all derived seeds |
+| **Use `math.random()` in Lua scripts** | Automatically mapped to the VM's dedicated RNG |
+| **Avoid external randomness** | No `os.time()`, network calls, or filesystem state in models |
+| **Never call `math.randomseed()`** | Hekate handles seeding automatically; calling it manually can break reproducibility |
+| **Use the same version of Hekate** | Future versions may change behavior |
+
+### Important Note for Developers
+
+**Go 1.20+ changed `math/rand.Seed()` to be a no-op.** Hekate handles this internally by using dedicated `rand.Rand` instances, but if you extend Hekate, **never use the global `math/rand` functions**. Always use the VM's random source:
+
+```go
+// ✅ CORRECT - Uses the VM's dedicated RNG
+L.Push(lua.LNumber(vm.random.Float64()))
+
+// ❌ WRONG - Uses the global RNG (not reproducible)
+L.Push(lua.LNumber(rand.Float64()))
+```
+
+### Verifying Reproducibility
+
+Hekate's reproducibility is easy to verify:
+
+```bash
+# Run the simulation 4 times
+for i in 1 2 3 4; do
+    ./hekate config.yaml
+    cp output.csv run$i.csv
+done
+
+# Compare all runs
+diff run1.csv run2.csv
+diff run1.csv run3.csv
+diff run1.csv run4.csv
+# All should show no differences
+```
+
+### Changing the Seed
+
+To get different (but still reproducible) results, change the seed:
+
+```yaml
+simulation:
+  random_seed: 12345  # Any integer
+```
+
+Running with a different seed will produce different results, but running twice with the same seed will always produce identical results.
+
+---
+
+## Pre-Flight Validation
+
+Before running any simulation, Hekate performs **two-stage validation** to catch common mistakes in milliseconds — saving you from hours of wasted computation.
+
+### Why This Matters
+
+Imagine running a 10-million-person, 50-year simulation (2.3 hours). If your Lua script has a typo like `person.agge`, the run will fail at year 47 — after **2.3 hours of wasted compute**. With pre-flight validation, it fails in **2 milliseconds**.
+
+### Stage 1: Lua Syntax Validation
+
+Hekate compiles every Lua script in a throwaway VM and checks:
+
+- ✅ **Syntax is valid** — no missing `end` keywords, unbalanced brackets, etc.
+- ✅ **A `transition` function exists** — the entry point Hekate needs
+- ⚠️ **Common mistakes** — using `#` for comments, calling `math.randomseed()`
+
+### Stage 2: Column Name Validation
+
+Hekate scans every script for `person.COLUMN` references and compares them against your CSV header. It catches:
+
+- ❌ **Typos in column names** — `person.agge` (suggests `person.age`)
+- ❌ **Columns that don't exist** — `person.income` when there's no income column
+- ❌ **Case sensitivity issues** — `person.Age` when the CSV has `age`
+
+When a typo is found, Hekate suggests the closest matching column using fuzzy matching:
+
+```
+❌ mortality                      (priority: 2)
+     └─ column 'agge' not found (did you mean 'age'?)
+```
+
+### What the Output Looks Like
+
+**Successful validation:**
+
+```
+════════════════════════════════════════════════════════
+  Lua Script Pre-Flight Validation
+════════════════════════════════════════════════════════
+
+  ✅ aging                          (priority: 1)
+  ✅ mortality                      (priority: 2)
+
+════════════════════════════════════════════════════════
+  ✅ All 2 models validated successfully
+════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════
+  Runtime Validation: Column Names vs CSV
+════════════════════════════════════════════════════════
+
+  CSV columns: person_id, age, sex, area_id, alive
+
+  ✅ aging                          (priority: 1)
+  ✅ mortality                      (priority: 2)
+
+════════════════════════════════════════════════════════
+  ✅ All 2 models reference valid columns
+════════════════════════════════════════════════════════
+```
+
+**With a typo:**
+
+```
+  ❌ mortality                      (priority: 2)
+       └─ column 'agge' not found (did you mean 'age'?)
+
+════════════════════════════════════════════════════════
+  ❌ 1 of 2 models reference missing columns (1 total)
+════════════════════════════════════════════════════════
+
+📄 Detailed report written to: hekate_validation.log
+Simulation aborted: 1 model(s) reference missing columns
+```
+
+### Configuration Options
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `strict_mode` | Treat warnings as errors (useful in CI) | `false` |
+| `skip_validation` | Bypass validation entirely (not recommended) | `false` |
+| `validation_log_file` | Where to write the failure report | `hekate_validation.log` |
+
+**Recommended for most users:** leave all three at their defaults.
+
+### Suppressing False Positives
+
+If a column is added by an **earlier model** in the pipeline, the validator will flag it as missing. To suppress the warning, add a special comment to your script:
+
+```lua
+function transition(population, params)
+  -- hekate:allow-columns income, tax_bracket
+  for _, person in ipairs(population) do
+    if person.income > 50000 then
+      -- ...
+    end
+  end
+  return population
+end
+```
+
+The validator will skip warnings for columns listed in the comment.
+
+### The Validation Log
+
+When validation fails, Hekate writes a detailed report to `hekate_validation.log`:
+
+```
+Hekate — Lua Script Validation Report
+======================================
+
+Summary:
+  Total models:    2
+  Valid models:    1
+  Failed models:   1
+  Total warnings:  0
+
+Details:
+--------
+
+[✅ PASS] aging
+
+[❌ FAIL] mortality
+  Error: <string> line 5: 'end' expected (to close 'function' at line 1) near '<eof>'
+       💡 Check that every 'function', 'if', 'for', and 'while' has a matching 'end'.
+
+Next steps:
+  1. Fix the errors listed above in your config.yaml
+  2. Re-run Hekate to verify
+  3. If the error message is unclear, see:
+     - README.md section 'Troubleshooting'
+     - LLM_PROMPT_TEMPLATE.md for AI-assisted help
+```
+
+---
+
 ## Built-in Statistical Functions
 
-Hekate provides several powerful statistical functions that you can call directly from your Lua scripts. These functions are implemented in Go for performance and accuracy.
+Hekate provides a comprehensive statistical toolkit that you can call directly from your Lua scripts. All functions are implemented in Go for speed, numerical accuracy, and **reproducibility**.
 
-### Linear Regression: `hekate_stats.linear_predict()`
+### Function Categories
 
-The `linear_predict()` function computes a linear combination: **y = intercept + coef₁×var₁ + coef₂×var₂ + ...**
+| Category | Purpose | Randomness? |
+|----------|---------|-------------|
+| **Predictions** (`*_predict`) | Compute a value or probability | No (deterministic) |
+| **Draws** (`*_draw`) | Sample a random outcome | Yes (uses `vm.random`) |
+
+---
+
+### 📊 Prediction Functions (Deterministic)
+
+#### 1. Linear Regression: `hekate_stats.linear_predict()`
+
+Computes: **y = intercept + coef₁×var₁ + coef₂×var₂ + ...**
 
 **Syntax:**
 ```lua
@@ -173,45 +599,13 @@ local income = hekate_stats.linear_predict(
 )
 ```
 
-**Common Use Cases:**
-- **Income prediction**: Age, education, gender, occupation
-- **Expenditure modeling**: Income, household size, region
-- **Risk scoring**: Age, BMI, smoking status, chronic conditions
-- **Utility calculations**: Multiple weighted factors
+**Use for:** Income, expenditure, wealth, risk scores, utility calculations.
 
-### Logistic Regression: `hekate_stats.logistic_predict()`
+---
 
-The `logistic_predict()` function computes a logistic probability: **p = 1 / (1 + e^(-linear))**
+#### 2. Linear Predict with Defaults: `hekate_stats.linear_predict_default()`
 
-**Syntax:**
-```lua
-local probability = hekate_stats.logistic_predict(
-    intercept,    -- The constant term
-    coef1, var1,  -- First coefficient-variable pair
-    coef2, var2,  -- Second coefficient-variable pair
-    ...           -- More pairs as needed
-)
-```
-
-**Example: Predicting Health Risk**
-```lua
-local risk = hekate_stats.logistic_predict(
-    -3.5,         -- intercept
-    1.2, age/10,  -- age coefficient * age in decades
-    0.8, bmi_score,      -- BMI coefficient * BMI category
-    1.5, smoker_score    -- smoking coefficient * smoker status
-)
-```
-
-**Common Use Cases:**
-- **Mortality risk**: Age, health status, smoking, chronic conditions
-- **Disease probability**: Risk factors, genetics, lifestyle
-- **Event likelihood**: Migration, marriage, employment
-- **Binary outcomes**: Any yes/no prediction
-
-### Linear Predict with Defaults: `hekate_stats.linear_predict_default()`
-
-Handles missing values by substituting a default:
+Like `linear_predict()` but handles missing values by substituting a default:
 
 ```lua
 local result = hekate_stats.linear_predict_default(
@@ -222,6 +616,151 @@ local result = hekate_stats.linear_predict_default(
 )
 ```
 
+**Use for:** Any linear model with missing data.
+
+---
+
+#### 3. Logistic Regression: `hekate_stats.logistic_predict()`
+
+Computes: **p = 1 / (1 + e^(-linear))**
+
+**Syntax:**
+```lua
+local probability = hekate_stats.logistic_predict(
+    intercept,
+    coef1, var1,
+    coef2, var2,
+    ...
+)
+```
+
+**Example: Predicting Health Risk**
+```lua
+local risk = hekate_stats.logistic_predict(
+    -3.5,         -- intercept
+    1.2, age/10,  -- age in decades
+    0.8, bmi_score,
+    1.5, smoker_score
+)
+```
+
+**Use for:** Mortality, disease probability, migration likelihood, any binary outcome.
+
+---
+
+#### 4. Poisson Regression: `hekate_stats.poisson_predict()`
+
+Computes: **λ = exp(intercept + coef₁×var₁ + ...)**
+
+Returns the expected count for a Poisson-distributed outcome.
+
+```lua
+local lambda = hekate_stats.poisson_predict(
+    -1.5,                    -- intercept (base rate)
+    0.05, person.age,
+    0.5, married_score,
+    -0.3, urban_score
+)
+```
+
+**Use for:** Number of children, doctor visits, migrations, events.
+
+---
+
+#### 5. Softmax: `hekate_stats.softmax_predict()`
+
+Computes softmax over multiple linear combinations to return probabilities that sum to 1.0.
+
+```lua
+local probs = hekate_stats.softmax_predict(
+    {base1, coef1a, var1a, coef1b, var1b, ...},  -- category 1
+    {base2, coef2a, var2a, coef2b, var2b, ...},  -- category 2
+    {base3, coef3a, var3a, coef3b, var3b, ...}   -- category 3
+)
+-- probs is a table like {0.15, 0.55, 0.30}
+```
+
+**Example: Education Outcome**
+```lua
+local probs = hekate_stats.softmax_predict(
+    {0.5, 0.1, age, -0.2, parent_edu},   -- primary
+    {1.0, 0.3, age, 0.5, parent_edu},    -- secondary
+    {0.2, 0.5, age, 0.8, parent_edu}     -- tertiary
+)
+```
+
+**Use for:** Education level, marital status, labour market state, migration destination.
+
+---
+
+### 🎲 Draw Functions (Use `vm.random` for Reproducibility)
+
+These functions sample from probability distributions and use Hekate's dedicated random source, so they remain fully reproducible.
+
+#### 6. Logistic Draw: `hekate_stats.logistic_draw()`
+
+Logistic predict + Bernoulli sample in one call. Returns `true` if the random draw is less than the computed probability.
+
+```lua
+if hekate_stats.logistic_draw(
+    -3.5,
+    1.2, age / 10,
+    0.8, bmi_score,
+    1.5, smoker_score
+) then
+    person.alive = false
+end
+```
+
+**Use for:** Death events, disease onset, migration events, marriage — anything binary.
+
+**Equivalent to:** `logistic_predict()` + `math.random() < p`
+
+---
+
+#### 7. Categorical Draw: `hekate_stats.categorical_draw()`
+
+Sample from a categorical distribution. Returns the 1-based index of the drawn category.
+
+```lua
+local idx = hekate_stats.categorical_draw(0.4, 0.5, 0.1)
+local edu_names = {"primary", "secondary", "tertiary"}
+person.education = edu_names[idx]
+```
+
+**Use for:** Any multi-category outcome where you have probabilities.
+
+---
+
+#### 8. Poisson Draw: `hekate_stats.poisson_draw()`
+
+Sample from a Poisson distribution. Returns an integer count.
+
+```lua
+local num_children = hekate_stats.poisson_draw(
+    -1.5,
+    0.05, person.age,
+    0.5, married_score
+)
+```
+
+**Use for:** Number of children, events, incidents — any count outcome.
+
+---
+
+### Summary Table
+
+| # | Function | Type | Returns | Use Case |
+|---|----------|------|---------|----------|
+| 1 | `linear_predict` | Predict | Float | Continuous outcomes |
+| 2 | `linear_predict_default` | Predict | Float | Continuous (with nil handling) |
+| 3 | `logistic_predict` | Predict | Float (0-1) | Binary probability |
+| 4 | `poisson_predict` | Predict | Float (≥0) | Expected count |
+| 5 | `softmax_predict` | Predict | Table | Multi-category probabilities |
+| 6 | `logistic_draw` | Draw | Boolean | Binary outcome + sample |
+| 7 | `categorical_draw` | Draw | Integer (1..N) | Multi-category sample |
+| 8 | `poisson_draw` | Draw | Integer (≥0) | Count sample |
+
 ### Why Use Go Functions Instead of Pure Lua?
 
 | Aspect | Go Function | Pure Lua |
@@ -230,6 +769,7 @@ local result = hekate_stats.linear_predict_default(
 | **Precision** | Double precision | Double precision |
 | **Readability** | Clean function call | Complex math code |
 | **Maintainability** | Centralized in Go | Scattered in scripts |
+| **Reproducibility** | Uses `vm.random` | Depends on Lua RNG (broken) |
 | **Error Handling** | Robust type checking | Manual checks needed |
 
 ---
@@ -308,13 +848,16 @@ simulation:
 
 Get started with Hekate through our step-by-step tutorials. Each tutorial builds on the previous one, taking you from beginner to advanced user.
 
+> **New to Hekate?** Start with the [5-Minute Quick Start](#-try-it-in-5-minutes) above, then work through the tutorials in order.
+
 | Tutorial | Description | Level |
 |----------|-------------|-------|
 | [Tutorial 1: Building an Aging Model](tutorials/tutorial1_aging.md) | Learn the basics by creating a simple aging model. You'll create a population CSV, write your first configuration, run the simulation, and analyze the output. | ⭐ Beginner |
 | [Tutorial 2: Understanding YAML and Adding Mortality](tutorials/tutorial2_yaml_mortality.md) | Dive deeper into YAML rules. Learn how to add a mortality model with age-specific death probabilities and track population changes. | ⭐⭐ Intermediate |
 | [Tutorial 3: Adding Fertility](tutorials/tutorial3_fertility.md) | Complete the demographic cycle by adding fertility. Learn how to create new individuals (births), assign their characteristics, track population growth, and understand the full demographic cycle of aging, mortality, and fertility. | ⭐⭐⭐ Advanced |
-| [Tutorial 4: Using Linear Regression in Hekate](tutorials/tutorial4_linear_regression.md) | **NEW!** Learn how to use Hekate's built-in linear regression function to predict income, health risk, and other continuous outcomes. Includes practical examples with income modeling and health risk prediction. | ⭐⭐⭐ Advanced |
-| [Tutorial 5: Large-Scale Simulations with Streaming Mode](tutorials/tutorial5_streaming.md) | Learn how to use Hekate's streaming mode to simulate populations of millions to billions of people with minimal memory. Includes performance tuning, area-based processing, and best practices for large-scale runs. | ⭐⭐⭐⭐ Advanced User |
+| [Tutorial 4: Regression and Statistical Functions](tutorials/totorial_4_regression.md) | Learn how to use Hekate's statistical toolkit — linear regression, logistic regression, Poisson regression, and softmax — to build realistic models of income, health, education, and fertility. | ⭐⭐⭐ Advanced |
+| [Tutorial 5: Large-Scale Simulations with Streaming Mode](tutorials/totorial_5_streaming.md) | Learn how to use Hekate's streaming mode to simulate populations of millions to billions of people with minimal memory. Includes performance tuning, area-based processing, and best practices for large-scale runs. | ⭐⭐⭐⭐ Advanced User |
+| [Tutorial 6: Using Hekate's Statistical Toolkit](tutorials/tutorial6_stats.md) | **NEW!** Build regression-based models from published coefficients — linear for income, logistic for mortality, Poisson for fertility, softmax for education. Includes a complete worked example combining all four techniques. | ⭐⭐⭐⭐ Advanced |
 
 ---
 
@@ -325,13 +868,26 @@ Get started with Hekate through our step-by-step tutorials. Each tutorial builds
 - **Flexible Model Logic**: Easily modify or add new models through YAML configuration
 - **Priority-Based Execution**: Models run in specified priority order
 - **Dynamic Data Handling**: Automatically detects and adapts to any CSV column structure
-- **Built-in Statistical Functions**: Linear and logistic regression available in Lua scripts
+- **8 Built-in Statistical Functions**: Linear, logistic, Poisson, softmax regression plus sampling functions
+
+### Reproducibility
+- **Deterministic Results**: Same seed → same results, always
+- **Dedicated RNG**: No dependence on global random state
+- **Independent Model Randomness**: Each model gets its own seed sequence
+- **Scientific Rigor**: Meets reproducibility standards for research
 
 ### Streaming Mode
 - **Memory-Efficient Processing**: Process populations of any size with ~20-50MB memory
 - **Area-by-Area Processing**: Load, process, and save one area at a time
 - **Scalable to Billions**: Population size limited only by disk space, not memory
 - **Dual Mode Support**: Choose between streaming and traditional bulk processing
+
+### Pre-Flight Validation
+- **Lua Syntax Checking**: Catches typos, missing `end` keywords, and other syntax errors before the run starts
+- **Column Name Checking**: Verifies that `person.COLUMN` references match actual CSV columns
+- **Fuzzy Suggestions**: Suggests corrections for typos (e.g., `agge` → `age`)
+- **Fail-Fast Design**: Aborts the run before wasting hours of computation
+- **Detailed Log Files**: Writes a `hekate_validation.log` with all failures
 
 ### General Features
 - **Zero External Dependencies**: Pure Go implementation with embedded Lua - no C compiler, no external libraries required
@@ -349,160 +905,75 @@ Get started with Hekate through our step-by-step tutorials. Each tutorial builds
 
 Hekate can model a wide range of demographic processes. Here are some examples:
 
-### Aging Model
-Everyone gets older by one year each iteration:
+### Migration Model
+People move between areas based on age-specific probabilities. Young adults are most mobile, elderly are least mobile.
+
+### Fertility Model (Using Poisson Draw)
+Women of childbearing age sample their number of children from a Poisson distribution:
 
 ```lua
-for i, person in ipairs(population) do
-    if person.alive == true then
-        person.age = person.age + 1
-    end
+if person.sex == "F" and age >= 15 and age <= 50 then
+    local children = hekate_stats.poisson_draw(
+        -1.5,
+        0.05, age,
+        0.5, married_score
+    )
+    person.parity = children
 end
 ```
 
-### Mortality Model
+### Mortality Model (Using Logistic Draw)
 People die based on age-specific death probabilities:
 
 ```lua
-for i, person in ipairs(population) do
-    if person.alive == true then
-        if person.age < 30 then
-            prob = 0.001  -- 0.1% chance
-        else
-            prob = 0.05   -- 5% chance
-        end
-        if math.random() < prob then
-            person.alive = false
-        end
-    end
+if hekate_stats.logistic_draw(
+    -3.5,
+    1.2, age / 10,
+    0.8, bmi_score
+) then
+    person.alive = false
 end
 ```
 
-### Fertility Model
-Women of childbearing age give birth based on age-specific fertility rates:
+### Education Model (Using Softmax + Categorical Draw)
+Children transition through education levels:
 
 ```lua
-local newborns = {}
-for i, person in ipairs(population) do
-    if person.alive == true and person.sex == "F" then
-        if person.age >= 15 and person.age < 50 then
-            if math.random() < 0.05 then
-                table.insert(newborns, {
-                    person_id = new_id,
-                    age = 0,
-                    sex = "F",
-                    area_id = person.area_id,
-                    alive = true
-                })
-            end
-        end
-    end
-end
-for _, baby in ipairs(newborns) do
-    table.insert(population, baby)
-end
+local probs = hekate_stats.softmax_predict(
+    {0.5, 0.1, age, -0.2, parent_edu},
+    {1.0, 0.3, age, 0.5, parent_edu},
+    {0.2, 0.5, age, 0.8, parent_edu}
+)
+local idx = hekate_stats.categorical_draw(probs[1], probs[2], probs[3])
+person.education = ({"primary", "secondary", "tertiary"})[idx]
 ```
 
 ### Income Model (Using Linear Regression)
 People earn income based on age, education, and sex:
 
 ```lua
-for i, person in ipairs(population) do
-    if person.alive == true then
-        local income = hekate_stats.linear_predict(
-            coefs.intercept,
-            coefs.age, person.age,
-            coefs.education, edu_score,
-            coefs.gender, gender_score
-        )
-        person.income = math.floor(income + 0.5)
-    end
-end
+person.income = hekate_stats.linear_predict(
+    coefs.intercept,
+    coefs.age, person.age,
+    coefs.education, edu_score,
+    coefs.gender, gender_score
+)
 ```
 
 ### Health Risk Model (Using Logistic Regression)
-Health risk is calculated using age, BMI, and smoking status:
+Health risk is calculated using logistic regression with multiple risk factors:
 
 ```lua
-for i, person in ipairs(population) do
-    if person.alive == true then
-        local risk = hekate_stats.logistic_predict(
-            coefs.intercept,
-            coefs.age, age / 10,
-            coefs.bmi, bmi_score,
-            coefs.smoker, smoker_score
-        )
-        person.health_risk = math.floor(risk * 100 + 0.5)
-    end
-end
-```
-
-### Migration Model
-People move between areas based on age-specific probabilities:
-
-```lua
-for i, person in ipairs(population) do
-    if person.alive == true then
-        local prob = 0
-        if person.age < 30 then
-            prob = 0.05  -- Young adults move more
-        elseif person.age < 65 then
-            prob = 0.02
-        else
-            prob = 0.005 -- Elderly move less
-        end
-        if math.random() < prob then
-            person.previous_area = person.area_id
-            person.area_id = math.random(1, 10)
-        end
-    end
-end
-```
-
-### Education Model
-Children progress through primary, secondary, and tertiary education:
-
-```lua
-for i, person in ipairs(population) do
-    if person.alive == true then
-        if person.age >= 5 and person.age <= 18 then
-            if person.education == "none" and person.age >= 5 then
-                person.education = "primary"
-            elseif person.education == "primary" and person.age >= 11 then
-                person.education = "secondary"
-            elseif person.education == "secondary" and person.age >= 16 then
-                if math.random() < 0.3 then
-                    person.education = "tertiary"
-                end
-            end
-        end
-    end
-end
+local risk = hekate_stats.logistic_predict(
+    coefs.intercept,
+    coefs.age, age / 10,
+    coefs.bmi, bmi_score,
+    coefs.smoker, smoker_score
+)
 ```
 
 ### Household Formation Model
-Young adults form new households, children live with parents:
-
-```lua
--- Young adults form households
-for i, person in ipairs(population) do
-    if person.alive == true and person.age >= 18 then
-        person.household_id = person.person_id
-    end
-end
-
--- Children live with mothers
-for i, person in ipairs(population) do
-    if person.alive == true and person.age < 18 then
-        for j, mother in ipairs(population) do
-            if mother.person_id == person.mother_id and mother.alive == true then
-                person.household_id = mother.household_id
-                break
-            end
-        end
-    end
-end
-```
+Young adults form new households, children live with their parents.
 
 ---
 
@@ -560,6 +1031,10 @@ Pre-built executables are included in the release package. Choose your platform:
 | macOS (Intel) | `hekate-darwin-amd64` |
 | macOS (Apple Silicon) | `hekate-darwin-arm64` |
 
+**macOS users**: To find out which binary you need, open Terminal and run `uname -m`:
+- Output `arm64` → use `hekate-darwin-arm64` (Apple Silicon — M1/M2/M3/M4)
+- Output `x86_64` → use `hekate-darwin-amd64` (Intel)
+
 ```bash
 # On Linux/macOS
 chmod +x hekate-*
@@ -571,11 +1046,7 @@ hekate-windows-amd64.exe config.yaml
 
 ### Run with Sample Data
 
-```bash
-# Make sure you have config.yaml and population.csv in the same directory
-# Then run Hekate with your configuration
-./hekate-linux-amd64 config.yaml
-```
+See the **[5-Minute Quick Start](#-try-it-in-5-minutes)** at the top of this README for a complete working example.
 
 ---
 
@@ -595,6 +1066,8 @@ simulation:
   id_column: "person_id"            # REQUIRED: Primary key column for ordering
   area_column: "area_id"            # REQUIRED for streaming mode: Column to group by
   streaming_mode: true              # Enable streaming area-by-area processing
+  strict_mode: false                # Treat validation warnings as errors (CI)
+  skip_validation: false            # Disable pre-flight Lua validation
 ```
 
 ### Streaming Mode Settings
@@ -604,6 +1077,14 @@ simulation:
 | `streaming_mode` | Enable area-by-area processing | `false` |
 | `area_column` | Column to group by (must be sorted) | Required if streaming |
 
+### Validation Settings
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `strict_mode` | Treat validation warnings as errors | `false` |
+| `skip_validation` | Skip pre-flight Lua and column validation | `false` |
+| `validation_log_file` | Path to write the failure report | `hekate_validation.log` |
+
 **When to use streaming mode:**
 - Population > 1 million
 - Limited memory available
@@ -612,36 +1093,63 @@ simulation:
 
 ### Model Definitions
 
-Models define demographic transitions using Lua scripts. Here's an example with linear regression:
+Models define demographic transitions using Lua scripts. Here's a complete example with multiple models:
 
 ```yaml
 models:
-  - name: "income_predictor"
+  - name: "aging"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              person.age = tonumber(person.age) + 1
+            end
+          end
+          return population
+        end
+
+  - name: "mortality"
     type: "lua_model"
     priority: 2
     enabled: true
     parameters:
-      coefficients:
-        intercept: 25000
-        age: 500
-        education: 3000
       script: |
         function transition(population, params)
-          local coefs = params.coefficients
-          for i, person in ipairs(population) do
-            if person.alive == true then
-              local edu_score = 0
-              if person.education == "tertiary" then
-                edu_score = 2
-              elseif person.education == "secondary" then
-                edu_score = 1
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              local age = tonumber(person.age) or 40
+              if hekate_stats.logistic_draw(
+                -4.0,
+                0.08, age
+              ) then
+                person.alive = false
               end
-              
-              person.income = hekate_stats.linear_predict(
-                coefs.intercept,
-                coefs.age, person.age,
-                coefs.education, edu_score
-              )
+            end
+          end
+          return population
+        end
+
+  - name: "fertility"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if (person.alive == true or person.alive == "true") and person.sex == "F" then
+              local age = tonumber(person.age) or 30
+              if age >= 15 and age <= 50 then
+                local children = hekate_stats.poisson_draw(
+                  -1.5,
+                  0.05, age
+                )
+                person.parity = (tonumber(person.parity) or 0) + children
+              end
             end
           end
           return population
@@ -657,28 +1165,28 @@ The system accepts any CSV file with a header row. Column types are automaticall
 ### Required Columns
 - `person_id`: Unique identifier (must match `id_column` in config)
 - `age`: Age in years
-- `area`: Current geographic area (integer or string)
+- `area_id`: Current geographic area (integer or string)
 - `alive`: Boolean indicating if individual is alive
 
 ### Recommended Columns
 - `previous_area`: Previous geographic area (initialized to 0 or -1)
+- `sex`: Gender (M/F) — needed for gender-specific models
+- `partner_id`: Partner's person_id (0 if none)
 
 ### ID Column
 
 Hekate requires you to specify an **ID column** in the configuration. This column:
 - Must contain unique values for each individual
-- Is used as the PRIMARY KEY in the database
+- Is used as the PRIMARY KEY
 - Determines the order of rows in the output CSV
 
-**Why is this required?** Hekate uses the ID column to ensure consistent ordering of output data, making it easier to compare results across different runs.
+**Why is this required?** Hekate uses the ID column to ensure consistent ordering of output data, making it easier to compare results across different runs and to verify reproducibility.
 
 **Example:**
 ```yaml
 simulation:
   id_column: "person_id"  # Must match a column in your CSV
 ```
-
-If the ID column is not specified or doesn't exist in the CSV, Hekate will exit with an error.
 
 ### Sorting for Streaming Mode
 
@@ -721,7 +1229,7 @@ person_id,age,sex,area_id,alive,previous_area
 
 ### CSV Output
 The final population state is saved as CSV with all columns preserved, including:
-- Original columns (person_id, age, sex, area, alive)
+- Original columns (person_id, age, sex, area_id, alive)
 - Migration history (previous_area)
 - Additional columns added by models
 
@@ -743,6 +1251,14 @@ These files allow you to:
 - Resume simulations from any year
 - Check intermediate results
 - Debug models more easily
+
+### Validation Log
+If pre-flight validation fails, a `hekate_validation.log` file is written containing:
+
+- Per-model pass/fail status
+- Missing columns with suggestions (e.g., "did you mean 'age'?")
+- Lua syntax errors with line numbers
+- Instructions on how to fix common issues
 
 ---
 
@@ -804,6 +1320,27 @@ These files allow you to:
 **"attempt to compare number with string"**
 - Use `tonumber()` to convert string values to numbers
 - Example: `local age = tonumber(person.age) or 0`
+
+**"Attempt to call hekate_stats.logistic_draw on a nil value"**
+- Check that Hekate is a recent version with the draw functions
+- Verify spelling: `hekate_stats.logistic_draw` (with underscore, all lowercase)
+
+**Validation aborted: "column 'agge' not found (did you mean 'age'?)"**
+- The pre-flight validator caught a typo before running
+- Fix the column name in your Lua script
+- See `hekate_validation.log` for full details
+
+**Validation warnings about `tonumber()`**
+- CSV values are loaded as strings; wrap numeric access in `tonumber()`
+- Example: `person.age = (tonumber(person.age) or 0) + 1`
+- Set `strict_mode: true` to make warnings block the run
+
+**Results are not reproducible**
+- Ensure `random_seed` is set in `config.yaml`
+- Ensure you're not using the global `math/rand` package in your Go code
+- **Do not call `math.randomseed()` in Lua scripts** — Hekate handles seeding
+- Check that your Lua scripts don't use `os.time()` or other external state
+- Verify you're using the same version of Hekate
 
 **Binary won't run on target system**
 - Build for the target platform: `GOOS=linux GOARCH=amd64 go build`
@@ -875,52 +1412,59 @@ go mod tidy
 
 ### Step 4: Compile
 
+Hekate is now split into multiple `.go` files, so you must build the entire package (using `.` rather than `main.go`):
+
 **Compile for Current Platform:**
 ```bash
-go build -o hekate main.go
+go build -o hekate .
 ```
 
 **Compile for Specific Platforms:**
 
 | Target Platform | Command |
 |-----------------|---------|
-| Linux (x86_64) | `GOOS=linux GOARCH=amd64 go build -o hekate-linux-amd64 main.go` |
-| Linux (ARM64) | `GOOS=linux GOARCH=arm64 go build -o hekate-linux-arm64 main.go` |
-| Windows | `GOOS=windows GOARCH=amd64 go build -o hekate-windows-amd64.exe main.go` |
-| macOS (Intel) | `GOOS=darwin GOARCH=amd64 go build -o hekate-darwin-amd64 main.go` |
-| macOS (Apple Silicon) | `GOOS=darwin GOARCH=arm64 go build -o hekate-darwin-arm64 main.go` |
+| Linux (x86_64) | `GOOS=linux GOARCH=amd64 go build -o hekate-linux-amd64 .` |
+| Linux (ARM64) | `GOOS=linux GOARCH=arm64 go build -o hekate-linux-arm64 .` |
+| Windows (x86_64) | `GOOS=windows GOARCH=amd64 go build -o hekate-windows-amd64.exe .` |
+| macOS (Intel) | `GOOS=darwin GOARCH=amd64 go build -o hekate-darwin-amd64 .` |
+| macOS (Apple Silicon) | `GOOS=darwin GOARCH=arm64 go build -o hekate-darwin-arm64 .` |
 
 **Compile for All Platforms at Once:**
 
-Create a `Makefile`:
+Use the included `build.sh` script:
 
-```makefile
-.PHONY: all linux windows mac linux-arm mac-arm
-
-all: linux windows mac linux-arm mac-arm
-
-linux:
-	GOOS=linux GOARCH=amd64 go build -o hekate-linux-amd64 main.go
-
-linux-arm:
-	GOOS=linux GOARCH=arm64 go build -o hekate-linux-arm64 main.go
-
-windows:
-	GOOS=windows GOARCH=amd64 go build -o hekate-windows-amd64.exe main.go
-
-mac:
-	GOOS=darwin GOARCH=amd64 go build -o hekate-darwin-amd64 main.go
-
-mac-arm:
-	GOOS=darwin GOARCH=arm64 go build -o hekate-darwin-arm64 main.go
-
-clean:
-	rm -f hekate-*
+```bash
+chmod +x build.sh
+./build.sh              # Build all platforms
+./build.sh linux        # Build only Linux
+./build.sh macos-arm    # Build only macOS Apple Silicon
+./build.sh clean        # Remove all artifacts
 ```
 
-Then run:
-```bash
-make all
+Or write your own Makefile:
+
+```makefile
+.PHONY: all linux linux-arm windows mac mac-arm clean
+
+all: linux linux-arm windows mac mac-arm
+
+linux:
+	GOOS=linux GOARCH=amd64 go build -o dist/hekate-linux-amd64 .
+
+linux-arm:
+	GOOS=linux GOARCH=arm64 go build -o dist/hekate-linux-arm64 .
+
+windows:
+	GOOS=windows GOARCH=amd64 go build -o dist/hekate-windows-amd64.exe .
+
+mac:
+	GOOS=darwin GOARCH=amd64 go build -o dist/hekate-darwin-amd64 .
+
+mac-arm:
+	GOOS=darwin GOARCH=arm64 go build -o dist/hekate-darwin-arm64 .
+
+clean:
+	rm -rf dist/
 ```
 
 ### Step 5: Verify Compilation
@@ -928,26 +1472,26 @@ make all
 **Check Binary:**
 ```bash
 # Check file type
-file hekate-linux-amd64
+file dist/hekate-linux-amd64
 
 # Check for dynamic dependencies (should show no external libraries)
-ldd hekate-linux-amd64  # On Linux
-otool -L hekate-darwin-amd64  # On macOS
+ldd dist/hekate-linux-amd64  # On Linux
+otool -L dist/hekate-darwin-amd64  # On macOS
 
 # Check binary size
-ls -lh hekate-*
+ls -lh dist/
 ```
 
 **Test Run:**
 ```bash
-./hekate-linux-amd64 config.yaml
+./dist/hekate-linux-amd64 config.yaml
 ```
 
 ### Step 6: (Optional) Install System-Wide
 
 **Linux/macOS:**
 ```bash
-sudo cp hekate-linux-amd64 /usr/local/bin/hekate
+sudo cp dist/hekate-linux-amd64 /usr/local/bin/hekate
 sudo chmod +x /usr/local/bin/hekate
 
 # Now run from anywhere
@@ -959,12 +1503,33 @@ Add the directory containing `hekate-windows-amd64.exe` to your PATH, or rename 
 
 ---
 
+## Codebase Structure
+
+Hekate is organised into focused files, each with a single responsibility:
+
+| File | Purpose |
+|------|---------|
+| `main.go` | Entry point — parses arguments, loads config, dispatches to simulation mode |
+| `config.go` | Configuration structs, loading, validation |
+| `lua_vm.go` | **Critical for reproducibility** — LuaVM with dedicated RNG |
+| `lua_conversion.go` | Go ↔ Lua value conversion |
+| `lua_validate.go` | **Pre-flight Lua syntax validation** |
+| `runtime_validate.go` | **CSV column name validation with fuzzy suggestions** |
+| `hekate_stats.go` | Statistical functions exposed to Lua |
+| `simulation_bulk.go` | Bulk simulation mode (loads entire population) |
+| `simulation_streaming.go` | Streaming simulation mode (area-by-area) |
+| `population_io.go` | CSV loading and saving |
+| `helpers.go` | Small utility functions |
+
+**For contributors:** See the extensive comments in each file — especially `lua_vm.go`, which documents the reproducibility design decisions in detail.
+
+---
+
 ## Population Generator Script
 
 Hekate includes a Python script to generate test populations:
 
-```python
-# generate_population.py
+```bash
 python3 generate_population.py
 ```
 
@@ -1000,8 +1565,8 @@ models:
       rate: 0.01
       script: |
         function transition(population, params)
-          for i, person in ipairs(population) do
-            if person.alive == true then
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
               -- Your model logic here
             end
           end
@@ -1011,13 +1576,34 @@ models:
 
 2. No code changes required!
 
-### Adding New Features
+### Adding New Statistical Functions
 
-Hekate is designed to be extensible. To add new features:
+To add a new statistical function:
 
-1. **New Lua Functions**: Register new Go functions in `NewLuaVM()`
-2. **New Configuration Options**: Add fields to `SimulationParameters`
-3. **New Output Formats**: Add new writer functions
+1. Add the function to `hekate_stats.go` (as a method on `HekateStats`)
+2. Register it in `RegisterHekateStats()` in `lua_vm.go`
+3. **If the function uses randomness, use `h.vm.random`** — never the global `rand` package
+4. Document the function signature in this README
+
+### Reproducibility Rules for Contributors
+
+If you contribute to Hekate, please observe these rules:
+
+| Rule | Why |
+|------|-----|
+| **Never use global `math/rand`** | Go 1.20+ makes it non-reproducible |
+| **Use `vm.random` for all random values** | Ensures reproducibility |
+| **Document any new randomness sources** | Keeps behavior transparent |
+| **Test with multiple runs** | Verify identical output across runs |
+
+Example test for your contributions:
+
+```bash
+# Run twice and verify identical output
+./hekate test_config.yaml && mv output.csv run1.csv
+./hekate test_config.yaml && mv output.csv run2.csv
+diff run1.csv run2.csv || echo "REPRODUCIBILITY BROKEN"
+```
 
 ---
 
@@ -1036,9 +1622,10 @@ Writing Hekate models is easy, but sometimes you need a little help getting star
 
 The template provides the AI with:
 - **Context**: What Hekate is and how it works
-- **Examples**: Working models for aging, mortality, fertility, migration, education, and income
-- **Templates**: Ready-to-use YAML configuration templates
-- **Structure**: The exact format needed for Hekate models
+- **Full statistical toolkit**: All 8 functions with examples
+- **Working models** for aging, mortality, fertility, migration, education, income, and more
+- **Reproducibility guidance**: Never call `math.randomseed()`, always use `hekate_stats.*`
+- **Common pitfalls**: CSV column types, `tonumber()` usage, and more
 
 ### Example Questions You Can Ask
 
@@ -1046,7 +1633,7 @@ Once you've pasted the template into your AI assistant, you can ask:
 
 - "I want to add a model where people get married. Women marry at age 20-30, men at 22-35."
 - "I need a fertility model where fertility rates vary by age: 15-19: 2%, 20-24: 8%, 25-29: 10%, 30-34: 8%, 35-39: 4%, 40-44: 1%"
-- "I want migration to depend on distance between areas."
+- "How do I use `hekate_stats.softmax_predict` to model education transitions?"
 - "I need a household formation model where young adults leave their parents' household."
 
 ### Get the Template
@@ -1066,4 +1653,3 @@ Alison Heppenstall
 Hugh Rice  
 Andreas Hoehn  
 Ric Colasanti
-

@@ -1,0 +1,11 @@
+person_id,age,sex,area_id,alive
+1,25,F,1,true
+2,30,M,1,true
+3,45,F,1,true
+4,68,M,1,true
+5,82,F,1,true
+6,2,M,1,true
+7,15,F,1,true
+8,35,M,1,true
+9,55,F,1,true
+10,70,M,1,tru

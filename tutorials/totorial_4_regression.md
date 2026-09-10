@@ -134,7 +134,7 @@ simulation:
   random_seed: 42
   verbose: true
   id_column: id
-  streaming_mode: false   # Using bulk mode for simplicity
+  streaming_mode: false
 
 models:
   - name: income_predictor
@@ -153,7 +153,7 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for i, person in ipairs(population) do
+            for _, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -199,8 +199,6 @@ models:
             return population
         end
 ```
-
-**Note:** We're using Bulk Mode (`streaming_mode: false`) here. For large populations (1M+), you can use Streaming Mode - the regression models work exactly the same way. Streaming Mode is covered in detail in Tutorial 5.
 
 ### Understanding the Model
 
@@ -256,7 +254,7 @@ income = 15000 + 300*age + 5000*edu_score - 2500*gender_score + 400*experience
 ## Step 3: Run the Simulation
 
 ```bash
-./hekate config_income.yaml
+./hekate-linux-amd64 config_income.yaml
 ```
 
 ---
@@ -368,13 +366,8 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for i, person in ipairs(population) do
-                local alive = false
-                if person.alive == true or person.alive == "true" then
-                    alive = true
-                end
-                
-                if alive then
+            for _, person in ipairs(population) do
+                if person.alive == true then
                     local edu_score = 0
                     if person.education == "tertiary" then
                         edu_score = 3
@@ -434,13 +427,8 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for i, person in ipairs(population) do
-                local alive = false
-                if person.alive == true or person.alive == "true" then
-                    alive = true
-                end
-                
-                if alive then
+            for _, person in ipairs(population) do
+                if person.alive == true then
                     local edu_score = 0
                     if person.education == "tertiary" then
                         edu_score = 3
@@ -504,7 +492,7 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for i, person in ipairs(population) do
+            for _, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -561,7 +549,7 @@ models:
         function transition(population, params)
             local coefs = params.coefficients
             
-            for i, person in ipairs(population) do
+            for _, person in ipairs(population) do
                 local alive = false
                 if person.alive == true or person.alive == "true" then
                     alive = true
@@ -604,20 +592,6 @@ models:
             return population
         end
 ```
-
----
-
-## Step 8: Getting Help with the LLM Prompt Template
-
-If you need help building regression models, you can use the **LLM Prompt Template** included with Hekate:
-
-1. Copy the [LLM Prompt Template](LLM_PROMPT_TEMPLATE.md)
-2. Paste it into your preferred AI assistant (ChatGPT, Claude, etc.)
-3. Describe what you want to build:
-   - "I want to predict income using age, education, and gender"
-   - "I need a health risk model using logistic regression"
-   - "I want to predict mortality risk using age and health status"
-4. Get working YAML and Lua code instantly
 
 ---
 
@@ -707,7 +681,7 @@ local income = hekate_stats.linear_predict(
 ### Pitfall 3: Forgetting to Handle Alive Status
 **Wrong:**
 ```lua
-for i, person in ipairs(population) do
+for _, person in ipairs(population) do
     -- Updates everyone, including dead people!
     person.income = predict_income(person)
 end
@@ -715,7 +689,7 @@ end
 
 **Correct:**
 ```lua
-for i, person in ipairs(population) do
+for _, person in ipairs(population) do
     local alive = false
     if person.alive == true or person.alive == "true" then
         alive = true
@@ -741,7 +715,6 @@ You've learned how to:
 6. ✅ Build more complex models with interaction terms
 7. ✅ Use logistic regression for binary outcomes
 8. ✅ Combine multiple models in one simulation
-9. ✅ Use the LLM Prompt Template for help
 
 ## Next Steps
 
@@ -750,7 +723,6 @@ You've learned how to:
 - Combine linear regression with other models (aging, mortality)
 - Run the model for multiple years to see how income changes over time
 - Experiment with different coefficient values to see their impact
-- **Tutorial 5: Large-Scale Simulations with Streaming Mode** - Learn how to run regression models on populations of millions
 
 ## Troubleshooting
 

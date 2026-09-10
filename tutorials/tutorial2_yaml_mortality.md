@@ -1,8 +1,8 @@
-# Hekate Tutorial 2: Understanding YAML, Lua, and Adding Mortality
+# Hekate Tutorial 2: Understanding YAML, Lua, and Adding Mortality with Areas
 
 ## Overview
 
-In this tutorial, we'll dive deeper into YAML and Lua. You'll learn how YAML rules work, how to add a mortality model to your simulation, and how to track population changes. We'll keep using **Bulk Mode** (simple, loads everything into memory).
+In this tutorial, we'll dive deeper into YAML and Lua. You'll learn how YAML rules work, how to add a mortality model to your simulation, and how to track population changes. We'll also introduce **areas** and show how Hekate can process populations area-by-area using streaming mode.
 
 ## What You'll Learn
 
@@ -10,7 +10,8 @@ By the end of this tutorial, you'll be able to:
 - Understand YAML formatting rules
 - Write a mortality model using Lua
 - Understand Lua in plain English
-- Add areas to your population data
+- Work with area-based data
+- Use streaming mode for larger populations
 
 ## Prerequisites
 
@@ -49,7 +50,7 @@ In Tutorial 1, we used this in our model:
 ```yaml
 script: |
   function transition(population, params)
-    for i, person in ipairs(population) do
+    for _, person in ipairs(population) do
       if person.alive == true then
         person.age = person.age + 1
       end
@@ -65,7 +66,7 @@ The pipe (`|`) tells YAML: "Everything that follows, indented, is a single strin
 ```yaml
 # ❌ WRONG - YAML sees three separate values
 script: function transition(population, params)
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.alive == true then
       person.age = person.age + 1
     end
@@ -82,7 +83,7 @@ YAML would see this as multiple separate lines and throw an error because it exp
 # ✅ CORRECT - content is indented
 script: |
   function transition(population, params)
-    for i, person in ipairs(population) do
+    for _, person in ipairs(population) do
       if person.alive == true then
         person.age = person.age + 1
       end
@@ -93,7 +94,7 @@ script: |
 # ❌ WRONG - content is not indented
 script: |
 function transition(population, params)
-  for i, person in ipairs(population) do
+  for _, person in ipairs(population) do
     if person.alive == true then
       person.age = person.age + 1
     end
@@ -154,7 +155,7 @@ Think of your population as a list of people, where each person has properties:
 
 Lua lets you:
 
-- **Loop through people**: `for i, person in ipairs(population) do`
+- **Loop through people**: `for _, person in ipairs(population) do`
 - **Check conditions**: `if person.alive == true then`
 - **Make changes**: `person.age = person.age + 1`
 - **Return results**: `return population`
@@ -166,7 +167,7 @@ That's it! You don't need to know anything else about programming.
 | Lua Concept | What it does | Example | Plain English |
 |-------------|--------------|---------|---------------|
 | `function` | Define a function | `function transition(population, params)` | "Here's a model that runs each year" |
-| `for` | Loop through a list | `for i, person in ipairs(population) do` | "For each person in the population..." |
+| `for` | Loop through a list | `for _, person in ipairs(population) do` | "For each person in the population..." |
 | `if` | Check a condition | `if person.alive == true then` | "If they are alive..." |
 | `==` | Compare values | `person.alive == true` | "Is alive equal to true?" |
 | `=` | Assign a value | `person.age = person.age + 1` | "Set age to age plus 1" |
@@ -184,6 +185,8 @@ Now let's add a mortality model to our simulation. This will make our model more
 
 ### The Mortality Model in YAML with Lua
 
+Here's the mortality model as it appears in your `config.yaml`:
+
 ```yaml
 # Model 2: Mortality (runs second)
 - name: "mortality"
@@ -194,7 +197,7 @@ Now let's add a mortality model to our simulation. This will make our model more
   parameters:
     script: |
       function transition(population, params)
-        for i, person in ipairs(population) do
+        for _, person in ipairs(population) do
           if person.alive == true then
             local age = person.age
             local prob = 0
@@ -226,7 +229,7 @@ Now let's add a mortality model to our simulation. This will make our model more
 | `enabled: true` | Activates the model | "This model is turned on" |
 | `script: |` | Starts the Lua code | "Here comes the Lua script..." |
 | `function transition(population, params)` | Defines the model | "This is the model that runs each year" |
-| `for i, person in ipairs(population) do` | Loops through people | "For each person in the population..." |
+| `for _, person in ipairs(population) do` | Loops through people | "For each person in the population..." |
 | `if person.alive == true then` | Checks if alive | "...if they are alive..." |
 | `local age = person.age` | Gets their age | "...get their age..." |
 | `if age < 30 then` | Checks age group | "...if they're under 30..." |
@@ -247,7 +250,7 @@ Here's our complete configuration with both aging and mortality:
 
 ```yaml
 # config_aging_mortality.yaml
-# Aging and mortality model
+# Aging and mortality model with area support
 
 simulation:
   iterations: 5
@@ -256,7 +259,6 @@ simulation:
   random_seed: 42
   verbose: true
   id_column: "person_id"
-  streaming_mode: false   # Use bulk mode (simple, fast for small populations)
 
 models:
   # Model 1: Age increment (runs first)
@@ -268,7 +270,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.alive == true then
               person.age = person.age + 1
             end
@@ -285,7 +287,7 @@ models:
     parameters:
       script: |
         function transition(population, params)
-          for i, person in ipairs(population) do
+          for _, person in ipairs(population) do
             if person.alive == true then
               local age = person.age
               local prob = 0
@@ -315,11 +317,11 @@ Notice we have **two models** now:
 
 ---
 
-## Part 5: Adding Areas to Your Population
+## Part 5: Running with Areas and Streaming Mode
 
 ### Adding an Area Column
 
-Your CSV already has an `area_id` column from Tutorial 1:
+For streaming mode to work, your CSV needs an `area_id` column. Let's create a slightly larger population with multiple areas:
 
 ```csv
 person_id,age,sex,area_id,alive
@@ -335,16 +337,127 @@ person_id,age,sex,area_id,alive
 10,70,M,2,true
 ```
 
-**What is `area_id`?** It's a column that groups people by geographic area. In this case, area 1 and area 2.
+**Important:** For streaming mode, the CSV must be **sorted by `area_id`** (all area 1 first, then area 2, etc.).
 
-**Why include `area_id` even though we're in Bulk Mode?**
-1. It's good practice for when you move to larger populations
-2. It allows you to analyze results by area
-3. It prepares your data for future streaming mode (covered in Tutorial 5)
+### Streaming Mode Configuration
 
-### Area-Specific Mortality (Optional)
+```yaml
+# config_aging_mortality_streaming.yaml
+# Streaming mode with aging and mortality
 
-If you want to experiment with area-specific rates, here's how:
+simulation:
+  iterations: 5
+  population_file: "population_with_areas.csv"
+  output_file: "final_output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+  area_column: "area_id"          # REQUIRED for streaming mode
+  streaming_mode: true            # Enable area-by-area processing
+
+models:
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end
+
+  - name: "mortality"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              local age = person.age
+              local prob = 0
+              
+              if age < 30 then
+                prob = 0.001
+              else
+                prob = 0.05
+              end
+              
+              if math.random() < prob then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end
+```
+
+### What Streaming Mode Does
+
+When you run with `streaming_mode: true`:
+
+1. **Hekate reads the CSV in order**, processing one area at a time
+2. **Only one area is in memory** at any time
+3. **All models are applied** to each area
+4. **Results are written** to intermediate files
+
+### Output Files in Streaming Mode
+
+```
+year_0.csv  → Initial population (input)
+year_1.csv  → After year 1
+year_2.csv  → After year 2
+year_3.csv  → After year 3
+year_4.csv  → After year 4
+year_5.csv  → After year 5
+final_output.csv → Copy of year_5.csv
+```
+
+### Running Streaming Mode
+
+```bash
+./hekate config_aging_mortality_streaming.yaml
+```
+
+**Expected Output:**
+
+```
+2024/01/15 10:00:00 ═══ Hekate: Microsimulation Engine ═══
+2024/01/15 10:00:00 Iterations: 5
+2024/01/15 10:00:00 Population file: population_with_areas.csv
+2024/01/15 10:00:00 ID column: person_id
+2024/01/15 10:00:00 Mode: STREAMING (area-by-area)
+2024/01/15 10:00:00 Area column: area_id
+2024/01/15 10:00:00 Models loaded: 2
+2024/01/15 10:00:00 Detected 5 columns
+2024/01/15 10:00:00 
+═══ Iteration 1/5 ═══
+2024/01/15 10:00:00   ▶ age_increment
+2024/01/15 10:00:00   ▶ mortality
+2024/01/15 10:00:00   Processed 2 areas
+2024/01/15 10:00:00 
+═══ Iteration 2/5 ═══
+2024/01/15 10:00:00   ▶ age_increment
+2024/01/15 10:00:00   ▶ mortality
+2024/01/15 10:00:00   Processed 2 areas
+...
+```
+
+Notice the "Processed X areas" message - this confirms streaming mode is working!
+
+---
+
+## Part 6: Area-Aware Models
+
+Now let's make our models **area-aware**. We'll track mortality by area and see how different areas might have different mortality rates.
+
+### Area-Specific Mortality
 
 ```yaml
 # Model 2: Area-specific mortality
@@ -352,10 +465,11 @@ If you want to experiment with area-specific rates, here's how:
   type: "lua_model"
   priority: 2
   enabled: true
+  description: "Area-specific mortality rates"
   parameters:
     script: |
       function transition(population, params)
-        for i, person in ipairs(population) do
+        for _, person in ipairs(population) do
           if person.alive == true then
             local age = person.age
             local area = person.area_id
@@ -397,46 +511,15 @@ If you want to experiment with area-specific rates, here's how:
 **What this does in plain English:**
 - "If the person is in Area 1, they have lower death rates (0.05% for young, 3% for older)"
 - "If the person is in Area 2, they have higher death rates (0.2% for young, 8% for older)"
+- "For other areas, use standard rates (0.1% for young, 5% for older)"
 
----
+### Why This Matters
 
-## Part 6: Running Your Simulation
-
-### Step 1: Use the Population CSV from Tutorial 1
-
-Make sure you have `population.csv` with `area_id` column:
-
-```csv
-person_id,age,sex,area_id,alive
-1,25,F,1,true
-2,30,M,1,true
-3,45,F,1,true
-4,68,M,1,true
-5,82,F,1,true
-6,2,M,2,true
-7,15,F,2,true
-8,35,M,2,true
-9,55,F,2,true
-10,70,M,2,true
-```
-
-### Step 2: Save the Configuration
-
-Save the full configuration from Part 4 as `config_aging_mortality.yaml`.
-
-### Step 3: Run It
-
-```bash
-./hekate config_aging_mortality.yaml
-```
-
-### Step 4: Check the Results
-
-Open `population_aged_mortality.csv` and compare it to the original `population.csv`.
-
-You should see:
-- Ages increased by 5 years
-- Some people may have died (marked `false` in `alive`)
+Area-aware models allow you to:
+- Simulate regional differences in health outcomes
+- Model the impact of local healthcare systems
+- Study migration patterns and their effects
+- Analyze policy impacts across different regions
 
 ---
 
@@ -451,7 +534,7 @@ Congratulations! You've now learned:
 
 2. ✅ **Lua in Plain English**:
    - `function` = "Here's a model"
-   - `for i, person in ipairs(population) do` = "For each person"
+   - `for` = "For each person"
    - `if` = "If this is true"
    - `math.random()` = "Roll a dice"
 
@@ -460,10 +543,24 @@ Congratulations! You've now learned:
    - Used `math.random()` for probabilistic events
    - Understood priority ordering (age first, then mortality)
 
-4. ✅ **Areas**:
+4. ✅ **Areas and Streaming Mode**:
    - Added area-based data to your CSV
-   - Learned about area-specific models
-   - Prepared your data for future expansion
+   - Enabled streaming mode for memory efficiency
+   - Created area-specific mortality rates
+   - Understood how streaming mode processes areas
+
+---
+
+## Performance Comparison
+
+### Bulk Mode vs. Streaming Mode
+
+| Mode | Memory Usage | Best For | Output Files |
+|------|--------------|----------|--------------|
+| **Bulk Mode** (Default) | ~2MB per 1000 people | Small populations (<1M), speed | Single output file |
+| **Streaming Mode** | ~20-50MB constant | Large populations (1M+), memory efficiency | Year-by-year files |
+
+**For this tutorial's small population (10 people), either mode works fine.** But for larger populations, streaming mode is essential!
 
 ---
 
@@ -479,7 +576,7 @@ In this tutorial, you've learned:
 2. **Lua in Plain English**:
    - Lua is just instructions that read like English
    - `function` = "Here's a model"
-   - `for i, person in ipairs(population) do` = "For each person"
+   - `for` = "For each person"
    - `if` = "If this is true"
    - `math.random()` = "Roll a dice"
 
@@ -488,10 +585,11 @@ In this tutorial, you've learned:
    - Used `math.random()` for probabilistic events
    - Understood priority ordering (age first, then mortality)
 
-4. **Areas**:
-   - Added area-based data to your CSV
-   - Learned about area-specific models
-   - Prepared your data for future expansion
+4. **Areas and Streaming Mode**:
+   - Added area-based data
+   - Enabled streaming mode
+   - Created area-specific mortality rates
+   - Understood the benefits of streaming mode
 
 ---
 
@@ -500,10 +598,10 @@ In this tutorial, you've learned:
 In the next tutorial, you'll learn how to:
 - Add fertility (births) to your model
 - Track population growth
+- Work with household-level data
 - Create complex models like household formation
-
-In Tutorial 5, we'll finally cover **Streaming Mode** for large populations.
+- Use streaming mode with millions of people
 
 ---
 
-**Well done for completing Tutorial 2!** You now understand YAML rules, can write Lua models, have built a working aging and mortality model, and know how to work with areas. You're ready for more complex models!
+**Well done for completing Tutorial 2!** You now understand YAML rules, can write Lua models, have built a working aging and mortality model, and know how to use areas and streaming mode. You're ready for more complex models!
