@@ -26,7 +26,7 @@ If you've used **NetLogo**, you already understand Hekate's philosophy:
 
 **The Hekate Promise:** Like NetLogo, you can go from zero to a working model in minutes. Unlike NetLogo, Hekate can scale to millions or billions of individuals with minimal memory — and every result is reproducible.
 
----
+
 ## ⚡ Try It in 5 Minutes
 
 No installation. No compilation. Just download and run.
