@@ -5,14 +5,31 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
 
+// Version is the current Hekate version.
+// Bump this when cutting a release.
+const Version = "0.9.1"
+
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal("Usage: hekate <config.yaml>")
+		printUsage()
+		os.Exit(1)
 	}
+
+	// ---- Handle flags ----
+	switch os.Args[1] {
+	case "--version", "-v":
+		fmt.Printf("hekate %s\n", Version)
+		return
+	case "--help", "-h":
+		printUsage()
+		return
+	}
+
 	configFile := os.Args[1]
 
 	// ---- Load config ----
@@ -43,7 +60,6 @@ func main() {
 			Models:     enabledModels,
 		}
 
-		// NEW: pass verbose to control output verbosity
 		report := ValidateAllScripts(validationConfig, config.Simulation.StrictMode, verbose)
 
 		if report.FailedModels > 0 {
@@ -61,7 +77,6 @@ func main() {
 
 	// ---- Stage 2: Runtime column validation ----
 	if !config.Simulation.SkipValidation {
-		// NEW: pass verbose
 		runtimeReport := ValidateAllColumnsAgainstCSV(config, enabledModels, verbose)
 
 		if runtimeReport.FailedModels > 0 {
@@ -87,4 +102,22 @@ func main() {
 		log.Printf("\n--- Using Bulk Processing (load all into memory) ---")
 		RunBulkSimulation(config, enabledModels, luaVM)
 	}
+}
+
+// printUsage prints the command-line usage message.
+func printUsage() {
+	fmt.Fprintf(os.Stderr, `hekate %s — Microsimulation Engine
+
+Usage:
+  hekate <config.yaml>     Run a simulation with the given config file
+  hekate --version         Print the version and exit
+  hekate --help            Print this help message and exit
+
+Flags:
+  -v, --version            Print the version and exit
+  -h, --help               Print this help message and exit
+
+Example:
+  hekate config.yaml
+`, Version)
 }
