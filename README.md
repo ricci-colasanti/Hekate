@@ -141,11 +141,11 @@ Pick the binary for your platform from the [latest release](https://github.com/y
 
 | Platform | Download |
 |----------|----------|
-| **Linux** (x86_64) | `hekate-linux-amd64` |
-| **Linux** (ARM64) | `hekate-linux-arm64` |
-| **macOS** (Apple Silicon — M1/M2/M3/M4) | `hekate-darwin-arm64` |
-| **macOS** (Intel) | `hekate-darwin-amd64` |
-| **Windows** (x86_64) | `hekate-windows-amd64.exe` |
+| **Linux** (x86_64) | [`hekate-linux-amd64`](https://github.com/ricci-colasanti/Hekate/raw/main/hekate-linux-amd64) |
+| **Linux** (ARM64) | [`hekate-linux-arm64`](https://github.com/ricci-colasanti/Hekate/raw/main/hekate-linux-arm64) |
+| **macOS** (Apple Silicon — M1/M2/M3/M4) | [`hekate-darwin-arm64`](https://github.com/ricci-colasanti/Hekate/raw/main/hekate-darwin-arm64) |
+| **macOS** (Intel) | [`hekate-darwin-amd64`](https://github.com/ricci-colasanti/Hekate/raw/main/hekate-darwin-amd64) |
+| **Windows** (x86_64) | [`hekate-windows-amd64.exe`](https://github.com/ricci-colasanti/Hekate/raw/main/hekate-windows-amd64.exe) |
 
 > **Not sure which macOS binary you need?** Open Terminal and run `uname -m`:
 > - `arm64` → use `hekate-darwin-arm64`
