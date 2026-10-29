@@ -282,7 +282,7 @@ func scanForCommonMistakes(script string) []string {
 	// ---- Check 3: math.randomseed used (breaks reproducibility) ----
 	if strings.Contains(script, "math.randomseed") {
 		warnings = append(warnings,
-			"script calls math.randomseed() — this is unnecessary and may break reproducibility. Remove the call.")
+			"script calls math.randomseed() — Hekate seeds the RNG automatically per model; manual seeding will override that seed.")
 	}
 
 	return warnings

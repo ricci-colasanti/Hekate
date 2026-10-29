@@ -19,16 +19,17 @@
 //
 // SOLUTION
 // --------
-// Each LuaVM owns its own *rand.Rand instance (vm.random). We override Lua's
-// `math.random` to use this instance, and we override `math.randomseed` to
-// reseed it. Before each model execution, we call vm.Seed() to reset the RNG
-// to a known state derived from the config's random_seed, the current
-// iteration, and the model index.
+// Each LuaVM owns its own HekateRNG instance (vm.rng), a self-contained
+// Lehmer LCG that we fully control (see hekate_rng.go). We override Lua's
+// `math.random` and `math.randomseed` to delegate to this instance. Before
+// each model execution, we call vm.Seed() to reset the RNG to a known state
+// derived from the config's random_seed, the current iteration, and the
+// model index.
 //
 // This gives us:
 //   - Full reproducibility across runs
 //   - Independence between models (each gets a different seed)
-//   - No dependency on global state or system time
+//   - No dependency on global state, system time, or Go's RNG internals
 //
 // ============================================================================
 
@@ -37,19 +38,18 @@ package main
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"time"
 
 	lua "github.com/yuin/gopher-lua"
 )
 
 // LuaVM wraps a Lua interpreter state together with its dedicated random
-// number generator. The `random` field is THE critical piece for
+// number generator. The `rng` field is THE critical piece for
 // reproducibility.
 type LuaVM struct {
-	L      *lua.LState // The Lua interpreter
-	random *rand.Rand  // Dedicated RNG - NOT the global one!
-	seed   int64       // The current seed (for reference/debugging)
+	L    *lua.LState // The Lua interpreter
+	rng  *HekateRNG  // Dedicated RNG - NOT the global one, NOT math/rand
+	seed int64       // The current seed (for reference/debugging)
 }
 
 // Seed resets the VM's random source to a new state determined by `seed`.
@@ -58,7 +58,7 @@ type LuaVM struct {
 // model starts with a known, reproducible random state. Two calls with the
 // same seed will produce identical subsequent random sequences.
 func (vm *LuaVM) Seed(seed int64) {
-	vm.random = rand.New(rand.NewSource(seed))
+	vm.rng.Seed(seed)
 	vm.seed = seed
 }
 
@@ -82,59 +82,20 @@ func NewLuaVM(randomSeed int64) *LuaVM {
 
 	// Create the VM with a DEDICATED random source.
 	vm := &LuaVM{
-		L:      L,
-		random: rand.New(rand.NewSource(seed)),
-		seed:   seed,
+		L:    L,
+		rng:  NewHekateRNG(seed),
+		seed: seed,
 	}
 
 	// ========================================================================
-	// Override math.random to use OUR dedicated RNG
+	// Install our RNG.
+	//
+	// RegisterHekateRNG does two things:
+	//   1. Exposes `hekate_rng.random / randomseed / seed` for explicit use.
+	//   2. Overrides `math.random` and `math.randomseed` so existing Lua
+	//      scripts that use the standard functions also get our generator.
 	// ========================================================================
-	mathTable := L.GetGlobal("math").(*lua.LTable)
-
-	L.SetField(mathTable, "random", L.NewFunction(func(L *lua.LState) int {
-		top := L.GetTop()
-		if top >= 1 {
-			n := L.ToInt(1)
-			if n > 0 {
-				// math.random(n) -> integer in [1, n]
-				L.Push(lua.LNumber(vm.random.Intn(n) + 1))
-				return 1
-			} else if n == 0 {
-				// math.random(0) is a Lua edge case - return 0
-				L.Push(lua.LNumber(0.0))
-				return 1
-			}
-		}
-		// math.random() -> float in [0, 1)
-		L.Push(lua.LNumber(vm.random.Float64()))
-		return 1
-	}))
-
-	// Override math.randomseed to reseed OUR random source.
-	L.SetField(mathTable, "randomseed", L.NewFunction(func(L *lua.LState) int {
-		newSeed := int64(L.ToInt(1))
-		vm.Seed(newSeed)
-		return 0
-	}))
-
-	// ========================================================================
-	// Register Go random functions as alternatives
-	// ========================================================================
-	L.SetGlobal("random", L.NewFunction(func(L *lua.LState) int {
-		L.Push(lua.LNumber(vm.random.Float64()))
-		return 1
-	}))
-
-	L.SetGlobal("random_int", L.NewFunction(func(L *lua.LState) int {
-		min := int(L.ToInt(1))
-		max := int(L.ToInt(2))
-		if max <= min {
-			max = min + 1
-		}
-		L.Push(lua.LNumber(vm.random.Intn(max-min) + min))
-		return 1
-	}))
+	RegisterHekateRNG(L, vm.rng)
 
 	// ========================================================================
 	// Register utility functions for Lua scripts
@@ -144,12 +105,6 @@ func NewLuaVM(randomSeed int64) *LuaVM {
 		msg := L.ToString(1)
 		log.Printf("[Lua] %s", msg)
 		return 0
-	}))
-
-	// current_year() - WARNING: depends on system time, breaks reproducibility
-	L.SetGlobal("current_year", L.NewFunction(func(L *lua.LState) int {
-		L.Push(lua.LNumber(time.Now().Year()))
-		return 1
 	}))
 
 	L.SetGlobal("table_contains", L.NewFunction(func(L *lua.LState) int {
@@ -168,7 +123,7 @@ func NewLuaVM(randomSeed int64) *LuaVM {
 	// ========================================================================
 	// Register hekate_stats functions
 	// ========================================================================
-	// We pass vm so that the draw functions can access vm.random for
+	// We pass vm so that the draw functions can access vm.rng for
 	// reproducibility.
 	RegisterHekateStats(L, vm)
 
@@ -251,7 +206,7 @@ func (vm *LuaVM) ExecuteLuaScript(script string, population []map[string]interfa
 // These are registered as methods under the `hekate_stats` table in Lua.
 //
 // The vm parameter is stored inside HekateStats so that draw functions can
-// access the dedicated random source (vm.random) for reproducibility.
+// access the dedicated random source (vm.rng) for reproducibility.
 
 // RegisterHekateStats registers all statistical functions under hekate_stats.
 func RegisterHekateStats(L *lua.LState, vm *LuaVM) {
@@ -265,7 +220,7 @@ func RegisterHekateStats(L *lua.LState, vm *LuaVM) {
 	L.SetField(statsTable, "poisson_predict", L.NewFunction(stats.PoissonPredict))
 	L.SetField(statsTable, "softmax_predict", L.NewFunction(stats.SoftmaxPredict))
 
-	// Draw functions (use vm.random for reproducibility)
+	// Draw functions (use vm.rng for reproducibility)
 	L.SetField(statsTable, "logistic_draw", L.NewFunction(stats.LogisticDraw))
 	L.SetField(statsTable, "categorical_draw", L.NewFunction(stats.CategoricalDraw))
 	L.SetField(statsTable, "poisson_draw", L.NewFunction(stats.PoissonDraw))

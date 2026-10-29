@@ -11,12 +11,13 @@
 //   *_predict  - Pure functions that compute a value or probability.
 //                No randomness, no side effects.
 //   *_draw     - Random sampling functions that use the VM's dedicated RNG
-//                (vm.random) to preserve reproducibility.
+//                (vm.rng) to preserve reproducibility.
 //
 // REPRODUCIBILITY
 // ---------------
-// Functions ending in "_draw" MUST use vm.random, never the global math/rand.
-// Otherwise they will break Hekate's reproducibility guarantee.
+// Functions ending in "_draw" MUST use vm.rng, never the global math/rand
+// and never math/rand directly. Otherwise they will break Hekate's
+// reproducibility guarantee.
 //
 // ============================================================================
 
@@ -31,7 +32,7 @@ import (
 // HekateStats is a receiver for the statistical functions.
 //
 // It holds a reference to the LuaVM so that draw functions can access the
-// dedicated random source (vm.random) for reproducibility.
+// dedicated random source (vm.rng) for reproducibility.
 type HekateStats struct {
 	vm *LuaVM
 }
@@ -250,10 +251,10 @@ func (h *HekateStats) SoftmaxPredict(L *lua.LState) int {
 }
 
 // ============================================================================
-// DRAW FUNCTIONS (use vm.random for reproducibility)
+// DRAW FUNCTIONS (use vm.rng for reproducibility)
 // ============================================================================
 //
-// IMPORTANT: These functions MUST use h.vm.random, never the global math/rand.
+// IMPORTANT: These functions MUST use h.vm.rng, never the global math/rand.
 // Using the global RNG would break Hekate's reproducibility guarantee.
 // ============================================================================
 
@@ -303,7 +304,7 @@ func (h *HekateStats) LogisticDraw(L *lua.LState) int {
 	prob := 1.0 / (1.0 + math.Exp(-linear))
 
 	// Sample using the dedicated RNG for reproducibility
-	drawn := h.vm.random.Float64() < prob
+	drawn := h.vm.rng.Float64() < prob
 
 	L.Push(lua.LBool(drawn))
 	return 1
@@ -355,7 +356,7 @@ func (h *HekateStats) CategoricalDraw(L *lua.LState) int {
 	}
 
 	// Draw a uniform random value and find the corresponding category
-	r := h.vm.random.Float64() * total
+	r := h.vm.rng.Float64() * total
 	cumulative := 0.0
 	for i, p := range probs {
 		cumulative += p
@@ -415,7 +416,7 @@ func (h *HekateStats) PoissonDraw(L *lua.LState) int {
 		p := 1.0
 		for {
 			k++
-			p *= h.vm.random.Float64()
+			p *= h.vm.rng.Float64()
 			if p <= L_val {
 				L.Push(lua.LNumber(k - 1))
 				return 1
@@ -442,8 +443,8 @@ func (h *HekateStats) PoissonDraw(L *lua.LState) int {
 // normalDraw returns a sample from the standard normal distribution N(0,1)
 // using the Box-Muller transform. Internal helper, not exposed to Lua.
 func (h *HekateStats) normalDraw() float64 {
-	u1 := h.vm.random.Float64()
-	u2 := h.vm.random.Float64()
+	u1 := h.vm.rng.Float64()
+	u2 := h.vm.rng.Float64()
 	// Avoid log(0)
 	if u1 < 1e-10 {
 		u1 = 1e-10
