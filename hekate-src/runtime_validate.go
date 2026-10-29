@@ -8,6 +8,15 @@
 // See the header of lua_validate.go for the design philosophy. The same
 // verbose/non-verbose rules apply here.
 //
+// NO DOMAIN KNOWLEDGE
+// -------------------
+// The validator knows exactly one thing: the column names in the CSV header.
+// It does not carry synonym maps, does not know that "sex" and "gender" are
+// related, does not know which columns are numeric. Everything it reports
+// comes from reading the CSV. When a column is missing and nothing close is
+// found, it prints the full list of available columns so the user can fix
+// it themselves.
+//
 // ============================================================================
 
 package main
@@ -108,6 +117,7 @@ func ValidateAllColumnsAgainstCSV(config *SimulationConfig, models []ModelConfig
 					log.Printf("       └─ column '%s' not found (did you mean '%s'?)", col, suggestion)
 				} else {
 					log.Printf("       └─ column '%s' not found in CSV", col)
+					log.Printf("          available columns: %s", strings.Join(csvColumns, ", "))
 				}
 			}
 		}
@@ -171,9 +181,6 @@ func validateModelColumns(model ModelConfig, columnSet map[string]bool, csvColum
 			continue
 		}
 		if allowedSet[col] {
-			continue
-		}
-		if isSpecialColumn(col) {
 			continue
 		}
 		missing = append(missing, col)
@@ -254,20 +261,16 @@ func extractAllowedColumns(script string) []string {
 }
 
 // ============================================================================
-// Special Columns
-// ============================================================================
-
-func isSpecialColumn(name string) bool {
-	switch name {
-	default:
-		return false
-	}
-}
-
-// ============================================================================
 // Suggestion Helper
 // ============================================================================
 
+// findClosestMatch returns the candidate most likely to be what the user
+// meant by `name`, or "" if nothing is close enough.
+//
+// Pure Levenshtein distance. We deliberately do not carry a synonym map:
+// column names are defined by the CSV header alone, and guessing that
+// "sex" means "gender" is domain knowledge the validator shouldn't have.
+// When nothing is close, the caller prints the available columns instead.
 func findClosestMatch(name string, candidates []string) string {
 	best := ""
 	bestDist := len(name)
@@ -390,6 +393,7 @@ func WriteRuntimeValidationLog(report *RuntimeValidationReport, filename string)
 					fmt.Fprintf(file, "    - %s\n", col)
 				}
 			}
+			fmt.Fprintf(file, "  Available columns: %s\n", strings.Join(report.CSVColumns, ", "))
 		}
 
 		if len(r.AllowedColumns) > 0 {

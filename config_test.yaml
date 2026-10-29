@@ -1,5 +1,32 @@
+# ============================================================================
+# config_test.yaml - Hekate smoke test
+# ============================================================================
+#
+# Exercises:
+#   - data_dir resolution
+#   - datafile loading into params.datafile
+#   - hekate_lookup.index(...) for nested keyed lookups
+#   - deterministic RNG via math.random (backed by HekateRNG)
+#   - the standard aging model
+#   - per-iteration output snapshots (output_N.csv)
+#
+# Directory layout:
+#   config_test.yaml
+#   data/
+#     population.csv             (header: id, sex, alive, income, region, age)
+#     rules_increment_income.csv (header: sex, alive, value, sd)
+#
+# PATH CONVENTIONS
+# ----------------
+#   population_file  → resolved against the process CWD.
+#                      Include the "data/" prefix in the path.
+#   datafile         → resolved against data_dir.
+#                      Do NOT include the "data/" prefix.
+#
+# ============================================================================
+
 simulation:
-  iterations: 3
+  iterations: 5
   population_file: "data/population.csv"
   output_file: "output.csv"
   random_seed: 42
@@ -8,24 +35,25 @@ simulation:
   area_column: region
   streaming_mode: false
   data_dir: "data"
+  output_every_iteration: true
 
 models:
+  # --------------------------------------------------------------------------
   # MODEL 1: AGING
+  #
+  # Increments 'age' by 1 for every living person. The CSV has an 'age'
+  # column, so no allow-columns directive is needed.
+  # --------------------------------------------------------------------------
   - name: aging_model
     type: lua_model
     priority: 1
     enabled: true
-    description: "Age the population by 1 year each iteration"
+    description: "Age living people by 1 year each iteration"
     parameters:
       script: |
         function transition(population, params)
-          -- hekate:allow-columns age
           for _, person in ipairs(population) do
-            local alive = false
-            if person.alive == true or person.alive == "true" then
-              alive = true
-            end
-            if alive then
+            if person.alive then
               local age = tonumber(person.age) or 18
               person.age = age + 1
             end
@@ -33,33 +61,26 @@ models:
           return population
         end
 
-  # MODEL 2: INCREMENT INCOME BY SEX|ALIVE
+  # --------------------------------------------------------------------------
+  # MODEL 2: INCREMENT INCOME
+  # --------------------------------------------------------------------------
   - name: increment_income_by_sex_alive
     type: lua_model
     priority: 2
     enabled: true
-    description: "Add a random offset in [value-sd, value+sd] to income, grouped by sex|alive"
+    description: "Add uniform noise around 'value' to income, grouped by sex|alive, from rules_increment_income.csv"
     datafile: "rules_increment_income.csv"
     parameters:
       script: |
         function transition(population, params)
-          local by_key = {}
-          for _, r in ipairs(params.datafile) do
-            by_key[r.sex] = by_key[r.sex] or {}
-            by_key[r.sex][r.alive] = { mean = r.value, sd = r.sd }
-          end
+          local by_key = hekate_lookup.index(params.datafile, "sex", "alive")
 
           for _, person in ipairs(population) do
-            local rule = person.sex ~= nil
-                         and person.alive ~= nil
-                         and by_key[person.sex]
-                         and by_key[person.sex][person.alive]
-                         or nil
-
+            local rule = by_key[person.sex] and by_key[person.sex][person.alive]
             if rule then
               local offset = (2 * math.random() - 1) * rule.sd
               local income = person.income or 0
-              person.income = math.max(0, income + rule.mean + offset)
+              person.income = math.max(0, income + rule.value + offset)
             end
           end
 

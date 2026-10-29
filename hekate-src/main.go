@@ -12,7 +12,7 @@ import (
 
 // Version is the current Hekate version.
 // Bump this when cutting a release.
-const Version = "0.9.1.1"
+const Version = "0.9.1"
 
 func main() {
 	if len(os.Args) < 2 {

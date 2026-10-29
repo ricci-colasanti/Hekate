@@ -57,7 +57,7 @@ type SimulationConfig struct {
 type SimulationParameters struct {
 	Iterations     int    `yaml:"iterations"`      // Number of years to simulate
 	PopulationFile string `yaml:"population_file"` // Input CSV path
-	OutputFile     string `yaml:"output_file"`     // Output CSV path
+	OutputFile     string `yaml:"output_file"`     // Final output CSV path
 	RandomSeed     int64  `yaml:"random_seed"`     // Base seed for reproducibility
 	Verbose        bool   `yaml:"verbose"`         // Detailed logging
 
@@ -94,6 +94,21 @@ type SimulationParameters struct {
 	// paths are resolved against it, absolute paths are rejected, and any
 	// path that escapes the directory is rejected.
 	DataDir string `yaml:"data_dir"`
+
+	// OutputEveryIteration, when true, writes a snapshot of the population
+	// after each iteration as "output_1.csv", "output_2.csv", ... alongside
+	// the final output_file. Useful for inspecting intermediate states of a
+	// simulation. Default: false (only the final output is written).
+	//
+	// The final output is still written at the end regardless of this flag.
+	// Iteration snapshots use the same column-discovery and sort-by-ID rules
+	// as the final output, so they are directly comparable.
+	//
+	// Bulk mode only for now. In streaming mode the per-year intermediate
+	// files (year_N.csv) already exist during the run and are cleaned up at
+	// the end; enabling per-iteration output in streaming mode is a separate
+	// feature.
+	OutputEveryIteration bool `yaml:"output_every_iteration"`
 }
 
 // ColumnInfo describes a single column detected from the CSV.
@@ -209,6 +224,9 @@ func (c *SimulationConfig) LogSummary() {
 		log.Printf("Data dir: %s", c.Simulation.DataDir)
 	} else {
 		log.Printf("Data dir: (not set — datafile paths resolve against CWD and may be absolute)")
+	}
+	if c.Simulation.OutputEveryIteration {
+		log.Printf("Per-iteration output: ENABLED (output_N.csv)")
 	}
 	if c.Simulation.StrictMode {
 		log.Printf("Strict mode: ENABLED (warnings treated as errors)")

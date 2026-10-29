@@ -64,10 +64,8 @@ func (vm *LuaVM) Seed(seed int64) {
 
 // LoadDataFile loads (or returns cached) rows for the given absolute path.
 //
-// Uses LoadDataFileRows (not LoadPopulationDynamic) because model datafiles
-// are lookup/rule tables that do not have a unique ID column. The cache is
-// keyed by the absolute path, so a file is read at most once per VM
-// lifetime. Changes to the file after the first read are not picked up.
+// The cache is keyed by the absolute path. Files are read at most once per
+// VM lifetime. Changes to the file after the first read are not picked up.
 func (vm *LuaVM) LoadDataFile(absPath string) (Population, error) {
 	if rows, ok := vm.data[absPath]; ok {
 		return rows, nil
@@ -152,6 +150,13 @@ func NewLuaVM(randomSeed int64) *LuaVM {
 	// We pass vm so that the draw functions can access vm.rng for
 	// reproducibility.
 	RegisterHekateStats(L, vm)
+
+	// ========================================================================
+	// Register hekate_lookup functions
+	// ========================================================================
+	// hekate_lookup.index(rows, "col1", "col2", ...) builds a nested table
+	// keyed by the named columns. See hekate_lookup.go.
+	RegisterHekateLookup(L)
 
 	// Clear any stale global state
 	L.SetGlobal("transition", lua.LNil)

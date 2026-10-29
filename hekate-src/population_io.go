@@ -166,6 +166,11 @@ func buildPopulationFromRecords(records [][]string, columns []ColumnInfo) Popula
 
 // SavePopulationDynamic writes a Population to a CSV file.
 //
+// Column discovery: the output header starts with the load-time column order
+// (from []ColumnInfo), then appends any new string-key columns that models
+// have added to the population. New columns are sorted alphabetically for
+// deterministic output across runs.
+//
 // The population is sorted by the ID column before writing to guarantee
 // deterministic output ordering - this is important for reproducibility
 // because map iteration order in Go is random.
@@ -179,8 +184,35 @@ func SavePopulationDynamic(population Population, columns []ColumnInfo, outputFi
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
+	// ---- Discover output columns ----
+	// Start with the load-time column order so existing columns keep their
+	// position in the CSV. Then collect any new string-key columns that
+	// models have added, sorted alphabetically for determinism.
+	seen := make(map[string]bool, len(columns))
+	colNames := make([]string, 0, len(columns))
+	for _, c := range columns {
+		seen[c.Name] = true
+		colNames = append(colNames, c.Name)
+	}
+
+	newColsSet := make(map[string]bool)
+	for _, row := range population {
+		for k := range row {
+			if !seen[k] {
+				newColsSet[k] = true
+			}
+		}
+	}
+	if len(newColsSet) > 0 {
+		newCols := make([]string, 0, len(newColsSet))
+		for k := range newColsSet {
+			newCols = append(newCols, k)
+		}
+		sort.Strings(newCols)
+		colNames = append(colNames, newCols...)
+	}
+
 	// ---- Write header ----
-	colNames := GetColumnNames(columns)
 	if err := writer.Write(colNames); err != nil {
 		return fmt.Errorf("failed to write header: %w", err)
 	}
@@ -197,9 +229,9 @@ func SavePopulationDynamic(population Population, columns []ColumnInfo, outputFi
 
 	// ---- Write data rows ----
 	for _, row := range population {
-		record := make([]string, len(columns))
-		for i, col := range columns {
-			val := row[col.Name]
+		record := make([]string, len(colNames))
+		for i, col := range colNames {
+			val := row[col]
 			if val == nil {
 				record[i] = ""
 			} else {

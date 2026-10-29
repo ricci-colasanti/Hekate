@@ -15,6 +15,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"path/filepath"
+	"strings"
 )
 
 // RunBulkSimulation runs the simulation with the entire population in memory.
@@ -25,6 +27,7 @@ import (
 //     a. For each enabled model (in priority order):
 //        i.  Compute a unique, deterministic seed for (year, model)
 //        ii. Execute the model on the full population
+//     b. If output_every_iteration is true, write output_N.csv
 //  3. Save the final population to the output CSV
 func RunBulkSimulation(config *SimulationConfig, enabledModels []ModelConfig, luaVM *LuaVM) {
 	// ---- Load entire population ----
@@ -62,6 +65,21 @@ func RunBulkSimulation(config *SimulationConfig, enabledModels []ModelConfig, lu
 				log.Fatalf("Model '%s' execution failed: %v", model.Name, err)
 			}
 		}
+
+		// ---- Per-iteration snapshot (optional) ----
+		if config.Simulation.OutputEveryIteration {
+			snapshotFile := iterationOutputPath(config.Simulation.OutputFile, i+1)
+			// Shallow-copy the population before saving. SavePopulationDynamic
+			// sorts the slice in place by ID; since the slice is small and the
+			// sort is stable-by-ID, reusing it would be fine, but a copy makes
+			// the intent explicit and costs only the slice header.
+			snapshot := make(Population, len(population))
+			copy(snapshot, population)
+			if err := SavePopulationDynamic(snapshot, columns, snapshotFile, config.Simulation.IDColumn); err != nil {
+				log.Fatalf("Failed to write iteration snapshot %s: %v", snapshotFile, err)
+			}
+			log.Printf("  📄 Snapshot: %s", snapshotFile)
+		}
 	}
 
 	// ---- Save final population ----
@@ -70,6 +88,17 @@ func RunBulkSimulation(config *SimulationConfig, enabledModels []ModelConfig, lu
 	}
 	log.Printf("\n═══ Simulation Complete ═══")
 	log.Printf("Results saved to %s", config.Simulation.OutputFile)
+}
+
+// iterationOutputPath derives the per-iteration snapshot path from the final
+// output path. For output_file "output.csv" and iteration 3, returns
+// "output_3.csv". For "results/final.csv", returns "results/final_3.csv".
+func iterationOutputPath(finalPath string, iteration int) string {
+	dir := filepath.Dir(finalPath)
+	base := filepath.Base(finalPath)
+	ext := filepath.Ext(base)
+	name := strings.TrimSuffix(base, ext)
+	return filepath.Join(dir, fmt.Sprintf("%s_%d%s", name, iteration, ext))
 }
 
 // ExecuteLuaModel runs a single Lua model on a population.

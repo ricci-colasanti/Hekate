@@ -15,7 +15,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // ValidateDataFiles checks all model datafiles and returns an error
@@ -107,23 +106,3 @@ func ValidateDataFiles(config *SimulationConfig, models []ModelConfig, verbose b
 
 	return firstErr
 }
-
-// describeDataDirError formats a data_dir related error for log output.
-// Used by the validator to distinguish "data_dir itself is broken" from
-// "this particular file is missing".
-func describeDataDirError(dataDir string) string {
-	if dataDir == "" {
-		return "data_dir is not set; datafile paths resolve against CWD"
-	}
-	info, err := os.Stat(dataDir)
-	if err != nil {
-		return fmt.Sprintf("data_dir %q is not accessible: %v", dataDir, err)
-	}
-	if !info.IsDir() {
-		return fmt.Sprintf("data_dir %q is not a directory", dataDir)
-	}
-	return ""
-}
-
-// ensure strings is used even if the compiler is pedantic about imports
-var _ = strings.TrimSpace
