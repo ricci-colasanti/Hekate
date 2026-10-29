@@ -1,0 +1,5 @@
+sex,alive,value,sd
+M,true,1000,100
+F,true,1500,150
+M,false,0,0
+F,false,0,0

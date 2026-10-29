@@ -1,0 +1,6 @@
+id,sex,alive,income,region
+1,M,true,30000,north
+2,F,true,28000,north
+3,M,false,25000,north
+4,F,true,32000,south
+5,M,true,27000,south

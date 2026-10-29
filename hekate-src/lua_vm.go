@@ -44,12 +44,12 @@ import (
 )
 
 // LuaVM wraps a Lua interpreter state together with its dedicated random
-// number generator. The `rng` field is THE critical piece for
-// reproducibility.
+// number generator and data file cache.
 type LuaVM struct {
-	L    *lua.LState // The Lua interpreter
-	rng  *HekateRNG  // Dedicated RNG - NOT the global one, NOT math/rand
-	seed int64       // The current seed (for reference/debugging)
+	L    *lua.LState           // The Lua interpreter
+	rng  *HekateRNG            // Dedicated RNG - NOT the global one, NOT math/rand
+	seed int64                 // The current seed (for reference/debugging)
+	data map[string]Population // Cache: absolute path -> parsed rows
 }
 
 // Seed resets the VM's random source to a new state determined by `seed`.
@@ -60,6 +60,31 @@ type LuaVM struct {
 func (vm *LuaVM) Seed(seed int64) {
 	vm.rng.Seed(seed)
 	vm.seed = seed
+}
+
+// LoadDataFile loads (or returns cached) rows for the given absolute path.
+//
+// Uses LoadDataFileRows (not LoadPopulationDynamic) because model datafiles
+// are lookup/rule tables that do not have a unique ID column. The cache is
+// keyed by the absolute path, so a file is read at most once per VM
+// lifetime. Changes to the file after the first read are not picked up.
+func (vm *LuaVM) LoadDataFile(absPath string) (Population, error) {
+	if rows, ok := vm.data[absPath]; ok {
+		return rows, nil
+	}
+
+	rows, _, err := LoadDataFileRows(absPath)
+	if err != nil {
+		return nil, err
+	}
+
+	vm.data[absPath] = rows
+	return rows, nil
+}
+
+// ResetDataCache clears the data file cache.
+func (vm *LuaVM) ResetDataCache() {
+	vm.data = make(map[string]Population)
 }
 
 // NewLuaVM creates a new Lua VM with Hekate-specific functions.
@@ -85,6 +110,7 @@ func NewLuaVM(randomSeed int64) *LuaVM {
 		L:    L,
 		rng:  NewHekateRNG(seed),
 		seed: seed,
+		data: make(map[string]Population),
 	}
 
 	// ========================================================================

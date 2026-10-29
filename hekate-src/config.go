@@ -43,6 +43,7 @@ type ModelConfig struct {
 	Priority    int                    `yaml:"priority"`    // Execution order (lower = earlier)
 	Enabled     bool                   `yaml:"enabled"`     // Toggle without removing from config
 	Description string                 `yaml:"description"` // Documentation for humans
+	DataFile    string                 `yaml:"datafile"`    // Optional CSV file (relative to data_dir)
 	Parameters  map[string]interface{} `yaml:"parameters"`  // Arbitrary parameters (including "script")
 }
 
@@ -86,6 +87,13 @@ type SimulationParameters struct {
 	// ValidationLogFile is the path where the validation report is written
 	// when validation fails. Defaults to "hekate_validation.log".
 	ValidationLogFile string `yaml:"validation_log_file"`
+
+	// DataDir is the base directory for all model datafile paths.
+	// If empty, datafile paths resolve against the current working directory
+	// and absolute paths are allowed (legacy behaviour). If set, datafile
+	// paths are resolved against it, absolute paths are rejected, and any
+	// path that escapes the directory is rejected.
+	DataDir string `yaml:"data_dir"`
 }
 
 // ColumnInfo describes a single column detected from the CSV.
@@ -197,6 +205,11 @@ func (c *SimulationConfig) LogSummary() {
 		log.Printf("Mode: BULK (load all into memory)")
 	}
 	log.Printf("Random seed: %d", c.Simulation.RandomSeed)
+	if c.Simulation.DataDir != "" {
+		log.Printf("Data dir: %s", c.Simulation.DataDir)
+	} else {
+		log.Printf("Data dir: (not set — datafile paths resolve against CWD and may be absolute)")
+	}
 	if c.Simulation.StrictMode {
 		log.Printf("Strict mode: ENABLED (warnings treated as errors)")
 	}

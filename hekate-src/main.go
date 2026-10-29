@@ -12,7 +12,7 @@ import (
 
 // Version is the current Hekate version.
 // Bump this when cutting a release.
-const Version = "0.9.1"
+const Version = "0.9.1.1"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -75,7 +75,17 @@ func main() {
 		log.Printf("⚠️  Lua validation DISABLED (skip_validation: true)")
 	}
 
-	// ---- Stage 2: Runtime column validation ----
+	// ---- Stage 2: Datafile validation ----
+	// Runs after script validation, before column validation. Catching a
+	// missing datafile here means the user doesn't have to wait for the
+	// CSV column check to run (and potentially fail on unrelated problems).
+	if !config.Simulation.SkipValidation {
+		if err := ValidateDataFiles(config, enabledModels, verbose); err != nil {
+			log.Fatalf("Simulation aborted: datafile validation failed: %v", err)
+		}
+	}
+
+	// ---- Stage 3: Runtime column validation ----
 	if !config.Simulation.SkipValidation {
 		runtimeReport := ValidateAllColumnsAgainstCSV(config, enabledModels, verbose)
 

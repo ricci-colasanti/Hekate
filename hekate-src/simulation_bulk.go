@@ -51,7 +51,10 @@ func RunBulkSimulation(config *SimulationConfig, enabledModels []ModelConfig, lu
 
 			switch model.Type {
 			case "lua_model":
-				population, err = ExecuteLuaModel(luaVM, model, population, config.Simulation.Verbose, modelSeed)
+				population, err = ExecuteLuaModel(
+					luaVM, model, population, config.Simulation.Verbose,
+					modelSeed, config.Simulation.DataDir,
+				)
 			default:
 				log.Fatalf("Unknown model type: %s", model.Type)
 			}
@@ -71,13 +74,18 @@ func RunBulkSimulation(config *SimulationConfig, enabledModels []ModelConfig, lu
 
 // ExecuteLuaModel runs a single Lua model on a population.
 //
+// If the model declares a `datafile`, it is resolved against dataDir,
+// loaded (cached per VM), and injected into `params.datafile` before the
+// script runs. Scripts without a datafile see exactly the params they
+// saw before — the injection is purely additive.
+//
 // CRITICAL: This is where the reproducibility guarantee is enforced. The
 // vm.Seed(seed) call resets the VM's dedicated random source to a known
 // state before the model runs, ensuring identical results across runs.
 //
 // NEVER remove or reorder the vm.Seed() call - doing so will break
 // reproducibility.
-func ExecuteLuaModel(vm *LuaVM, model ModelConfig, population Population, verbose bool, seed int64) (Population, error) {
+func ExecuteLuaModel(vm *LuaVM, model ModelConfig, population Population, verbose bool, seed int64, dataDir string) (Population, error) {
 	// ---- Extract the Lua script from the model parameters ----
 	scriptInterface, ok := model.Parameters["script"]
 	if !ok {
@@ -94,6 +102,30 @@ func ExecuteLuaModel(vm *LuaVM, model ModelConfig, population Population, verbos
 		log.Printf("  ▶ %s", model.Name)
 	}
 
+	// ---- Build the params map ----
+	// Copy the original parameters, then add the datafile (if any) under
+	// the key "datafile". This is additive: scripts that don't declare a
+	// datafile see exactly the same params as before.
+	params := make(map[string]interface{}, len(model.Parameters)+1)
+	for k, v := range model.Parameters {
+		params[k] = v
+	}
+
+	if model.DataFile != "" {
+		absPath, err := ResolveDataPath(dataDir, model.DataFile)
+		if err != nil {
+			return nil, fmt.Errorf("model '%s': datafile: %w", model.Name, err)
+		}
+		rows, err := vm.LoadDataFile(absPath)
+		if err != nil {
+			return nil, fmt.Errorf("model '%s': datafile '%s': %w", model.Name, model.DataFile, err)
+		}
+		params["datafile"] = []map[string]interface{}(rows)
+		if verbose {
+			log.Printf("    datafile: %s (%d rows)", model.DataFile, len(rows))
+		}
+	}
+
 	// ========================================================================
 	// THE REPRODUCIBILITY FIX
 	// ========================================================================
@@ -107,7 +139,7 @@ func ExecuteLuaModel(vm *LuaVM, model ModelConfig, population Population, verbos
 
 	// ---- Run the script ----
 	popSlice := []map[string]interface{}(population)
-	result, err := vm.ExecuteLuaScript(script, popSlice, model.Parameters)
+	result, err := vm.ExecuteLuaScript(script, popSlice, params)
 	if err != nil {
 		return nil, err
 	}

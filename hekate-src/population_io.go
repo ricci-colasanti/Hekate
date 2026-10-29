@@ -30,6 +30,49 @@ import (
 // is not found in the header, an error is returned listing the available
 // columns (helpful for debugging config typos).
 func LoadPopulationDynamic(csvFile string, idColumn string) (Population, []ColumnInfo, error) {
+	records, columns, err := readCSVWithTypes(csvFile)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Validate that the ID column exists
+	foundID := false
+	for _, col := range columns {
+		if col.Name == idColumn {
+			foundID = true
+			break
+		}
+	}
+	if !foundID {
+		header := make([]string, len(columns))
+		for i, c := range columns {
+			header[i] = c.Name
+		}
+		return nil, nil, fmt.Errorf("ID column '%s' not found in CSV header. Available columns: %s",
+			idColumn, strings.Join(header, ", "))
+	}
+
+	population := buildPopulationFromRecords(records, columns)
+	return population, columns, nil
+}
+
+// LoadDataFileRows loads a CSV as rows without requiring a specific ID column.
+//
+// Used for model datafiles (lookup tables, rule tables, etc.) that don't
+// have a unique ID column. Same type detection and parsing as
+// LoadPopulationDynamic, just without the ID check.
+func LoadDataFileRows(csvFile string) (Population, []ColumnInfo, error) {
+	records, columns, err := readCSVWithTypes(csvFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buildPopulationFromRecords(records, columns), columns, nil
+}
+
+// readCSVWithTypes reads a CSV file and returns its raw records plus the
+// detected column info (name + type). Shared implementation used by both
+// LoadPopulationDynamic and LoadDataFileRows.
+func readCSVWithTypes(csvFile string) ([][]string, []ColumnInfo, error) {
 	file, err := os.Open(csvFile)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open CSV: %w", err)
@@ -48,12 +91,8 @@ func LoadPopulationDynamic(csvFile string, idColumn string) (Population, []Colum
 	// ---- Detect column names and types ----
 	header := records[0]
 	columns := make([]ColumnInfo, len(header))
-	foundID := false
 	for i, col := range header {
 		col = strings.TrimSpace(col)
-		if col == idColumn {
-			foundID = true
-		}
 
 		// Sample up to 20 data rows for type detection
 		colType := "string"
@@ -75,13 +114,12 @@ func LoadPopulationDynamic(csvFile string, idColumn string) (Population, []Colum
 		columns[i] = ColumnInfo{Name: col, Type: colType}
 	}
 
-	// Validate that the ID column exists
-	if !foundID {
-		return nil, nil, fmt.Errorf("ID column '%s' not found in CSV header. Available columns: %s",
-			idColumn, strings.Join(header, ", "))
-	}
+	return records, columns, nil
+}
 
-	// ---- Parse data rows ----
+// buildPopulationFromRecords converts raw CSV records (including the header
+// row at index 0) into a Population slice using the detected column types.
+func buildPopulationFromRecords(records [][]string, columns []ColumnInfo) Population {
 	var population Population
 	for i := 1; i < len(records); i++ {
 		record := records[i]
@@ -123,7 +161,7 @@ func LoadPopulationDynamic(csvFile string, idColumn string) (Population, []Colum
 		}
 		population = append(population, row)
 	}
-	return population, columns, nil
+	return population
 }
 
 // SavePopulationDynamic writes a Population to a CSV file.

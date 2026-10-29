@@ -165,7 +165,7 @@ func validateSingleScript(model ModelConfig, strictMode bool) ValidationResult {
 	}
 
 	// ---- Scan for common mistakes (warnings) ----
-	result.Warnings = scanForCommonMistakes(script)
+	result.Warnings = scanForCommonMistakes(script, model)
 
 	// ---- Try to compile the script ----
 	compileErr := tryCompileScript(script)
@@ -247,7 +247,10 @@ func suggestFixForError(errMsg string) string {
 
 // scanForCommonMistakes examines the script source for patterns that are
 // legal Lua but usually indicate a mistake. Returns a list of warnings.
-func scanForCommonMistakes(script string) []string {
+//
+// The model is passed in so that warnings can be suppressed when the model
+// already declares a datafile (e.g. the io.lines warning).
+func scanForCommonMistakes(script string, model ModelConfig) []string {
 	var warnings []string
 	lines := strings.Split(script, "\n")
 
@@ -279,10 +282,28 @@ func scanForCommonMistakes(script string) []string {
 		}
 	}
 
-	// ---- Check 3: math.randomseed used (breaks reproducibility) ----
+	// ---- Check 3: math.randomseed used (overrides per-model seed) ----
 	if strings.Contains(script, "math.randomseed") {
 		warnings = append(warnings,
-			"script calls math.randomseed() — Hekate seeds the RNG automatically per model; manual seeding will override that seed.")
+			"script calls math.randomseed() — Hekate seeds the RNG per-model automatically; manual seeding will override that seed.")
+	}
+
+	// ---- Check 4: io.lines / io.open on a CSV when no datafile is declared ----
+	// Soft deprecation: reading CSVs with io.lines works, but is slower and
+	// loses type detection. The `datafile` key on the model is the blessed path.
+	if model.DataFile == "" {
+		for i, line := range lines {
+			usesIO := strings.Contains(line, "io.lines(") || strings.Contains(line, "io.open(")
+			if !usesIO {
+				continue
+			}
+			// Only warn if the argument looks like a CSV file.
+			if !strings.Contains(strings.ToLower(line), ".csv") {
+				continue
+			}
+			warnings = append(warnings,
+				fmt.Sprintf("line %d: script reads a CSV with io.lines()/io.open() — consider declaring it under 'datafile:' on the model so it's read once per run and type-detected", i+1))
+		}
 	}
 
 	return warnings

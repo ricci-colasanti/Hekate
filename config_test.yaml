@@ -1,0 +1,67 @@
+simulation:
+  iterations: 3
+  population_file: "data/population.csv"
+  output_file: "output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: id
+  area_column: region
+  streaming_mode: false
+  data_dir: "data"
+
+models:
+  # MODEL 1: AGING
+  - name: aging_model
+    type: lua_model
+    priority: 1
+    enabled: true
+    description: "Age the population by 1 year each iteration"
+    parameters:
+      script: |
+        function transition(population, params)
+          -- hekate:allow-columns age
+          for _, person in ipairs(population) do
+            local alive = false
+            if person.alive == true or person.alive == "true" then
+              alive = true
+            end
+            if alive then
+              local age = tonumber(person.age) or 18
+              person.age = age + 1
+            end
+          end
+          return population
+        end
+
+  # MODEL 2: INCREMENT INCOME BY SEX|ALIVE
+  - name: increment_income_by_sex_alive
+    type: lua_model
+    priority: 2
+    enabled: true
+    description: "Add a random offset in [value-sd, value+sd] to income, grouped by sex|alive"
+    datafile: "rules_increment_income.csv"
+    parameters:
+      script: |
+        function transition(population, params)
+          local by_key = {}
+          for _, r in ipairs(params.datafile) do
+            by_key[r.sex] = by_key[r.sex] or {}
+            by_key[r.sex][r.alive] = { mean = r.value, sd = r.sd }
+          end
+
+          for _, person in ipairs(population) do
+            local rule = person.sex ~= nil
+                         and person.alive ~= nil
+                         and by_key[person.sex]
+                         and by_key[person.sex][person.alive]
+                         or nil
+
+            if rule then
+              local offset = (2 * math.random() - 1) * rule.sd
+              local income = person.income or 0
+              person.income = math.max(0, income + rule.mean + offset)
+            end
+          end
+
+          return population
+        end

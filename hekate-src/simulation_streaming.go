@@ -59,6 +59,7 @@ func RunStreamingSimulation(config *SimulationConfig, enabledModels []ModelConfi
 			luaVM,
 			config.Simulation.RandomSeed,
 			iter,
+			config.Simulation.DataDir,
 		)
 		if err != nil {
 			log.Fatalf("Iteration %d failed: %v", iter+1, err)
@@ -137,7 +138,7 @@ func DetectColumns(filename string) ([]ColumnInfo, error) {
 
 // ProcessYearStreamingFixed processes one iteration (year) of the simulation
 // in streaming mode. Reads from `inputFile`, writes to `outputFile`.
-func ProcessYearStreamingFixed(inputFile, outputFile string, models []ModelConfig, columns []ColumnInfo, areaColumn string, verbose bool, luaVM *LuaVM, baseSeed int64, year int) error {
+func ProcessYearStreamingFixed(inputFile, outputFile string, models []ModelConfig, columns []ColumnInfo, areaColumn string, verbose bool, luaVM *LuaVM, baseSeed int64, year int, dataDir string) error {
 	// ---- Open input and output files ----
 	inFile, err := os.Open(inputFile)
 	if err != nil {
@@ -208,7 +209,7 @@ func ProcessYearStreamingFixed(inputFile, outputFile string, models []ModelConfi
 		if currentArea != "" && areaID != currentArea {
 			if len(areaRecords) > 0 {
 				areaSeed := baseSeed + int64(year)*100000 + int64(areaCount)
-				if err := processAreaFixed(areaRecords, columns, models, verbose, luaVM, writer, areaSeed); err != nil {
+				if err := processAreaFixed(areaRecords, columns, models, verbose, luaVM, writer, areaSeed, dataDir); err != nil {
 					return fmt.Errorf("area %s error: %w", currentArea, err)
 				}
 				areaCount++
@@ -223,7 +224,7 @@ func ProcessYearStreamingFixed(inputFile, outputFile string, models []ModelConfi
 	// ---- Process the final area ----
 	if len(areaRecords) > 0 {
 		areaSeed := baseSeed + int64(year)*100000 + int64(areaCount)
-		if err := processAreaFixed(areaRecords, columns, models, verbose, luaVM, writer, areaSeed); err != nil {
+		if err := processAreaFixed(areaRecords, columns, models, verbose, luaVM, writer, areaSeed, dataDir); err != nil {
 			return fmt.Errorf("area %s error: %w", currentArea, err)
 		}
 		areaCount++
@@ -237,7 +238,7 @@ func ProcessYearStreamingFixed(inputFile, outputFile string, models []ModelConfi
 }
 
 // processAreaFixed processes a single area's records through all models.
-func processAreaFixed(records [][]string, columns []ColumnInfo, models []ModelConfig, verbose bool, luaVM *LuaVM, writer *csv.Writer, baseSeed int64) error {
+func processAreaFixed(records [][]string, columns []ColumnInfo, models []ModelConfig, verbose bool, luaVM *LuaVM, writer *csv.Writer, baseSeed int64, dataDir string) error {
 	// ---- Convert CSV records to Population ----
 	pop := make(Population, len(records))
 	for i, record := range records {
@@ -289,7 +290,7 @@ func processAreaFixed(records [][]string, columns []ColumnInfo, models []ModelCo
 
 		switch model.Type {
 		case "lua_model":
-			pop, err = ExecuteLuaModel(luaVM, model, pop, verbose, modelSeed)
+			pop, err = ExecuteLuaModel(luaVM, model, pop, verbose, modelSeed, dataDir)
 		default:
 			return fmt.Errorf("unknown model type: %s", model.Type)
 		}

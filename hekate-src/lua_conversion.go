@@ -18,13 +18,15 @@ import (
 //
 // Type mapping:
 //
-//	nil           -> nil
-//	bool          -> boolean
-//	int/int64     -> number (Lua only has float64 numbers)
-//	float64       -> number
-//	string        -> string
-//	[]interface{} -> table (array-style)
-//	map           -> table (object-style, with string keys)
+//	nil                        -> nil
+//	bool                       -> boolean
+//	int/int64                  -> number (Lua only has float64 numbers)
+//	float64                    -> number
+//	string                     -> string
+//	[]interface{}              -> table (array-style)
+//	[]map[string]interface{}   -> table (array of object-tables)
+//	Population                 -> table (same as []map[string]interface{})
+//	map[string]interface{}     -> table (object-style, with string keys)
 //
 // Unsupported types are silently converted to nil.
 func toLuaValue(L *lua.LState, val interface{}) lua.LValue {
@@ -45,6 +47,25 @@ func toLuaValue(L *lua.LState, val interface{}) lua.LValue {
 		tbl := L.NewTable()
 		for _, item := range v {
 			tbl.Append(toLuaValue(L, item))
+		}
+		return tbl
+	case []map[string]interface{}:
+		// This is the type used for datafile rows (and for Population).
+		// Each map becomes an object-style table; the slice becomes an
+		// array-style table. Without this case, datafile rows would be
+		// silently converted to nil, which is exactly what was happening.
+		tbl := L.NewTable()
+		for _, row := range v {
+			tbl.Append(toLuaValue(L, row))
+		}
+		return tbl
+	case Population:
+		// Population is a named type for []map[string]interface{}, but Go's
+		// type switch treats named types as distinct from their underlying
+		// type, so we need an explicit case.
+		tbl := L.NewTable()
+		for _, row := range v {
+			tbl.Append(toLuaValue(L, row))
 		}
 		return tbl
 	case map[string]interface{}:
