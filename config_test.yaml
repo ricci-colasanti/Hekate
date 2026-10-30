@@ -50,11 +50,12 @@ models:
     enabled: true
     description: "Age living people by 1 year each iteration"
     parameters:
+      age : 18
       script: |
         function transition(population, params)
           for _, person in ipairs(population) do
             if person.alive then
-              local age = tonumber(person.age) or 18
+              local age = tonumber(person.age) or params.age
               person.age = age + 1
             end
           end
