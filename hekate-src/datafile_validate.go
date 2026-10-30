@@ -6,6 +6,19 @@
 // resolves inside data_dir. Runs before the simulation starts so that typos
 // are caught immediately rather than mid-run.
 //
+// ERROR MESSAGES
+// --------------
+// When a datafile is missing, the error prints:
+//   - the user-written path (as it appears in the YAML)
+//   - the resolved absolute path (what the engine actually looked for)
+//   - a "did you mean" suggestion, if a similar filename exists in data_dir
+//
+// Printing the resolved path matters: path conventions differ between
+// population_file (CWD-relative) and datafile (data_dir-relative), and a
+// failure with only the user-written path is ambiguous. "data/data/x.csv"
+// is the classic symptom, and it's invisible unless you see the resolved
+// path.
+//
 // ============================================================================
 
 package main
@@ -70,8 +83,11 @@ func ValidateDataFiles(config *SimulationConfig, models []ModelConfig, verbose b
 
 		absPath, err := ResolveDataPath(dataDir, model.DataFile)
 		if err != nil {
+			// Path resolution itself failed (escaped data_dir, absolute path
+			// when data_dir is set, etc.). This is a different class of error
+			// from "file not found" and shouldn't suggest filenames.
 			firstErr = fmt.Errorf("model '%s': datafile: %w", model.Name, err)
-			log.Printf("  ❌ %-30s %v", model.Name, err)
+			log.Printf("  ❌ %-30s datafile '%s': %v", model.Name, model.DataFile, err)
 			continue
 		}
 
@@ -84,12 +100,17 @@ func ValidateDataFiles(config *SimulationConfig, models []ModelConfig, verbose b
 				base := filepath.Base(model.DataFile)
 				suggestion = findClosestMatch(base, candidates)
 			}
+
 			if suggestion != "" {
 				log.Printf("  ❌ %-30s datafile '%s' not found (did you mean '%s'?)",
 					model.Name, model.DataFile, suggestion)
 			} else {
 				log.Printf("  ❌ %-30s datafile '%s' not found", model.Name, model.DataFile)
 			}
+			// The resolved path is the diagnostic. Without it, the user sees
+			// "not found" and has to reason about which directory conventions
+			// apply to which config key.
+			log.Printf("       └─ resolved as: %s", absPath)
 			continue
 		}
 

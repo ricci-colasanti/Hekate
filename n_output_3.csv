@@ -1,0 +1,6 @@
+id,sex,alive,income,region,age
+1,M,true,31352.448870941273,north,28
+2,F,true,29357.356518997047,north,33
+3,M,false,25000,north,45
+4,F,true,33315.46365096255,south,53
+5,M,true,28552.86858626775,south,63

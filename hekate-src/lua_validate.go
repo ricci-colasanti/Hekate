@@ -33,7 +33,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -80,14 +79,8 @@ func ValidateAllScripts(config *SimulationConfig, strictMode bool, verbose bool)
 		log.Printf("")
 	}
 
-	// Load the population CSV's column types once. Used to decide which
-	// columns need tonumber() in scripts. Best-effort: if the CSV can't be
-	// read, we skip the tonumber warning rather than fail here — the CSV
-	// itself is validated separately by ValidateAllColumnsAgainstCSV.
-	numericColumns := loadNumericColumns(config.Simulation.PopulationFile)
-
 	for _, model := range config.Models {
-		result := validateSingleScript(model, strictMode, numericColumns)
+		result := validateSingleScript(model, strictMode)
 		report.Results = append(report.Results, result)
 
 		if result.Success && len(result.Warnings) == 0 {
@@ -145,26 +138,6 @@ func ValidateAllScripts(config *SimulationConfig, strictMode bool, verbose bool)
 	return report
 }
 
-// loadNumericColumns returns the set of column names in the population CSV
-// that are typed as int or float. Returns an empty set if the CSV can't be
-// read — the warning is best-effort, not a hard error.
-//
-// This is what removes the hard-coded column list: the validator learns
-// which columns are numeric from the CSV itself, not from a list in Go.
-func loadNumericColumns(csvPath string) map[string]bool {
-	cols, err := DetectColumns(csvPath)
-	if err != nil {
-		return map[string]bool{}
-	}
-	out := make(map[string]bool, len(cols))
-	for _, c := range cols {
-		if c.Type == "int" || c.Type == "float" {
-			out[c.Name] = true
-		}
-	}
-	return out
-}
-
 // validateSingleScript validates one model's Lua script.
 //
 // Strategy:
@@ -173,10 +146,7 @@ func loadNumericColumns(csvPath string) map[string]bool {
 //  3. Try to compile it in a fresh Lua VM
 //  4. Check that a "transition" function was defined
 //  5. Return a structured result
-//
-// numericColumns is the set of CSV columns typed as int/float; the scanner
-// uses it to decide which person.<col> reads should be wrapped in tonumber().
-func validateSingleScript(model ModelConfig, strictMode bool, numericColumns map[string]bool) ValidationResult {
+func validateSingleScript(model ModelConfig, strictMode bool) ValidationResult {
 	result := ValidationResult{
 		ModelName: model.Name,
 		Success:   false,
@@ -195,7 +165,7 @@ func validateSingleScript(model ModelConfig, strictMode bool, numericColumns map
 	}
 
 	// ---- Scan for common mistakes (warnings) ----
-	result.Warnings = scanForCommonMistakes(script, model, numericColumns)
+	result.Warnings = scanForCommonMistakes(script, model)
 
 	// ---- Try to compile the script ----
 	compileErr := tryCompileScript(script)
@@ -278,22 +248,23 @@ func suggestFixForError(errMsg string) string {
 // scanForCommonMistakes examines the script source for patterns that are
 // legal Lua but usually indicate a mistake. Returns a list of warnings.
 //
-// numericColumns is the set of columns the CSV types as int or float. The
-// tonumber() warning fires only for those columns — the CSV is the source
-// of truth, so a string column like 'gender' is never warned about.
+// NOTE ON THE ABSENCE OF A tonumber() CHECK
+// -----------------------------------------
+// Earlier versions of this file warned when a script read a numeric CSV
+// column without wrapping it in tonumber(). That check was removed because
+// it was a false positive: LoadPopulationDynamic already parses int and
+// float columns into Go numbers before handing them to Lua, so
+// person.<numeric_col> is always a number by the time the script sees it.
+// tonumber() on a number is a no-op, and the warning fired on every read of
+// every numeric column. Removing it eliminates noise without losing any
+// real detection — a missing column is caught by the runtime column
+// validator, and a bad type is caught by the script erroring at runtime.
 //
 // The model is passed in so that warnings can be suppressed when the model
 // already declares a datafile (e.g. the io.lines warning).
-func scanForCommonMistakes(script string, model ModelConfig, numericColumns map[string]bool) []string {
+func scanForCommonMistakes(script string, model ModelConfig) []string {
 	var warnings []string
 	lines := strings.Split(script, "\n")
-
-	// Precompile one LHS-assignment regex per numeric column, so we can
-	// skip lines like `person.age = age + 1` (writing, not reading).
-	lhsPatterns := make(map[string]*regexp.Regexp, len(numericColumns))
-	for col := range numericColumns {
-		lhsPatterns[col] = regexp.MustCompile(`^\s*person\.` + regexp.QuoteMeta(col) + `\s*=`)
-	}
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -303,38 +274,15 @@ func scanForCommonMistakes(script string, model ModelConfig, numericColumns map[
 			warnings = append(warnings,
 				fmt.Sprintf("line %d: '#' is not a comment in Lua — use '--' instead", i+1))
 		}
-
-		// ---- Check 2: missing tonumber on columns typed as numeric ----
-		for col := range numericColumns {
-			pattern := "person." + col
-			if !strings.Contains(line, pattern) {
-				continue
-			}
-			// Skip lines that write to the column (LHS assignment):
-			// `person.age = ...` doesn't need tonumber().
-			if lhsPatterns[col].MatchString(line) {
-				continue
-			}
-			// Skip lines that already convert, or compare as strings.
-			if strings.Contains(line, "tonumber(") || strings.Contains(line, "tostring(") {
-				continue
-			}
-			if strings.Contains(line, "==") && strings.Contains(line, "\"") {
-				continue
-			}
-			warnings = append(warnings,
-				fmt.Sprintf("line %d: consider using tonumber(person.%s) — CSV types this column as numeric",
-					i+1, col))
-		}
 	}
 
-	// ---- Check 3: math.randomseed used (overrides per-model seed) ----
+	// ---- Check 2: math.randomseed used (overrides per-model seed) ----
 	if strings.Contains(script, "math.randomseed") {
 		warnings = append(warnings,
 			"script calls math.randomseed() — Hekate seeds the RNG per-model automatically; manual seeding will override that seed.")
 	}
 
-	// ---- Check 4: io.lines / io.open on a CSV when no datafile is declared ----
+	// ---- Check 3: io.lines / io.open on a CSV when no datafile is declared ----
 	// Soft deprecation: reading CSVs with io.lines works, but is slower and
 	// loses type detection. The `datafile` key on the model is the blessed path.
 	if model.DataFile == "" {
