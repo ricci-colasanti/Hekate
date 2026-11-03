@@ -145,10 +145,11 @@ func NewLuaVM(randomSeed int64) *LuaVM {
 	}))
 
 	// ========================================================================
-	// Register hekate_stats functions
+	// Register statistical functions as bare globals.
+	//
+	// As of 0.9.x these are top-level globals (linear_predict(...), not
+	// hekate_stats.linear_predict(...)). The hekate_stats table is removed.
 	// ========================================================================
-	// We pass vm so that the draw functions can access vm.rng for
-	// reproducibility.
 	RegisterHekateStats(L, vm)
 
 	// ========================================================================
@@ -234,27 +235,36 @@ func (vm *LuaVM) ExecuteLuaScript(script string, population []map[string]interfa
 // ============================================================================
 // Hekate Statistics Functions Registration
 // ============================================================================
-// These are registered as methods under the `hekate_stats` table in Lua.
+// All statistical functions are registered as bare globals.
 //
 // The vm parameter is stored inside HekateStats so that draw functions can
 // access the dedicated random source (vm.rng) for reproducibility.
+//
+// NOTE: because these are globals, a user script that defines a function with
+// the same name will silently shadow the built-in for the rest of that script.
+// That is standard Lua behaviour.
 
-// RegisterHekateStats registers all statistical functions under hekate_stats.
+// RegisterHekateStats registers every statistical function as a bare global.
 func RegisterHekateStats(L *lua.LState, vm *LuaVM) {
 	stats := &HekateStats{vm: vm}
-	statsTable := L.NewTable()
 
-	// Prediction functions (no randomness)
-	L.SetField(statsTable, "linear_predict", L.NewFunction(stats.LinearPredict))
-	L.SetField(statsTable, "linear_predict_default", L.NewFunction(stats.LinearPredictDefault))
-	L.SetField(statsTable, "logistic_predict", L.NewFunction(stats.LogisticPredict))
-	L.SetField(statsTable, "poisson_predict", L.NewFunction(stats.PoissonPredict))
-	L.SetField(statsTable, "softmax_predict", L.NewFunction(stats.SoftmaxPredict))
+	// Prediction functions (deterministic).
+	L.SetGlobal("linear_predict", L.NewFunction(stats.LinearPredict))
+	L.SetGlobal("linear_predict_default", L.NewFunction(stats.LinearPredictDefault))
+	L.SetGlobal("logistic_predict", L.NewFunction(stats.LogisticPredict))
+	L.SetGlobal("poisson_predict", L.NewFunction(stats.PoissonPredict))
+	L.SetGlobal("softmax_predict", L.NewFunction(stats.SoftmaxPredict))
 
-	// Draw functions (use vm.rng for reproducibility)
-	L.SetField(statsTable, "logistic_draw", L.NewFunction(stats.LogisticDraw))
-	L.SetField(statsTable, "categorical_draw", L.NewFunction(stats.CategoricalDraw))
-	L.SetField(statsTable, "poisson_draw", L.NewFunction(stats.PoissonDraw))
+	// Draw functions (use vm.rng for reproducibility).
+	L.SetGlobal("logistic_draw", L.NewFunction(stats.LogisticDraw))
+	L.SetGlobal("categorical_draw", L.NewFunction(stats.CategoricalDraw))
+	L.SetGlobal("poisson_draw", L.NewFunction(stats.PoissonDraw))
 
-	L.SetGlobal("hekate_stats", statsTable)
+	// Distribution draws (use vm.rng for reproducibility).
+	L.SetGlobal("normal_draw", L.NewFunction(stats.NormalDraw))
+	L.SetGlobal("standard_normal_draw", L.NewFunction(stats.StandardNormalDraw))
+	L.SetGlobal("uniform_draw", L.NewFunction(stats.UniformDraw))
+	L.SetGlobal("exponential_draw", L.NewFunction(stats.ExponentialDraw))
+	L.SetGlobal("bernoulli_draw", L.NewFunction(stats.BernoulliDraw))
+	L.SetGlobal("lognormal_draw", L.NewFunction(stats.LognormalDraw))
 }

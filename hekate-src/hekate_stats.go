@@ -2,9 +2,9 @@
 // hekate_stats.go - Statistical Functions Exposed to Lua
 // ============================================================================
 //
-// These functions are exposed to Lua as `hekate_stats.*`. They provide
-// commonly-needed statistical operations implemented in Go for speed and
-// numerical accuracy.
+// These functions are exposed to Lua as bare globals (e.g. linear_predict,
+// normal_draw). They provide commonly-needed statistical operations
+// implemented in Go for speed and numerical accuracy.
 //
 // FUNCTION CATEGORIES
 // -------------------
@@ -18,6 +18,13 @@
 // Functions ending in "_draw" MUST use vm.rng, never the global math/rand
 // and never math/rand directly. Otherwise they will break Hekate's
 // reproducibility guarantee.
+//
+// NAMING
+// ------
+// All functions in this file are registered as bare globals in lua_vm.go.
+// There is no `hekate_stats` table. A user script that defines a function
+// with the same name will silently shadow the built-in for the rest of that
+// script — standard Lua behaviour.
 //
 // ============================================================================
 
@@ -45,11 +52,11 @@ type HekateStats struct {
 //
 // Lua signature:
 //
-//	hekate_stats.linear_predict(intercept, coef1, var1, coef2, var2, ...)
+//	linear_predict(intercept, coef1, var1, coef2, var2, ...)
 //
 // Example (predicting income):
 //
-//	local income = hekate_stats.linear_predict(
+//	local income = linear_predict(
 //	    25000,                  -- intercept
 //	    500, person.age,        -- age effect
 //	    3000, edu_score,        -- education effect
@@ -77,7 +84,7 @@ func (h *HekateStats) LinearPredict(L *lua.LState) int {
 //
 // Lua signature:
 //
-//	hekate_stats.linear_predict_default(intercept, global_default,
+//	linear_predict_default(intercept, global_default,
 //	    coef1, var1, default1, coef2, var2, default2, ...)
 func (h *HekateStats) LinearPredictDefault(L *lua.LState) int {
 	intercept := L.CheckNumber(1)
@@ -115,7 +122,7 @@ func (h *HekateStats) LinearPredictDefault(L *lua.LState) int {
 //
 // Lua signature:
 //
-//	hekate_stats.logistic_predict(intercept, coef1, var1, coef2, var2, ...)
+//	logistic_predict(intercept, coef1, var1, coef2, var2, ...)
 func (h *HekateStats) LogisticPredict(L *lua.LState) int {
 	intercept := L.CheckNumber(1)
 	linear := float64(intercept)
@@ -141,16 +148,7 @@ func (h *HekateStats) LogisticPredict(L *lua.LState) int {
 //
 // Lua signature:
 //
-//	hekate_stats.poisson_predict(intercept, coef1, var1, coef2, var2, ...)
-//
-// Example (expected number of children):
-//
-//	local lambda = hekate_stats.poisson_predict(
-//	    -1.5,                    -- intercept (base rate)
-//	    0.05, person.age,        -- age effect
-//	    0.5, married_score,      -- married effect
-//	    -0.3, urban_score        -- urban effect
-//	)
+//	poisson_predict(intercept, coef1, var1, coef2, var2, ...)
 func (h *HekateStats) PoissonPredict(L *lua.LState) int {
 	intercept := L.CheckNumber(1)
 	linear := float64(intercept)
@@ -179,20 +177,11 @@ func (h *HekateStats) PoissonPredict(L *lua.LState) int {
 //
 // Lua signature:
 //
-//	hekate_stats.softmax_predict(
+//	softmax_predict(
 //	    {base1, coef1a, var1a, coef1b, var1b, ...},  -- category 1
 //	    {base2, coef2a, var2a, coef2b, var2b, ...},  -- category 2
 //	    {base3, coef3a, var3a, coef3b, var3b, ...}   -- category 3
 //	)
-//
-// Example (education outcome):
-//
-//	local probs = hekate_stats.softmax_predict(
-//	    {0.5, 0.1, age, -0.2, parent_edu},   -- primary
-//	    {1.0, 0.3, age, 0.5, parent_edu},    -- secondary
-//	    {0.2, 0.5, age, 0.8, parent_edu}     -- tertiary
-//	)
-//	-- probs is a table like {0.15, 0.55, 0.30}
 func (h *HekateStats) SoftmaxPredict(L *lua.LState) int {
 	numCategories := L.GetTop()
 	if numCategories == 0 {
@@ -201,22 +190,18 @@ func (h *HekateStats) SoftmaxPredict(L *lua.LState) int {
 		return 1
 	}
 
-	// Compute linear score for each category
 	scores := make([]float64, numCategories)
 	maxScore := -math.MaxFloat64
 
 	for catIdx := 1; catIdx <= numCategories; catIdx++ {
 		tbl := L.CheckTable(catIdx)
 
-		// First element is the base/intercept
 		base := tbl.RawGetInt(1)
 		linear := 0.0
 		if base.Type() == lua.LTNumber {
 			linear = float64(base.(lua.LNumber))
 		}
 
-		// Remaining elements come in (coef, var) pairs
-		// We iterate over the table using RawGetInt since it's a list
 		length := tbl.Len()
 		for i := 2; i+1 <= length; i += 2 {
 			coefVal := tbl.RawGetInt(i)
@@ -234,14 +219,12 @@ func (h *HekateStats) SoftmaxPredict(L *lua.LState) int {
 		}
 	}
 
-	// Compute softmax with numerical stability (subtract max to avoid overflow)
 	sumExp := 0.0
 	for i := range scores {
 		scores[i] = math.Exp(scores[i] - maxScore)
 		sumExp += scores[i]
 	}
 
-	// Normalize and return as a Lua table
 	result := L.NewTable()
 	for i := range scores {
 		result.Append(lua.LNumber(scores[i] / sumExp))
@@ -261,34 +244,16 @@ func (h *HekateStats) SoftmaxPredict(L *lua.LState) int {
 // LogisticDraw combines LogisticPredict with a Bernoulli sample.
 //
 // Returns true if the random draw is less than the computed probability.
-// Returns false otherwise.
-//
-// This is a convenience function that eliminates the need to write:
-//
-//	local p = hekate_stats.logistic_predict(...)
-//	if math.random() < p then ... end
 //
 // Lua signature:
 //
-//	hekate_stats.logistic_draw(intercept, coef1, var1, coef2, var2, ...)
-//
-// Example (mortality):
-//
-//	if hekate_stats.logistic_draw(
-//	    -3.5,                -- intercept
-//	    1.2, age/10,         -- age effect
-//	    0.8, bmi_score,      -- BMI effect
-//	    1.5, smoker_score    -- smoking effect
-//	) then
-//	    person.alive = false
-//	end
+//	logistic_draw(intercept, coef1, var1, coef2, var2, ...)
 func (h *HekateStats) LogisticDraw(L *lua.LState) int {
 	if h.vm == nil {
 		L.RaiseError("logistic_draw: vm not initialized")
 		return 0
 	}
 
-	// Compute the probability (same logic as LogisticPredict)
 	intercept := L.CheckNumber(1)
 	linear := float64(intercept)
 
@@ -302,8 +267,6 @@ func (h *HekateStats) LogisticDraw(L *lua.LState) int {
 	}
 
 	prob := 1.0 / (1.0 + math.Exp(-linear))
-
-	// Sample using the dedicated RNG for reproducibility
 	drawn := h.vm.rng.Float64() < prob
 
 	L.Push(lua.LBool(drawn))
@@ -318,13 +281,7 @@ func (h *HekateStats) LogisticDraw(L *lua.LState) int {
 //
 // Lua signature:
 //
-//	hekate_stats.categorical_draw(p1, p2, p3, ...)
-//
-// Example (choosing an education level):
-//
-//	local idx = hekate_stats.categorical_draw(0.4, 0.5, 0.1)
-//	local edu_names = {"primary", "secondary", "tertiary"}
-//	person.education = edu_names[idx]
+//	categorical_draw(p1, p2, p3, ...)
 func (h *HekateStats) CategoricalDraw(L *lua.LState) int {
 	if h.vm == nil {
 		L.RaiseError("categorical_draw: vm not initialized")
@@ -337,63 +294,47 @@ func (h *HekateStats) CategoricalDraw(L *lua.LState) int {
 		return 1
 	}
 
-	// Read and validate probabilities
 	probs := make([]float64, n)
 	total := 0.0
 	for i := 1; i <= n; i++ {
 		p := float64(L.CheckNumber(i))
 		if p < 0 {
-			p = 0 // Treat negative probabilities as zero
+			p = 0
 		}
 		probs[i-1] = p
 		total += p
 	}
 
-	// If all probabilities are zero, default to the first category
 	if total == 0 {
 		L.Push(lua.LNumber(1))
 		return 1
 	}
 
-	// Draw a uniform random value and find the corresponding category
 	r := h.vm.rng.Float64() * total
 	cumulative := 0.0
 	for i, p := range probs {
 		cumulative += p
 		if r < cumulative {
-			L.Push(lua.LNumber(i + 1)) // 1-based index
+			L.Push(lua.LNumber(i + 1))
 			return 1
 		}
 	}
 
-	// Fallback (shouldn't reach here due to floating point, but safe)
 	L.Push(lua.LNumber(n))
 	return 1
 }
 
 // PoissonDraw samples from a Poisson distribution with the given mean.
 //
-// This is an alternative to calling PoissonPredict then rolling your own
-// draw. Uses a numerically stable algorithm for the Poisson sample.
-//
 // Lua signature:
 //
-//	hekate_stats.poisson_draw(intercept, coef1, var1, coef2, var2, ...)
-//
-// Example (number of children):
-//
-//	local num_children = hekate_stats.poisson_draw(
-//	    -1.5,
-//	    0.05, person.age,
-//	    0.5, married_score
-//	)
+//	poisson_draw(intercept, coef1, var1, coef2, var2, ...)
 func (h *HekateStats) PoissonDraw(L *lua.LState) int {
 	if h.vm == nil {
 		L.RaiseError("poisson_draw: vm not initialized")
 		return 0
 	}
 
-	// Compute lambda (expected count)
 	intercept := L.CheckNumber(1)
 	linear := float64(intercept)
 
@@ -408,9 +349,7 @@ func (h *HekateStats) PoissonDraw(L *lua.LState) int {
 
 	lambda := math.Exp(linear)
 
-	// For very small lambda, use the simple algorithm (just check for zero events)
 	if lambda < 30 {
-		// Knuth's algorithm
 		L_val := math.Exp(-lambda)
 		k := 0
 		p := 1.0
@@ -422,15 +361,12 @@ func (h *HekateStats) PoissonDraw(L *lua.LState) int {
 				return 1
 			}
 			if k > 10000 {
-				// Safety cap
 				L.Push(lua.LNumber(k - 1))
 				return 1
 			}
 		}
 	}
 
-	// For large lambda, use the normal approximation
-	// Poisson(lambda) ≈ Normal(lambda, sqrt(lambda)) for large lambda
 	z := h.normalDraw()
 	sample := lambda + math.Sqrt(lambda)*z
 	if sample < 0 {
@@ -440,8 +376,149 @@ func (h *HekateStats) PoissonDraw(L *lua.LState) int {
 	return 1
 }
 
+// ============================================================================
+// DISTRIBUTION DRAWS (use vm.rng for reproducibility)
+// ============================================================================
+//
+// These expose common distributions as native Go functions so scripts don't
+// hand-roll Box-Muller or inverse-CDF code. All draws use h.vm.rng, so they
+// are reproducible in exactly the same way as math.random() and the other
+// *_draw functions. Argument validation errors name the problem and the value.
+// ============================================================================
+
+// NormalDraw samples from N(mean, sd²).
+//
+// Lua signature:
+//
+//	normal_draw(mean, sd)
+//
+// sd must be >= 0; a negative sd is a config bug, not something to silently
+// absorb with abs().
+func (h *HekateStats) NormalDraw(L *lua.LState) int {
+	if h.vm == nil {
+		L.RaiseError("normal_draw: vm not initialized")
+		return 0
+	}
+	mean := float64(L.CheckNumber(1))
+	sd := float64(L.CheckNumber(2))
+	if sd < 0 {
+		L.RaiseError("normal_draw: sd must be >= 0 (got %g)", sd)
+		return 0
+	}
+	L.Push(lua.LNumber(mean + sd*h.normalDraw()))
+	return 1
+}
+
+// StandardNormalDraw samples from N(0, 1).
+//
+// Lua signature:
+//
+//	standard_normal_draw()
+func (h *HekateStats) StandardNormalDraw(L *lua.LState) int {
+	if h.vm == nil {
+		L.RaiseError("standard_normal_draw: vm not initialized")
+		return 0
+	}
+	L.Push(lua.LNumber(h.normalDraw()))
+	return 1
+}
+
+// UniformDraw samples from the continuous uniform distribution on [min, max).
+//
+// Lua signature:
+//
+//	uniform_draw(min, max)
+//
+// max must be > min. This is the continuous counterpart to math.random(m, n),
+// which returns integers.
+func (h *HekateStats) UniformDraw(L *lua.LState) int {
+	if h.vm == nil {
+		L.RaiseError("uniform_draw: vm not initialized")
+		return 0
+	}
+	min := float64(L.CheckNumber(1))
+	max := float64(L.CheckNumber(2))
+	if max <= min {
+		L.RaiseError("uniform_draw: max must be > min (got min=%g, max=%g)", min, max)
+		return 0
+	}
+	L.Push(lua.LNumber(min + (max-min)*h.vm.rng.Float64()))
+	return 1
+}
+
+// ExponentialDraw samples from Exponential(rate), mean 1/rate.
+//
+// Lua signature:
+//
+//	exponential_draw(rate)
+//
+// rate must be > 0. Uses inverse-CDF: -ln(u)/rate.
+func (h *HekateStats) ExponentialDraw(L *lua.LState) int {
+	if h.vm == nil {
+		L.RaiseError("exponential_draw: vm not initialized")
+		return 0
+	}
+	rate := float64(L.CheckNumber(1))
+	if rate <= 0 {
+		L.RaiseError("exponential_draw: rate must be > 0 (got %g)", rate)
+		return 0
+	}
+	u := h.vm.rng.Float64()
+	if u < 1e-10 {
+		u = 1e-10
+	}
+	L.Push(lua.LNumber(-math.Log(u) / rate))
+	return 1
+}
+
+// BernoulliDraw samples a boolean with probability p of true.
+//
+// Lua signature:
+//
+//	bernoulli_draw(p)
+//
+// p must be in [0, 1]. This is the general form of the decision that
+// logistic_draw makes; use it when you already have a probability in hand.
+func (h *HekateStats) BernoulliDraw(L *lua.LState) int {
+	if h.vm == nil {
+		L.RaiseError("bernoulli_draw: vm not initialized")
+		return 0
+	}
+	p := float64(L.CheckNumber(1))
+	if p < 0 || p > 1 {
+		L.RaiseError("bernoulli_draw: p must be in [0, 1] (got %g)", p)
+		return 0
+	}
+	L.Push(lua.LBool(h.vm.rng.Float64() < p))
+	return 1
+}
+
+// LognormalDraw samples from LogNormal(mu, sigma²), i.e. exp(N(mu, sigma²)).
+//
+// Lua signature:
+//
+//	lognormal_draw(mu, sigma)
+//
+// mu and sigma are the parameters of the *log*. The returned value is always
+// positive. sigma must be >= 0.
+func (h *HekateStats) LognormalDraw(L *lua.LState) int {
+	if h.vm == nil {
+		L.RaiseError("lognormal_draw: vm not initialized")
+		return 0
+	}
+	mu := float64(L.CheckNumber(1))
+	sigma := float64(L.CheckNumber(2))
+	if sigma < 0 {
+		L.RaiseError("lognormal_draw: sigma must be >= 0 (got %g)", sigma)
+		return 0
+	}
+	L.Push(lua.LNumber(math.Exp(mu + sigma*h.normalDraw())))
+	return 1
+}
+
 // normalDraw returns a sample from the standard normal distribution N(0,1)
-// using the Box-Muller transform. Internal helper, not exposed to Lua.
+// using the Box-Muller transform. Internal helper, not exposed to Lua directly
+// (StandardNormalDraw wraps it for scripts).
 func (h *HekateStats) normalDraw() float64 {
 	u1 := h.vm.rng.Float64()
 	u2 := h.vm.rng.Float64()

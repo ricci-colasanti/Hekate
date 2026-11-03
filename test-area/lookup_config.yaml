@@ -1,0 +1,122 @@
+# ============================================================================
+# lookup_config.yaml - Smoke test: hekate_lookup + normal_draw together
+# ============================================================================
+#
+# Exercises:
+#   - hekate_lookup.index(params.datafile, "sex", "alive") — nested keyed index
+#   - normal_draw(mean, sd) reading mean/sd from the matched rule
+#   - key coercion: population 'alive' is a Lua boolean; datafile 'alive' is
+#     the string "true"/"false". The lookup's __index metatable coerces both
+#     to "true"/"false" so the match succeeds.
+#   - reproducibility: two runs with random_seed 42 should be byte-identical.
+#
+# Verification: on iteration 1 (everyone alive), women's income should
+# cluster around 26,000 (sd 3,500) and men's around 30,000 (sd 4,000).
+# If income stays at 0 for everyone alive, the lookup key coercion is broken.
+# On iterations 2-3, anyone who died should fall to the (sex, false) rule
+# (value=0, sd=0), so their income becomes exactly 0.
+# ============================================================================
+
+simulation:
+  iterations: 3
+  population_file: "lookup_population.csv"
+  output_file: "lookup_output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+  output_every_iteration: true
+
+models:
+  # --------------------------------------------------------------------------
+  # 1. Aging
+  # --------------------------------------------------------------------------
+  - name: "aging"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Age living people by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              person.age = (tonumber(person.age) or 0) + 1
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 2. Income from lookup: hekate_lookup.index + normal_draw
+  #
+  # Look up the (sex, alive) rule, then draw income from N(value, sd^2).
+  # If the rule isn't found, income stays at 0.
+  # --------------------------------------------------------------------------
+  - name: "income_from_lookup"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    description: "Income = normal_draw(rule.value, rule.sd), keyed by sex|alive"
+    datafile: "lookup_rules.csv"
+    parameters:
+      script: |
+        function transition(population, params)
+          local by_key = hekate_lookup.index(params.datafile, "sex", "alive")
+
+          for _, person in ipairs(population) do
+            local rule = by_key[person.sex] and by_key[person.sex][person.alive]
+            if rule then
+              person.income = normal_draw(rule.value, rule.sd)
+            else
+              person.income = 0
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 3. Uniform jitter to make the log easy to read against the rules
+  # --------------------------------------------------------------------------
+  - name: "jitter"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    description: "Add a small uniform jitter to income"
+    parameters:
+      jitter: 100
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive and person.income > 0 then
+              person.income = person.income + uniform_draw(-params.jitter, params.jitter)
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 4. Mortality: some people die so the lookup exercises the 'alive=false'
+  #    branch on later iterations.
+  # --------------------------------------------------------------------------
+  - name: "mortality"
+    type: "lua_model"
+    priority: 4
+    enabled: true
+    description: "Age-based mortality so some people become dead"
+    parameters:
+      base_hazard: 0.01
+      age_coef: 0.0005
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              local age = tonumber(person.age) or 40
+              local p = params.base_hazard + params.age_coef * age
+              if p > 0.5 then p = 0.5 end
+              if bernoulli_draw(p) then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end

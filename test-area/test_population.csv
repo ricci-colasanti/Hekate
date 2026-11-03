@@ -1,0 +1,16 @@
+id,sex,age,alive,area_id,bmi,smoker,income
+1,F,25,true,1,22.1,false,24000
+2,M,30,true,1,26.4,false,31000
+3,F,45,true,1,31.2,false,42000
+4,M,68,true,1,24.0,true,35000
+5,F,82,true,1,27.5,false,18000
+6,M,2,true,2,16.0,false,0
+7,F,15,true,2,20.3,false,0
+8,M,35,true,2,29.8,true,38000
+9,F,55,true,2,25.1,false,46000
+10,M,70,true,2,23.7,true,22000
+11,F,38,true,3,21.8,false,39000
+12,M,42,true,3,28.2,false,44000
+13,F,29,true,3,19.9,false,27000
+14,M,51,true,3,30.5,true,41000
+15,F,64,true,3,26.0,false,29000

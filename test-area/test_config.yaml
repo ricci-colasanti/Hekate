@@ -1,0 +1,260 @@
+# ============================================================================
+# test_config.yaml - Smoke test for bare-global statistical functions
+# ============================================================================
+#
+# Exercises all 14 functions as bare globals (no hekate_stats. prefix):
+#   Predict:  linear_predict, linear_predict_default, logistic_predict,
+#             poisson_predict, softmax_predict
+#   Draw:     logistic_draw, categorical_draw, poisson_draw
+#   New:      normal_draw, standard_normal_draw, uniform_draw,
+#             exponential_draw, bernoulli_draw, lognormal_draw
+#
+# Columns created by a model and read by a later model (or by the same model
+# on a later iteration) are declared with `-- hekate:allow-columns ...` so
+# Stage 3 column validation doesn't flag them as missing from the input CSV.
+#
+# Run from the directory containing test_population.csv (population_file
+# resolves against the process CWD; data_dir is not set).
+# ============================================================================
+
+simulation:
+  iterations: 3
+  population_file: "test_population.csv"
+  output_file: "test_output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+  output_every_iteration: true
+
+models:
+  # --------------------------------------------------------------------------
+  # 1. Aging
+  # --------------------------------------------------------------------------
+  - name: "aging"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Age living people by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              person.age = (tonumber(person.age) or 0) + 1
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 2. Income: linear_predict + lognormal_draw
+  # --------------------------------------------------------------------------
+  - name: "income"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    description: "Lognormal income around an age-adjusted mean"
+    parameters:
+      base_mean: 28000
+      age_growth: 0.02
+      log_sd: 0.45
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive and tonumber(person.age) >= 18 then
+              local age = tonumber(person.age)
+              local mean_income = linear_predict(
+                params.base_mean,
+                params.base_mean * params.age_growth, age - 18
+              )
+              local mu = math.log(mean_income) - 0.5 * params.log_sd^2
+              person.income = lognormal_draw(mu, params.log_sd)
+            else
+              person.income = 0
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 3. Income jitter: uniform_draw
+  # --------------------------------------------------------------------------
+  - name: "income_jitter"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    description: "Add uniform noise of +/- 500 to income"
+    parameters:
+      jitter: 500
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive and person.income and person.income > 0 then
+              person.income = person.income + uniform_draw(-params.jitter, params.jitter)
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 4. Health shock: logistic_predict + standard_normal_draw + bernoulli_draw
+  #    Reads chronic_disease (nil on iteration 1, set on later iterations)
+  #    and writes chronic_disease + diagnosis_delay_years.
+  # --------------------------------------------------------------------------
+  - name: "health_shock"
+    type: "lua_model"
+    priority: 4
+    enabled: true
+    description: "Chronic disease onset with Gaussian heterogeneity"
+    parameters:
+      intercept: -3.5
+      age_coef: 0.06
+      bmi_coef: 0.08
+      smoker_coef: 0.9
+      risk_noise_sd: 0.15
+      script: |
+        function transition(population, params)
+          -- hekate:allow-columns chronic_disease, diagnosis_delay_years
+          for _, person in ipairs(population) do
+            if person.alive and person.chronic_disease ~= true then
+              local age = tonumber(person.age) or 40
+              local bmi = tonumber(person.bmi) or 25
+              local smoker = (person.smoker == true) and 1 or 0
+
+              local p = logistic_predict(
+                params.intercept,
+                params.age_coef, age,
+                params.bmi_coef, bmi,
+                params.smoker_coef, smoker
+              )
+              -- Unobserved heterogeneity: perturb probability, then clamp
+              p = p + standard_normal_draw() * params.risk_noise_sd
+              if p < 0 then p = 0 elseif p > 1 then p = 1 end
+
+              if bernoulli_draw(p) then
+                person.chronic_disease = true
+                -- Time until diagnosis: exponential draw
+                person.diagnosis_delay_years = exponential_draw(1.0)
+              end
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 5. Mortality: logistic_draw (existing) — reads chronic_disease from #4
+  # --------------------------------------------------------------------------
+  - name: "mortality"
+    type: "lua_model"
+    priority: 5
+    enabled: true
+    description: "Mortality via logistic_draw on age and chronic disease"
+    parameters:
+      intercept: -6.0
+      age_coef: 0.09
+      chronic_coef: 1.2
+      script: |
+        function transition(population, params)
+          -- hekate:allow-columns chronic_disease
+          for _, person in ipairs(population) do
+            if person.alive then
+              local age = tonumber(person.age) or 40
+              local chronic = (person.chronic_disease == true) and 1 or 0
+              if logistic_draw(
+                params.intercept,
+                params.age_coef, age,
+                params.chronic_coef, chronic
+              ) then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 6. Parity: poisson_draw (existing) — reads parity before incrementing it
+  # --------------------------------------------------------------------------
+  - name: "parity"
+    type: "lua_model"
+    priority: 6
+    enabled: true
+    description: "Poisson draw of additional children per woman per year"
+    parameters:
+      intercept: -4.0
+      age_coef: 0.1
+      script: |
+        function transition(population, params)
+          -- hekate:allow-columns parity
+          for _, person in ipairs(population) do
+            if person.alive and person.sex == "F" then
+              local age = tonumber(person.age) or 30
+              if age >= 15 and age <= 50 then
+                local k = poisson_draw(
+                  params.intercept,
+                  params.age_coef, age
+                )
+                person.parity = (tonumber(person.parity) or 0) + k
+              end
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 7. Education: softmax_predict + categorical_draw (existing)
+  #    Writes education only; the directive suppresses the write-vs-read
+  #    false positive in the Stage 3 column scanner.
+  # --------------------------------------------------------------------------
+  - name: "education"
+    type: "lua_model"
+    priority: 7
+    enabled: true
+    description: "Education transition at age 16"
+    parameters:
+      script: |
+        function transition(population, params)
+          -- hekate:allow-columns education
+          for _, person in ipairs(population) do
+            if person.alive and tonumber(person.age) == 16 then
+              local age = tonumber(person.age)
+              local probs = softmax_predict(
+                {0.0, 0.2, age},
+                {1.0, 0.3, age},
+                {-0.5, 0.5, age}
+              )
+              local chosen = categorical_draw(probs[1], probs[2], probs[3])
+              person.education = ({"primary", "secondary", "tertiary"})[chosen]
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 8. Normal noise on BMI: normal_draw + linear_predict_default
+  # --------------------------------------------------------------------------
+  - name: "bmi_noise"
+    type: "lua_model"
+    priority: 8
+    enabled: true
+    description: "Annual BMI change with normal noise"
+    parameters:
+      mean_change: 0.05
+      change_sd: 0.3
+      default_bmi: 25.0
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              -- linear_predict_default handles a nil bmi
+              local base = linear_predict_default(
+                0.0, params.default_bmi,
+                1.0, person.bmi, params.default_bmi
+              )
+              local delta = normal_draw(params.mean_change, params.change_sd)
+              person.bmi = base + delta
+              if person.bmi < 10 then person.bmi = 10 end
+            end
+          end
+          return population
+        end

@@ -226,7 +226,7 @@ func (c *SimulationConfig) LogSummary() {
 		log.Printf("Data dir: (not set — datafile paths resolve against CWD and may be absolute)")
 	}
 	if c.Simulation.OutputEveryIteration {
-		log.Printf("Per-iteration output: ENABLED (output_N.csv)")
+		log.Printf("Per-iteration output: ENABLED (derived from output_file)")
 	}
 	if c.Simulation.StrictMode {
 		log.Printf("Strict mode: ENABLED (warnings treated as errors)")
