@@ -7,8 +7,7 @@
 
 ## Draw Functions (Temporary Tutorial)
 
-Hekate 0.9.2 introduces nine statistical draw functions — `logistic_draw`, `categorical_draw`, `poisson_draw`, `normal_draw`, `standard_normal_draw`, `uniform_draw`, `exponential_draw`, `bernoulli_draw`, and `lognormal_draw` — all available as bare globals (no `hekate_stats.` prefix). A temporary tutorial with a runnable example config for each function, plus one worked example combining `normal_draw` with `hekate_lookup`, is available here: [Temporary Tutorial: The Draw Functions](DrawTutorial
-.md). A full tutorial and updated API reference will follow.
+Hekate 0.9.2 introduces nine statistical draw functions — `logistic_draw`, `categorical_draw`, `poisson_draw`, `normal_draw`, `standard_normal_draw`, `uniform_draw`, `exponential_draw`, `bernoulli_draw`, and `lognormal_draw` — all available as bare globals (no `hekate_stats.` prefix). A temporary tutorial with a runnable example config for each function, plus one worked example combining `normal_draw` with `hekate_lookup`, is available here: [Temporary Tutorial: The Draw Functions](DrawTutorial.md). A full tutorial and updated API reference will follow.
 
 
 
