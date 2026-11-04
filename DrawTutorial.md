@@ -23,11 +23,11 @@ You can put them all in one folder. Each config is self-contained; none needs th
 
 | # | Config | Draw function | What it produces |
 |---|---|---|---|
-| 1 | `01_logistic_draw.yaml` | `logistic_draw` | `died_this_year` (boolean) — age-based death decision |
-| 2 | `02_categorical_draw.yaml` | `categorical_draw` | `education_pick` (string) — one of three levels |
+| 1 | `01_logistic_draw.yaml` | `logistic_draw` | `alive` (boolean) — age-based death decision |
+| 2 | `02_categorical_draw.yaml` | `categorical_draw` | `education` (string) — one of three levels |
 | 3 | `03_poisson_draw.yaml` | `poisson_draw` | `children_this_year` (integer) — annual births per woman |
-| 4 | `04_normal_draw.yaml` | `normal_draw` | `income_noisy` (float) — income with Gaussian noise |
-| 5 | `05_standard_normal_draw.yaml` | `standard_normal_draw` | `z_score` (float) — raw N(0,1) sample |
+| 4 | `04_normal_draw.yaml` | `normal_draw` | `income` (float) — income with Gaussian noise |
+| 5 | `05_standard_normal_draw.yaml` | `standard_normal_draw` | `weight` (float) — weight in kg |
 | 6 | `06_uniform_draw.yaml` | `uniform_draw` | `random_fraction` (float) — in [0, 1) |
 | 7 | `07_exponential_draw.yaml` | `exponential_draw` | `waiting_time_years` (float) — mean 5 years |
 | 8 | `08_bernoulli_draw.yaml` | `bernoulli_draw` | `migrated_this_year` (boolean) — 10% hazard |
@@ -120,7 +120,14 @@ Each config below is complete. To run: `./hekate-linux-amd64 01_logistic_draw.ya
 #
 # logistic_draw(intercept, coef1, var1, ...) computes
 #   p = 1 / (1 + e^(-(intercept + Σ coefᵢ·varᵢ)))
-# then samples a boolean from Bernoulli(p).
+# then samples a boolean: true with probability p, false otherwise.
+#
+# Returns: a boolean (true/false). The probability of true is p.
+#
+# Why you'd use this: any yes/no decision that depends on several
+# variables through a regression — mortality, disease onset, marriage,
+# migration, whether someone gets a job. It saves you writing
+# "compute the probability, then compare against math.random()" by hand.
 #
 # This example: age-based one-year mortality probability.
 #   log-odds = -8.0 + 0.10 * age
@@ -149,17 +156,16 @@ models:
           for _, person in ipairs(population) do
             if person.alive then
               local age = tonumber(person.age) or 40
-              person.died_this_year = logistic_draw(
-                params.intercept,
-                params.age_coef, age
-              )
+              if logistic_draw(params.intercept, params.age_coef, age) then
+                person.alive = false
+              end
             end
           end
           return population
         end
 ```
 
-**What to look for in `out_01_logistic.csv`:** almost all `died_this_year` values should be `false`. The two oldest (ids 4 and 10, ages 68 and 70) have ~12% chance; everyone else is under 5%. With ten people, expect 0–1 `true` values.
+**What to look for in `out_01_logistic.csv`:** almost everyone should still be `alive = true`. The two oldest (ids 4 and 10, ages 68 and 70) have ~12% chance of death; everyone else is under 5%. With ten people across one iteration, expect 0–1 deaths.
 
 ---
 
@@ -172,6 +178,13 @@ models:
 #
 # categorical_draw(p1, p2, ..., pN) samples one of N categories and returns
 # the 1-based index. Probabilities are auto-normalised if they don't sum to 1.
+#
+# Returns: an integer in 1..N — the 1-based index of the drawn category.
+#
+# Why you'd use this: any outcome with more than two options, where you
+# have a probability for each — education level, marital status, labour
+# market state, migration destination, type of disease. It saves you
+# writing a cascade of if/elseif comparisons against math.random().
 #
 # This example: assign each living person one of three education levels.
 #   primary   20%
@@ -200,14 +213,14 @@ models:
           for _, person in ipairs(population) do
             if person.alive then
               local idx = categorical_draw(0.2, 0.5, 0.3)
-              person.education_pick = names[idx]
+              person.education = names[idx]
             end
           end
           return population
         end
 ```
 
-**What to look for:** `education_pick` values distributed roughly 20% `primary`, 50% `secondary`, 30% `tertiary` across the ten people. With only ten draws, expect variation — a handful of `secondary`, a few of each of the others.
+**What to look for:** `education` values distributed roughly 20% `primary`, 50% `secondary`, 30% `tertiary` across the ten people. With only ten draws, expect variation — a handful of `secondary`, a few of each of the others.
 
 ---
 
@@ -221,6 +234,14 @@ models:
 # poisson_draw(intercept, coef1, var1, ...) computes
 #   λ = exp(intercept + Σ coefᵢ·varᵢ)
 # then samples from Poisson(λ), returning an integer ≥ 0.
+#
+# Returns: an integer ≥ 0 — the sampled count.
+#
+# Why you'd use this: any "how many?" outcome — number of children, doctor
+# visits, migrations, hospital admissions, accidents. Poisson regression
+# is the standard model for count data, and this function does the
+# regression and the draw in one call. It saves you writing
+# "compute λ, then sample a Poisson count" by hand.
 #
 # This example: annual number of children per woman aged 15–50.
 #   λ = exp(-4.0 + 0.10 * age)
@@ -275,6 +296,14 @@ models:
 # normal_draw(mean, sd) samples from N(mean, sd²).
 # sd must be ≥ 0; a negative sd is an error.
 #
+# Returns: a float — one draw from the normal distribution.
+#
+# Why you'd use this: any continuous quantity whose values cluster
+# symmetrically around a mean — income in the middle of a distribution,
+# height, weight, blood pressure, measurement error, unobserved
+# heterogeneity. If you've computed a regression prediction and want a
+# plausible spread around it, this is the one to reach for.
+#
 # This example: income = N(30000 + 300*(age-18), 5000²) for alive adults.
 # ============================================================================
 
@@ -305,14 +334,14 @@ models:
                 params.base_mean,
                 params.age_coef, age - 18
               )
-              person.income_noisy = normal_draw(mean, params.sd)
+              person.income = normal_draw(mean, params.sd)
             end
           end
           return population
         end
 ```
 
-**What to look for:** `income_noisy` values clustered around the linear mean (which rises with age) with ±5,000 spread. A few values below 20,000 or above 50,000 are legitimate tail draws.
+**What to look for:** `income` values clustered around the linear mean (which rises with age) with ±5,000 spread. A few values below 20,000 or above 50,000 are legitimate tail draws.
 
 ---
 
@@ -325,12 +354,20 @@ models:
 #
 # standard_normal_draw() samples from N(0, 1) with no arguments.
 #
-# This example: a raw z-score per alive person.
-# In a real model you'd use this to build a standardised index, or as the
-# raw ingredient for any N(mean, sd) draw you want to construct by hand:
-#   person.z_score = standard_normal_draw()
-#   person.income  = 30000 + 5000 * person.z_score
-# -- same distribution as normal_draw(30000, 5000)
+# Returns: a float — one draw from the standard normal distribution,
+# centred on 0 with standard deviation 1. About 68% of draws fall between
+# -1 and +1, and about 95% between -2 and +2.
+#
+# Why you'd use this: when you want a bare N(0,1) number rather than a
+# distribution with a fixed mean and sd. The usual case is that the mean
+# or sd changes per person — e.g. a weight whose mean depends on age and
+# sex — and you want to do the "mean + sd * z" arithmetic yourself. It's
+# also the raw ingredient if you're building a composite score that needs
+# unit-sd inputs. If your mean and sd are fixed, use normal_draw directly.
+#
+# This example: assign each person a weight drawn from N(72, 12²) kg —
+# a mean of 72 kg with a population SD of 12 kg. The arithmetic is
+# written out so you can see what normal_draw(72, 12) would do for you.
 # ============================================================================
 
 simulation:
@@ -342,24 +379,27 @@ simulation:
   id_column: "id"
 
 models:
-  - name: "z_score"
+  - name: "weight"
     type: "lua_model"
     priority: 1
     enabled: true
-    description: "Raw N(0,1) z-score per alive person (standard_normal_draw)"
+    description: "Weight drawn from N(72, 12²) kg via standard_normal_draw"
     parameters:
+      mean_weight_kg: 72.0
+      sd_weight_kg: 12.0
       script: |
         function transition(population, params)
           for _, person in ipairs(population) do
             if person.alive then
-              person.z_score = standard_normal_draw()
+              person.weight = params.mean_weight_kg +
+                params.sd_weight_kg * standard_normal_draw()
             end
           end
           return population
         end
 ```
 
-**What to look for:** `z_score` values roughly in the range −2 to +2, centred on 0. With ten draws you'll see some spread; a value of −1.8 or +1.6 is normal; a value of +4 would be very rare and worth double-checking.
+**What to look for:** `weight` values clustered around 72 kg, most between 60 and 84 (that's ±1 SD), a few outside that range, and roughly 95% between 48 and 96 (±2 SD). Values below 0 or above 200 would be extremely unlikely; if you see one, something's wrong with the SD.
 
 ---
 
@@ -373,9 +413,20 @@ models:
 # uniform_draw(min, max) samples from the continuous uniform distribution
 # on [min, max). max must be > min; otherwise it errors.
 #
-# This example: a random fraction in [0, 1) per alive person.
-#   For integer uniforms in [1, n], use math.random(n) instead.
-#   For a symmetric noise term in [-sd, +sd], write uniform_draw(-sd, sd).
+# Returns: a float in [min, max) — one draw from the uniform distribution.
+#
+# Why you'd use this: any continuous quantity with no preferred value
+# inside its range — a noise term around a value, a fraction, a random
+# choice of starting position, a jitter in a measurement. If every
+# value between min and max is equally likely, this is the one to use.
+# For an integer uniform (1..n), use math.random(n) instead.
+#
+# This example: add ±2 kg of uniform noise to a person's weight.
+#   uniform_draw(-2.0, 2.0) returns a value in [-2, +2), so a 70 kg
+#   person ends up somewhere in [68, 72). Every value in that range
+#   is equally likely — this is the uniform counterpart to the normal
+#   noise that normal_draw produces, and the direct replacement for the
+#   hand-rolled idiom (2 * math.random() - 1) * sd.
 # ============================================================================
 
 simulation:
@@ -387,24 +438,27 @@ simulation:
   id_column: "id"
 
 models:
-  - name: "random_fraction"
+  - name: "weight_with_uniform_noise"
     type: "lua_model"
     priority: 1
     enabled: true
-    description: "Uniform random fraction in [0, 1) (uniform_draw)"
+    description: "Add ±2 kg uniform noise to each person's weight (uniform_draw)"
     parameters:
+      base_weight_kg: 70.0
+      noise_kg: 2.0
       script: |
         function transition(population, params)
           for _, person in ipairs(population) do
             if person.alive then
-              person.random_fraction = uniform_draw(0.0, 1.0)
+              local noise = uniform_draw(-params.noise_kg, params.noise_kg)
+              person.weight = params.base_weight_kg + noise
             end
           end
           return population
         end
 ```
 
-**What to look for:** `random_fraction` values in [0, 1), spread evenly. Every value should be ≥ 0 and < 1. A value of exactly 0 is possible in principle but very unlikely; a value of exactly 1 is impossible by design.
+**What to look for**: weight values in [68, 72), spread evenly. Every value should be ≥ 68 and < 72, and you should not see more values near 70 than near 68 or 72 — unlike a normal, where values cluster near the mean. If you plotted a histogram of a large enough sample, it would be flat across [68, 72) and drop to zero outside.
 
 ---
 
@@ -418,9 +472,16 @@ models:
 # exponential_draw(rate) samples from Exponential(rate), mean = 1/rate.
 # rate must be > 0.
 #
+# Returns: a float ≥ 0 — the sampled waiting time.
+#
+# Why you'd use this: any "how long until the next event?" quantity —
+# time to next job change, time between births, time to equipment
+# failure, time until diagnosis, waiting time in a queue. The exponential
+# distribution is the standard model for these because it has the
+# memorylessness property: the chance of the event happening in the next
+# year doesn't depend on how long you've already waited.
+#
 # This example: a per-person waiting time with mean 5 years (rate 0.2).
-#   Use for time-to-event quantities: time to next job change, time between
-#   births, time to equipment failure, etc.
 # ============================================================================
 
 simulation:
@@ -465,13 +526,20 @@ models:
 #
 # bernoulli_draw(p) returns true with probability p. p must be in [0, 1].
 #
-# This example: 10% chance of migrating this year.
+# Returns: a boolean (true/false). The probability of true is p.
+#
+# Why you'd use this: any yes/no event whose probability you already
+# know — a fixed hazard, a threshold you've decided on, the output of
+# logistic_predict (if you want to record the probability as well as the
+# decision), a country-level policy change, a diagnostic trigger. If p
+# is a number you have in hand, this is the one to use; if p needs to be
+# computed from a regression, use logistic_draw instead.
 #
 # Difference from logistic_draw:
 #   logistic_draw(intercept, coef, var, ...)  -- linear predictor → p → boolean
 #   bernoulli_draw(p)                         -- p directly → boolean
-# Use bernoulli_draw when p is already a number (fixed hazard, threshold,
-# output of logistic_predict, ...).
+#
+# This example: 10% chance of migrating this year.
 # ============================================================================
 
 simulation:
@@ -514,6 +582,16 @@ models:
 #
 # lognormal_draw(mu, sigma) samples from LogNormal(mu, sigma²), i.e.
 # exp(N(mu, sigma²)). sigma must be ≥ 0; the result is always > 0.
+#
+# Returns: a float > 0 — one draw from the lognormal distribution.
+#
+# Why you'd use this: any positive quantity that is right-skewed —
+# income, wealth, house prices, firm sizes, city sizes, durations.
+# Many people can be a bit below the median but a few can be very far
+# above it, and that asymmetry is exactly what the lognormal gives you.
+# A plain normal distribution would produce negative incomes, which the
+# lognormal avoids by construction. Use this instead of normal_draw
+# whenever the quantity can't be negative and has a long right tail.
 #
 # IMPORTANT: mu and sigma are the parameters of the LOG, not of the value.
 #   median of the result = exp(mu)
@@ -571,6 +649,18 @@ This is the pattern to use when you have a per-group lookup table with means and
 #
 # Builds a nested index of lookup_rules.csv keyed by (sex, alive), looks up
 # each person's rule, then draws income from N(rule.value, rule.sd²).
+#
+# Returns: nothing itself — hekate_lookup.index returns a nested table
+# that is then used by normal_draw, which returns a float. Each person's
+# income column ends up as a float.
+#
+# Why you'd use this: whenever your parameters come from a table rather
+# than being hard-coded. Real models usually have dozens or hundreds of
+# per-group means and SDs (income by sex × age-band × region, mortality
+# by age-band × sex × year, and so on), and keeping them in a CSV that
+# the model looks up at runtime lets you change the parameters without
+# editing the Lua. hekate_lookup.index builds the index once per model
+# execution, so the per-person lookup is a plain table access.
 #
 # This is the pattern for per-group means and SDs:
 #   by_key[person.sex][person.alive] -> {sex, alive, value, sd}
