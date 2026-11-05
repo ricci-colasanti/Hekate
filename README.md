@@ -1,5 +1,5 @@
 <div align="left">
-  <img src="img/Hekate.png" alt="Hekate Logo" width="900" height="300">
+  <img src="img/hekate_dev.jpeg" alt="Hekate Logo" width="900" height="300">
   <p><em>Hekate — Microsimulation Engine</em></p>
 </div>
 
