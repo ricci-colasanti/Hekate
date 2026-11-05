@@ -19,6 +19,14 @@ You can put them all in one folder. Each config is self-contained; none needs th
 - Run every command from the directory containing the files
 - All configs use `random_seed: 42`, so results are reproducible
 
+## Random seeds
+
+Every config uses `random_seed: 42`. Run any config twice and you'll get byte-identical output   
+
+The seeds differ because every model, in every iteration, gets its own independent seed — that's how Hekate ensures each model's random draws are independent from every other model's, while still being fully reproducible. 
+### Why this matters
+Suppose every model got the same seed. Then aging (which draws nothing, in this config) would be harmless, but income_from_lookup and mortality would both start from the same RNG state. mortality draws bernoulli_draw(p) once per living person. If income_from_lookup also drew a number for the first person from the same stream, mortality's first draw would be the second number in the stream, not the first — meaning the income model's per-person draws and the mortality model's per-person draws would be correlated. That's a well-known statistical bug: using the same random numbers for two different decisions couples them in ways that don't reflect reality.
+
 ## What this tutorial covers
 
 | # | Config | Draw function | What it produces |

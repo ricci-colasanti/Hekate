@@ -1,0 +1,106 @@
+# 10_lookup_normal.yaml — combine hekate_lookup.index with normal_draw
+#
+# Builds a nested index of lookup_rules.csv keyed by (sex, alive), looks up
+# each person's rule, then draws income from N(rule.value, rule.sd²).
+#
+# Returns: nothing itself — hekate_lookup.index returns a nested table
+# that is then used by normal_draw, which returns a float. Each person's
+# income column ends up as a float.
+#
+# Why you'd use this: whenever your parameters come from a table rather
+# than being hard-coded. Real models usually have dozens or hundreds of
+# per-group means and SDs (income by sex × age-band × region, mortality
+# by age-band × sex × year, and so on), and keeping them in a CSV that
+# the model looks up at runtime lets you change the parameters without
+# editing the Lua. hekate_lookup.index builds the index once per model
+# execution, so the per-person lookup is a plain table access.
+#
+# This is the pattern for per-group means and SDs:
+#   by_key[person.sex][person.alive] -> {sex, alive, value, sd}
+#   person.income = normal_draw(rule.value, rule.sd)
+#
+# The lookup index coerces both the datafile keys and the population keys to
+# strings, so 'alive' as a Lua boolean (from the population CSV) matches
+# 'alive' as the string "true" (from the lookup CSV) without extra work.
+# ============================================================================
+
+simulation:
+  iterations: 3
+  population_file: "lookup_population.csv"
+  output_file: "results/out_10_lookup_normal.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+  output_every_iteration: true
+
+models:
+  # --------------------------------------------------------------------------
+  # 1. Aging — so some people age out of the alive state over iterations
+  # --------------------------------------------------------------------------
+  - name: "aging"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Age living people by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              person.age = (tonumber(person.age) or 0) + 1
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 2. Income from lookup: hekate_lookup.index + normal_draw
+  # --------------------------------------------------------------------------
+  - name: "income_from_lookup"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    description: "Income = normal_draw(rule.value, rule.sd), keyed by sex|alive"
+    datafile: "lookup_rules.csv"
+    parameters:
+      script: |
+        function transition(population, params)
+          local by_key = hekate_lookup.index(params.datafile, "sex", "alive")
+
+          for _, person in ipairs(population) do
+            local rule = by_key[person.sex] and by_key[person.sex][person.alive]
+            if rule then
+              person.income = normal_draw(rule.value, rule.sd)
+            else
+              person.income = 0
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 3. Mortality — some people die, so later iterations exercise the
+  #    (sex, false) lookup rule (value=0, sd=0 → income becomes exactly 0).
+  # --------------------------------------------------------------------------
+  - name: "mortality"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    description: "Age-based mortality (bernoulli_draw with a fixed hazard)"
+    parameters:
+      base_hazard: 0.01
+      age_coef: 0.0005
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              local age = tonumber(person.age) or 40
+              local p = params.base_hazard + params.age_coef * age
+              if p > 0.5 then p = 0.5 end
+              if bernoulli_draw(p) then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end
