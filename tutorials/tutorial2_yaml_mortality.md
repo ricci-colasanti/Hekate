@@ -1,4 +1,4 @@
-# Hekate Tutorial 2: Understanding YAML, Lua, and Adding Mortality with Areas
+# Tutorial 2: Understanding YAML, Lua, and Adding Mortality with Areas
 
 ## Overview
 
@@ -410,7 +410,6 @@ When you run with `streaming_mode: true`:
 ### Output Files in Streaming Mode
 
 ```
-year_0.csv  → Initial population (input)
 year_1.csv  → After year 1
 year_2.csv  → After year 2
 year_3.csv  → After year 3
@@ -418,6 +417,8 @@ year_4.csv  → After year 4
 year_5.csv  → After year 5
 final_output.csv → Copy of year_5.csv
 ```
+
+These are working files: Hekate writes them as it processes each year, then copies the last one to `output_file` and deletes them at the end of the run. If you want per-iteration snapshots that persist, use bulk mode with `output_every_iteration: true` (see the README).
 
 ### Running Streaming Mode
 
@@ -558,7 +559,7 @@ Congratulations! You've now learned:
 | Mode | Memory Usage | Best For | Output Files |
 |------|--------------|----------|--------------|
 | **Bulk Mode** (Default) | ~2MB per 1000 people | Small populations (<1M), speed | Single output file |
-| **Streaming Mode** | ~20-50MB constant | Large populations (1M+), memory efficiency | Year-by-year files |
+| **Streaming Mode** | ~20-50MB constant | Large populations (1M+), memory efficiency | Year-by-year working files (deleted at end) |
 
 **For this tutorial's small population (10 people), either mode works fine.** But for larger populations, streaming mode is essential!
 

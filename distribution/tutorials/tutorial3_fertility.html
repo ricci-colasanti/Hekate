@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial 3: Adding Fertility — Hekate</title>
+
+    <link rel="icon" type="image/png" href="../img/HekateIco.png">
+    <link rel="apple-touch-icon" href="../img/HekateIco.png">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            line-height: 1.65;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        .topnav {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .topnav a { color: #2f6fdd; text-decoration: none; }
+        .topnav a:hover { text-decoration: underline; }
+
+        h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin: 0 0 1rem;
+            line-height: 1.25;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 2.25rem 0 0.75rem;
+            line-height: 1.3;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #e2e4e8;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1.75rem 0 0.5rem;
+            color: #2f6fdd;
+        }
+
+        p { margin: 0.9rem 0; }
+        ul, ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+        li { margin: 0.35rem 0; }
+        a { color: #2f6fdd; }
+        a:hover { color: #1e4fa8; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e2e4e8;
+            margin: 2rem 0;
+        }
+
+        code {
+            font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: #f2f4f7;
+            padding: 0.12em 0.35em;
+            border-radius: 4px;
+            color: #1a1a1a;
+        }
+
+        pre {
+            background: #f6f8fa;
+            border: 1px solid #e2e4e8;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 1rem 0;
+        }
+
+        pre code { background: none; padding: 0; font-size: inherit; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            border: 1px solid #e2e4e8;
+            padding: 0.55rem 0.75rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th { background: #f6f8fa; font-weight: 600; }
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        blockquote {
+            margin: 1.25rem 0;
+            padding: 0.75rem 1rem;
+            border-left: 4px solid #c9d3e0;
+            background: #f8f9fb;
+            color: #333;
+            border-radius: 0 6px 6px 0;
+        }
+        blockquote p { margin: 0.4rem 0; }
+
+        .callout {
+            background: #f5f7fa;
+            border: 1px solid #e2e4e8;
+            border-left: 4px solid #2f6fdd;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout strong { color: #2f6fdd; }
+
+        .bottomnav {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e4e8;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.95rem;
+        }
+        .bottomnav a {
+            color: #2f6fdd;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .bottomnav a:hover { text-decoration: underline; }
+
+        .footer {
+            margin-top: 2rem;
+            color: #666;
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 1.5rem 1rem 3rem; }
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.15rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="topnav">
+        <a href="../readme.html">← Back to README</a>
+    </div>
+
+    <h1>Tutorial 3: Adding Fertility with Streaming Mode and Areas</h1>
+
+    <h2>Overview</h2>
+    <p>
+        In this tutorial, you'll learn how to add fertility to your demographic model. We'll
+        build on the aging and mortality model from Tutorial 2, adding births to create a
+        more complete population simulation. You'll learn how to create new individuals,
+        assign their characteristics, track population growth, and work with area-based data
+        using streaming mode.
+    </p>
+
+    <h2>What You'll Learn</h2>
+    <p>By the end of this tutorial, you'll be able to:</p>
+    <ul>
+        <li>Add a fertility model to your simulation</li>
+        <li>Create new individuals (births) with appropriate characteristics</li>
+        <li>Understand how to work with family relationships</li>
+        <li>Write complex Lua models that modify the population</li>
+        <li>Use streaming mode with fertility models</li>
+        <li>Track population growth across areas</li>
+    </ul>
+
+    <h2>Prerequisites</h2>
+    <ul>
+        <li>Completion of Tutorial 2 (or equivalent knowledge)</li>
+        <li>The <code>population.csv</code> file from Tutorial 1</li>
+        <li>A text editor</li>
+    </ul>
+
+    <hr>
+
+    <h2>Part 1: What We're Going to Build</h2>
+    <p>So far we have:</p>
+    <ul>
+        <li>✅ <strong>Aging</strong>: Everyone gets older each year</li>
+        <li>✅ <strong>Mortality</strong>: Some people die based on their age</li>
+        <li>✅ <strong>Areas</strong>: Population is organized by geographic areas</li>
+        <li>✅ <strong>Streaming Mode</strong>: Process large populations with low memory</li>
+    </ul>
+
+    <p>Now we'll add:</p>
+    <ul>
+        <li><strong>Fertility</strong>: Women of childbearing age can give birth</li>
+    </ul>
+
+    <h3>What We Want to Do</h3>
+    <p>
+        <strong>In plain English:</strong> "Each year, for every woman aged 15-49 who is
+        alive, there is a 5% chance she gives birth. If she gives birth, we add a new person
+        to the population. The new baby inherits the mother's area, is randomly male or
+        female, and is marked as alive."
+    </p>
+
+    <h3>Why This Matters</h3>
+    <p>Adding fertility completes the demographic cycle:</p>
+    <ul>
+        <li><strong>Births</strong> add people to the population</li>
+        <li><strong>Aging</strong> moves people through the life course</li>
+        <li><strong>Deaths</strong> remove people from the population</li>
+    </ul>
+    <p>With all three models, we can simulate realistic population dynamics.</p>
+
+    <hr>
+
+    <h2>Part 2: Understanding Lua Table Operations</h2>
+    <p>Before we write our fertility model, let's understand how to work with tables (lists) in Lua.</p>
+
+    <h3>Adding Items to a Table</h3>
+    <p>In Lua, <code>table.insert()</code> adds a new item to the end of a list:</p>
+    <pre><code>-- Create a list
+local newborns = {}
+
+-- Add a new person to the list
+table.insert(newborns, {
+  person_id = 11,
+  age = 0,
+  sex = "F",
+  area_id = 1,
+  alive = true
+})</code></pre>
+
+    <h3>Creating a New Person</h3>
+    <p>A person is just a table with properties:</p>
+    <pre><code>local baby = {
+  person_id = 11,
+  age = 0,
+  sex = "F",
+  area_id = 1,
+  alive = true
+}</code></pre>
+
+    <h3>Finding the Maximum ID</h3>
+    <p>To create new unique IDs, we need to find the highest existing ID:</p>
+    <pre><code>local max_id = 0
+for _, person in ipairs(population) do
+  if person.person_id > max_id then
+    max_id = person.person_id
+  end
+end</code></pre>
+    <p>Then the next ID is <code>max_id + 1</code>.</p>
+
+    <hr>
+
+    <h2>Part 3: The Fertility Model in Lua</h2>
+
+    <h3>The Complete Fertility Model</h3>
+    <p>Here's the Lua script for our fertility model:</p>
+    <pre><code>function transition(population, params)
+  -- Get fertility rate from parameters
+  local fertility_rate = params.fertility_rate or 0.05
+  
+  -- Create a list for newborns
+  local newborns = {}
+  
+  -- Find the maximum ID
+  local max_id = 0
+  for _, person in ipairs(population) do
+    if person.person_id ~= nil and person.person_id > max_id then
+      max_id = person.person_id
+    end
+  end
+  
+  -- Process each person
+  for _, person in ipairs(population) do
+    -- Check if this person is a fertile woman
+    if person.alive == true and person.sex == "F" then
+      local age = person.age
+      if age >= 15 and age < 50 then
+        -- Roll the dice for fertility
+        if math.random() < fertility_rate then
+          -- Create a newborn
+          max_id = max_id + 1
+          local baby = {
+            person_id = max_id,
+            age = 0,
+            sex = math.random() < 0.5 and "F" or "M",
+            area_id = person.area_id,
+            alive = true,
+            previous_area = 0,
+            partner_id = 0,
+            mother_id = person.person_id,
+            father_id = 0,
+            parity = 0
+          }
+          table.insert(newborns, baby)
+        end
+      end
+    end
+  end
+  
+  -- Add newborns to population
+  for _, baby in ipairs(newborns) do
+    table.insert(population, baby)
+  end
+  
+  return population
+end</code></pre>
+
+    <h3>Breaking It Down Piece by Piece</h3>
+    <p>
+        <strong>First, in plain English:</strong> "Go through every woman who is alive and
+        aged 15-49. For each one, flip a coin. If it comes up heads (5% chance), create a new
+        baby. The baby gets a new ID, age 0, a random sex (50:50), and lives in the same area
+        as the mother. The baby is alive."
+    </p>
+
+    <p><strong>Now let's break down each part:</strong></p>
+    <table>
+        <thead><tr><th>Part</th><th>What it does</th><th>In plain English</th></tr></thead>
+        <tbody>
+            <tr><td><code>local fertility_rate = params.fertility_rate or 0.05</code></td><td>Get rate</td><td>"Use the rate from the config, or 5% if not specified"</td></tr>
+            <tr><td><code>local newborns = {}</code></td><td>Create list</td><td>"Create an empty list for babies born this year"</td></tr>
+            <tr><td><code>for _, person in ipairs(population) do</code></td><td>Loop through people</td><td>"For each person in the population..."</td></tr>
+            <tr><td><code>if person.alive == true and person.sex == "F" then</code></td><td>Check woman</td><td>"...if they are a woman and alive..."</td></tr>
+            <tr><td><code>if age &gt;= 15 and age &lt; 50 then</code></td><td>Check age</td><td>"...and they're of childbearing age (15-49)..."</td></tr>
+            <tr><td><code>if math.random() &lt; fertility_rate then</code></td><td>Roll dice</td><td>"...roll a random number..."</td></tr>
+            <tr><td><code>max_id = max_id + 1</code></td><td>New ID</td><td>"...if it's less than the fertility rate, create a new ID"</td></tr>
+            <tr><td><code>local baby = { ... }</code></td><td>Create baby</td><td>"...create a new baby with properties"</td></tr>
+            <tr><td><code>table.insert(newborns, baby)</code></td><td>Add to list</td><td>"...add the baby to the list of newborns"</td></tr>
+            <tr><td><code>table.insert(population, baby)</code></td><td>Add to population</td><td>"...add the baby to the population"</td></tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Part 4: Adding Fertility to Our Configuration</h2>
+    <p>Here's our complete configuration with aging, mortality, and fertility:</p>
+    <pre><code># config_aging_mortality_fertility.yaml
+# Complete demographic model with aging, mortality, and fertility
+
+simulation:
+  iterations: 10
+  population_file: "population.csv"
+  output_file: "population_complete.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+  area_column: "area_id"
+  streaming_mode: false  # Use bulk mode for small population
+
+models:
+  # Model 1: Age increment (runs first)
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Increment everyone's age by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end
+
+  # Model 2: Mortality (runs second)
+  - name: "mortality"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    description: "Age-specific mortality: 0.1% for under 30, 5% for 30+"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              local age = person.age
+              local prob = 0
+              
+              if age < 30 then
+                prob = 0.001
+              else
+                prob = 0.05
+              end
+              
+              if math.random() < prob then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end
+
+  # Model 3: Fertility (runs third)
+  - name: "fertility"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    description: "Fertility: 5% chance for women aged 15-49 to give birth"
+    parameters:
+      fertility_rate: 0.05
+      script: |
+        function transition(population, params)
+          local fertility_rate = params.fertility_rate
+          local newborns = {}
+          
+          local max_id = 0
+          for _, person in ipairs(population) do
+            if person.person_id ~= nil and person.person_id > max_id then
+              max_id = person.person_id
+            end
+          end
+          
+          for _, person in ipairs(population) do
+            if person.alive == true and person.sex == "F" then
+              local age = person.age
+              if age >= 15 and age < 50 then
+                if math.random() < fertility_rate then
+                  max_id = max_id + 1
+                  local baby = {
+                    person_id = max_id,
+                    age = 0,
+                    sex = math.random() < 0.5 and "F" or "M",
+                    area_id = person.area_id,
+                    alive = true,
+                    previous_area = 0,
+                    partner_id = 0,
+                    mother_id = person.person_id,
+                    father_id = 0,
+                    parity = 0
+                  }
+                  table.insert(newborns, baby)
+                end
+              end
+            end
+          end
+          
+          for _, baby in ipairs(newborns) do
+            table.insert(population, baby)
+          end
+          
+          return population
+        end</code></pre>
+
+    <hr>
+
+    <h2>Part 5: Running the Complete Model</h2>
+    <p>Save the configuration as <code>config_aging_mortality_fertility.yaml</code> and run it:</p>
+    <pre><code>./hekate config_aging_mortality_fertility.yaml</code></pre>
+
+    <h3>Expected Output</h3>
+    <pre><code>2024/01/15 10:00:00 ═══ Hekate: Microsimulation Engine ═══
+2024/01/15 10:00:00 Iterations: 10
+2024/01/15 10:00:00 Population file: population.csv
+2024/01/15 10:00:00 ID column: person_id
+2024/01/15 10:00:00 Mode: BULK (load all into memory)
+2024/01/15 10:00:00 Models loaded: 3
+2024/01/15 10:00:00 Loaded 10 individuals with 4 columns
+2024/01/15 10:00:00 Enabled models: 3
+2024/01/15 10:00:00   - age_increment (priority: 1)
+2024/01/15 10:00:00   - mortality (priority: 2)
+2024/01/15 10:00:00   - fertility (priority: 3)
+
+2024/01/15 10:00:00 ═══ Iteration 1/10 ═══
+2024/01/15 10:00:00   ▶ age_increment
+2024/01/15 10:00:00   ▶ mortality
+2024/01/15 10:00:00   ▶ fertility
+
+...
+
+2024/01/15 10:00:00 ═══ Simulation Complete ═══
+2024/01/15 10:00:00 Results saved to population_complete.csv</code></pre>
+
+    <hr>
+
+    <h2>Part 6: Adding Streaming Mode for Larger Populations</h2>
+
+    <h3>Create a Population with Areas for Streaming</h3>
+    <p>For streaming mode, create a CSV sorted by <code>area_id</code>:</p>
+    <pre><code>person_id,age,sex,area_id,alive,previous_area,partner_id,mother_id,father_id,parity
+1,25,F,1,true,0,0,0,0,0
+2,30,M,1,true,0,1,0,0,0
+3,45,F,1,true,0,0,0,0,2
+4,68,M,1,true,0,0,0,0,0
+5,82,F,1,true,0,0,0,0,0
+6,2,M,2,true,0,0,0,3,0
+7,15,F,2,true,0,0,0,0,0
+8,35,M,2,true,0,0,0,0,0
+9,55,F,2,true,0,0,0,0,3
+10,70,M,2,true,0,0,0,0,0</code></pre>
+
+    <h3>Streaming Mode Configuration</h3>
+    <pre><code># config_aging_mortality_fertility_streaming.yaml
+# Streaming mode with aging, mortality, and fertility
+
+simulation:
+  iterations: 10
+  population_file: "population_with_areas.csv"
+  output_file: "final_output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+  area_column: "area_id"          # REQUIRED for streaming mode
+  streaming_mode: true            # Enable area-by-area processing
+
+models:
+  # Model 1: Age increment
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end
+
+  # Model 2: Mortality
+  - name: "mortality"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              local age = person.age
+              local prob = 0
+              
+              if age < 30 then
+                prob = 0.001
+              else
+                prob = 0.05
+              end
+              
+              if math.random() < prob then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end
+
+  # Model 3: Fertility with area awareness
+  - name: "fertility"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    parameters:
+      fertility_rate: 0.05
+      script: |
+        function transition(population, params)
+          local fertility_rate = params.fertility_rate
+          local newborns = {}
+          
+          local max_id = 0
+          for _, person in ipairs(population) do
+            if person.person_id ~= nil and person.person_id > max_id then
+              max_id = person.person_id
+            end
+          end
+          
+          for _, person in ipairs(population) do
+            if person.alive == true and person.sex == "F" then
+              local age = person.age
+              if age >= 15 and age < 50 then
+                if math.random() < fertility_rate then
+                  max_id = max_id + 1
+                  local baby = {
+                    person_id = max_id,
+                    age = 0,
+                    sex = math.random() < 0.5 and "F" or "M",
+                    area_id = person.area_id,
+                    alive = true,
+                    previous_area = 0,
+                    partner_id = 0,
+                    mother_id = person.person_id,
+                    father_id = 0,
+                    parity = 0
+                  }
+                  table.insert(newborns, baby)
+                end
+              end
+            end
+          end
+          
+          for _, baby in ipairs(newborns) do
+            table.insert(population, baby)
+          end
+          
+          return population
+        end</code></pre>
+
+    <h3>Running Streaming Mode</h3>
+    <pre><code>./hekate config_aging_mortality_fertility_streaming.yaml</code></pre>
+
+    <h3>Expected Output with Streaming</h3>
+    <pre><code>2024/01/15 10:00:00 ═══ Hekate: Microsimulation Engine ═══
+2024/01/15 10:00:00 Iterations: 10
+2024/01/15 10:00:00 Population file: population_with_areas.csv
+2024/01/15 10:00:00 ID column: person_id
+2024/01/15 10:00:00 Mode: STREAMING (area-by-area)
+2024/01/15 10:00:00 Area column: area_id
+2024/01/15 10:00:00 Models loaded: 3
+2024/01/15 10:00:00 Detected 10 columns
+2024/01/15 10:00:00 
+═══ Iteration 1/10 ═══
+2024/01/15 10:00:00   ▶ age_increment
+2024/01/15 10:00:00   ▶ mortality
+2024/01/15 10:00:00   ▶ fertility
+2024/01/15 10:00:00   Processed 2 areas
+...</code></pre>
+
+    <h3>Output Files in Streaming Mode</h3>
+    <pre><code>year_1.csv  → After year 1
+year_2.csv  → After year 2
+...
+year_10.csv → After year 10
+final_output.csv → Copy of year_10.csv</code></pre>
+    <p>
+        These are working files: Hekate writes them as it processes each year, then copies
+        the last one to <code>output_file</code> and deletes them at the end of the run. If
+        you want per-iteration snapshots that persist, use bulk mode with
+        <code>output_every_iteration: true</code> (see the README).
+    </p>
+
+    <hr>
+
+    <h2>Part 7: Why Model Order Matters</h2>
+    <p>The order of models is crucial. Here's why we run them in this specific order:</p>
+
+    <h3>Priority 1: Aging First</h3>
+    <pre><code>priority: 1  # Runs first</code></pre>
+    <p>
+        <strong>Why?</strong> Women need to be the correct age for fertility. A woman who is
+        14 should not give birth, but if she turns 15 this year, she should be eligible.
+    </p>
+
+    <h3>Priority 2: Mortality Second</h3>
+    <pre><code>priority: 2  # Runs second</code></pre>
+    <p>
+        <strong>Why?</strong> Dead women shouldn't give birth. We need to remove people who
+        die before checking fertility.
+    </p>
+
+    <h3>Priority 3: Fertility Last</h3>
+    <pre><code>priority: 3  # Runs last</code></pre>
+    <p>
+        <strong>Why?</strong> Newborns shouldn't be aged or killed in the same year they're
+        born.
+    </p>
+
+    <h3>Visualizing the Order</h3>
+    <pre><code>Start of Year
+    ↓
+1. AGE everyone (including women who turn 15)
+    ↓
+2. MORTALITY (dead people don't give birth)
+    ↓
+3. FERTILITY (women give birth to babies who are age 0)
+    ↓
+End of Year</code></pre>
+
+    <hr>
+
+    <h2>Part 8: Advanced Fertility — Age-Specific Rates</h2>
+
+    <h3>The Problem</h3>
+    <p>
+        In our current model, all women 15-49 have the same 5% chance of giving birth. But in
+        reality, fertility varies by age.
+    </p>
+
+    <h3>What We Want to Do</h3>
+    <p>
+        <strong>In plain English:</strong> "Women in their 20s have the highest fertility,
+        women in their 40s have much lower fertility."
+    </p>
+
+    <h3>The Updated Lua Script</h3>
+    <pre><code>function transition(population, params)
+  local newborns = {}
+  
+  local max_id = 0
+  for _, person in ipairs(population) do
+    if person.person_id ~= nil and person.person_id > max_id then
+      max_id = person.person_id
+    end
+  end
+  
+  for _, person in ipairs(population) do
+    if person.alive == true and person.sex == "F" then
+      local age = person.age
+      local rate = 0
+      
+      -- Age-specific fertility rates
+      if age >= 15 and age < 20 then
+        rate = 0.02   -- 2% chance
+      elseif age >= 20 and age < 25 then
+        rate = 0.08   -- 8% chance
+      elseif age >= 25 and age < 30 then
+        rate = 0.10   -- 10% chance (peak fertility)
+      elseif age >= 30 and age < 35 then
+        rate = 0.08   -- 8% chance
+      elseif age >= 35 and age < 40 then
+        rate = 0.04   -- 4% chance
+      elseif age >= 40 and age < 45 then
+        rate = 0.01   -- 1% chance
+      elseif age >= 45 and age < 50 then
+        rate = 0.001  -- 0.1% chance
+      end
+      
+      if math.random() < rate then
+        max_id = max_id + 1
+        local baby = {
+          person_id = max_id,
+          age = 0,
+          sex = math.random() < 0.5 and "F" or "M",
+          area_id = person.area_id,
+          alive = true,
+          previous_area = 0,
+          partner_id = 0,
+          mother_id = person.person_id,
+          father_id = 0,
+          parity = 0
+        }
+        table.insert(newborns, baby)
+      end
+    end
+  end
+  
+  for _, baby in ipairs(newborns) do
+    table.insert(population, baby)
+  end
+  
+  return population
+end</code></pre>
+
+    <h3>Understanding the Rates</h3>
+    <table>
+        <thead><tr><th>Age Group</th><th>Rate</th><th>Why</th></tr></thead>
+        <tbody>
+            <tr><td>15-19</td><td>2%</td><td>Low — teenage pregnancies</td></tr>
+            <tr><td>20-24</td><td>8%</td><td>Higher — peak childbearing years start</td></tr>
+            <tr><td>25-29</td><td>10%</td><td>Peak fertility</td></tr>
+            <tr><td>30-34</td><td>8%</td><td>Still high but declining</td></tr>
+            <tr><td>35-39</td><td>4%</td><td>Declining</td></tr>
+            <tr><td>40-44</td><td>1%</td><td>Low</td></tr>
+            <tr><td>45-49</td><td>0.1%</td><td>Very low</td></tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Part 9: Area-Specific Fertility</h2>
+
+    <h3>The Problem</h3>
+    <p>
+        Different areas might have different fertility rates due to cultural, economic, or
+        policy differences.
+    </p>
+
+    <h3>What We Want to Do</h3>
+    <p>
+        <strong>In plain English:</strong> "Area 1 has low fertility (3%), Area 2 has high
+        fertility (8%), and other areas have moderate fertility (5%)."
+    </p>
+
+    <h3>The Updated Lua Script</h3>
+    <pre><code>function transition(population, params)
+  local newborns = {}
+  
+  local max_id = 0
+  for _, person in ipairs(population) do
+    if person.person_id ~= nil and person.person_id > max_id then
+      max_id = person.person_id
+    end
+  end
+  
+  for _, person in ipairs(population) do
+    if person.alive == true and person.sex == "F" then
+      local age = person.age
+      local area = person.area_id
+      local base_rate = 0
+      
+      -- Area-specific fertility rates
+      if area == 1 then
+        base_rate = 0.03   -- 3% (low fertility)
+      elseif area == 2 then
+        base_rate = 0.08   -- 8% (high fertility)
+      else
+        base_rate = 0.05   -- 5% (moderate fertility)
+      end
+      
+      -- Age adjustment (multiplier)
+      local age_multiplier = 0
+      if age >= 15 and age < 20 then
+        age_multiplier = 0.4
+      elseif age >= 20 and age < 25 then
+        age_multiplier = 1.6
+      elseif age >= 25 and age < 30 then
+        age_multiplier = 2.0
+      elseif age >= 30 and age < 35 then
+        age_multiplier = 1.6
+      elseif age >= 35 and age < 40 then
+        age_multiplier = 0.8
+      elseif age >= 40 and age < 45 then
+        age_multiplier = 0.2
+      elseif age >= 45 and age < 50 then
+        age_multiplier = 0.02
+      end
+      
+      local rate = base_rate * age_multiplier
+      
+      if math.random() < rate then
+        max_id = max_id + 1
+        local baby = {
+          person_id = max_id,
+          age = 0,
+          sex = math.random() < 0.5 and "F" or "M",
+          area_id = person.area_id,
+          alive = true,
+          previous_area = 0,
+          partner_id = 0,
+          mother_id = person.person_id,
+          father_id = 0,
+          parity = 0
+        }
+        table.insert(newborns, baby)
+      end
+    end
+  end
+  
+  for _, baby in ipairs(newborns) do
+    table.insert(population, baby)
+  end
+  
+  return population
+end</code></pre>
+
+    <h3>How It Works</h3>
+    <p>
+        For each fertile woman, we compute a rate that is the product of two things:
+    </p>
+    <ul>
+        <li><strong>The area's base rate</strong> (3% in Area 1, 8% in Area 2, 5% elsewhere)</li>
+        <li><strong>An age multiplier</strong> reflecting the shape of the fertility schedule</li>
+    </ul>
+    <p>
+        For example, a 27-year-old woman in Area 2 has rate <code>0.08 × 2.0 = 0.16</code>
+        (16% chance of giving birth this year). A 43-year-old in Area 1 has rate
+        <code>0.03 × 0.2 = 0.006</code> (0.6% chance). A 17-year-old in any other area has
+        rate <code>0.05 × 0.4 = 0.02</code> (2% chance).
+    </p>
+    <p>
+        This two-level structure — area-specific base rate, age-specific shape — is a
+        common way of building realistic fertility models without hard-coding every
+        area-age combination.
+    </p>
+
+    <hr>
+
+    <h2>What You've Accomplished</h2>
+    <p>Congratulations! You've completed the full demographic cycle:</p>
+    <ol>
+        <li>✅ <strong>Aging</strong>: Everyone gets older each year</li>
+        <li>✅ <strong>Mortality</strong>: People die based on age (and optionally area)</li>
+        <li>✅ <strong>Fertility</strong>: Women of childbearing age give birth</li>
+        <li>✅ <strong>Population growth</strong>: New individuals are created and added to the population</li>
+        <li>✅ <strong>Family links</strong>: Newborns record their mother's ID</li>
+        <li>✅ <strong>Streaming compatibility</strong>: The same models work in bulk and streaming modes</li>
+        <li>✅ <strong>Age-specific and area-specific rates</strong>: You can tune fertility to match your domain</li>
+    </ol>
+
+    <hr>
+
+    <h2>Next Steps</h2>
+    <p>You now have a working three-model demographic simulation. A few directions to explore:</p>
+    <ul>
+        <li><strong>Households</strong>: Group individuals into families and track household composition</li>
+        <li><strong>Migration</strong>: Move people between areas and see how that interacts with fertility and mortality</li>
+        <li><strong>Regression-based models</strong>: Move beyond hard-coded rates and use Tutorial 6's statistical toolkit</li>
+        <li><strong>Large populations</strong>: Try the same config on 1M+ people with streaming mode (Tutorial 5)</li>
+    </ul>
+
+    <div class="callout">
+        <strong>Well done for completing Tutorial 3!</strong> You now understand births,
+        deaths, aging, and how they fit together in a complete demographic simulation. The
+        next tutorial takes a different tack — using published regression coefficients to
+        drive the models instead of hand-coded rates.
+    </div>
+
+    <div class="bottomnav">
+        <a href="tutorial2_yaml_mortality.html">← Tutorial 2: Understanding YAML and Adding Mortality</a>
+        <a href="tutorial_4_regression.html">Tutorial 4: Regression and Statistical Functions →</a>
+    </div>
+
+    <div class="footer">
+        MIT License · Authors: Nik Lomax, Alison Heppenstall, Hugh Rice, Andreas Hoehn, Ric Colasanti
+    </div>
+
+</div>
+</body>
+</html>

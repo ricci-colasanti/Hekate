@@ -1,4 +1,4 @@
-# Hekate Tutorial 1: Building an Aging Model
+# Tutorial 1: Building an Aging Model
 
 ## Overview
 
@@ -345,15 +345,15 @@ person_id,age,sex,area_id,alive
 - Large number of geographic areas
 
 **Output files in streaming mode:**
+
 ```
-year_0.csv  → Initial population (input)
 year_1.csv  → After year 1
 year_2.csv  → After year 2
 ...
 final_output.csv → Copy of last year's file
 ```
 
-These intermediate files let you resume simulations from any year!
+These are working files: Hekate writes them as it processes each year, then copies the last one to `output_file` and deletes them at the end of the run. If you want per-iteration snapshots that persist, use bulk mode with `output_every_iteration: true` (see the README).
 
 ---
 

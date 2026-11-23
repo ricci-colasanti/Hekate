@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial 1: Building an Aging Model — Hekate</title>
+
+    <link rel="icon" type="image/png" href="../img/HekateIco.png">
+    <link rel="apple-touch-icon" href="../img/HekateIco.png">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            line-height: 1.65;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        .topnav {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .topnav a { color: #2f6fdd; text-decoration: none; }
+        .topnav a:hover { text-decoration: underline; }
+
+        h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin: 0 0 1rem;
+            line-height: 1.25;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 2.25rem 0 0.75rem;
+            line-height: 1.3;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #e2e4e8;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1.75rem 0 0.5rem;
+            color: #2f6fdd;
+        }
+
+        p { margin: 0.9rem 0; }
+        ul, ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+        li { margin: 0.35rem 0; }
+        a { color: #2f6fdd; }
+        a:hover { color: #1e4fa8; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e2e4e8;
+            margin: 2rem 0;
+        }
+
+        code {
+            font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: #f2f4f7;
+            padding: 0.12em 0.35em;
+            border-radius: 4px;
+            color: #1a1a1a;
+        }
+
+        pre {
+            background: #f6f8fa;
+            border: 1px solid #e2e4e8;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 1rem 0;
+        }
+
+        pre code { background: none; padding: 0; font-size: inherit; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            border: 1px solid #e2e4e8;
+            padding: 0.55rem 0.75rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th { background: #f6f8fa; font-weight: 600; }
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        blockquote {
+            margin: 1.25rem 0;
+            padding: 0.75rem 1rem;
+            border-left: 4px solid #c9d3e0;
+            background: #f8f9fb;
+            color: #333;
+            border-radius: 0 6px 6px 0;
+        }
+        blockquote p { margin: 0.4rem 0; }
+
+        .callout {
+            background: #f5f7fa;
+            border: 1px solid #e2e4e8;
+            border-left: 4px solid #2f6fdd;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout strong { color: #2f6fdd; }
+
+        .bottomnav {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e4e8;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.95rem;
+        }
+        .bottomnav a {
+            color: #2f6fdd;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .bottomnav a:hover { text-decoration: underline; }
+
+        .footer {
+            margin-top: 2rem;
+            color: #666;
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 1.5rem 1rem 3rem; }
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.15rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="topnav">
+        <a href="../readme.html">← Back to README</a>
+    </div>
+
+    <h1>Tutorial 1: Building an Aging Model</h1>
+
+    <h2>Overview</h2>
+    <p>
+        In this tutorial, you'll learn how to create a simple aging model with Hekate. We'll
+        start with a CSV population file, write a configuration that ages everyone by one
+        year, run the simulation, and analyze the output.
+    </p>
+
+    <h2>Prerequisites</h2>
+    <ul>
+        <li>Hekate binary downloaded and in your PATH (or in the current directory)</li>
+        <li>Basic understanding of CSV files</li>
+        <li>A text editor (VS Code, Sublime, Notepad++, etc.)</li>
+    </ul>
+
+    <h2>What You'll Learn</h2>
+    <p>By the end of this tutorial, you'll be able to:</p>
+    <ul>
+        <li>Create a population CSV file</li>
+        <li>Write a YAML configuration file</li>
+        <li>Run a Hekate simulation</li>
+        <li>Understand the basic structure of a Hekate configuration</li>
+    </ul>
+
+    <div class="callout">
+        <strong>Important Note:</strong> You don't need to be a programmer to use Hekate!
+        We're using <strong>Lua</strong>, a simple and readable scripting language, for our
+        models. Think of it as writing instructions in plain English:
+        <ul style="margin-bottom:0;">
+            <li><strong>Change</strong>: "Make everyone one year older" → <code>person.age = person.age + 1</code></li>
+        </ul>
+        No complex programming, no compilation — just simple instructions that read like
+        plain English!
+    </div>
+
+    <hr>
+
+    <h2>New in Hekate: Streaming Mode for Large Populations</h2>
+    <p>
+        Hekate now supports <strong>Streaming Mode</strong>, which processes populations
+        area-by-area instead of loading everything into memory. This means:
+    </p>
+    <ul>
+        <li><strong>Memory usage stays low</strong> (~20-50MB) regardless of population size</li>
+        <li><strong>Simulate millions or billions</strong> of people on standard hardware</li>
+        <li><strong>Perfect for large-scale</strong> demographic simulations</li>
+    </ul>
+    <p>
+        For this tutorial, we'll use the traditional <strong>Bulk Mode</strong> (load
+        everything into memory) which is simpler and faster for small populations. But we'll
+        also show you how to enable Streaming Mode for larger populations.
+    </p>
+
+    <hr>
+
+    <h2>Why Lua Code Inside YAML?</h2>
+    <p>You might wonder: <strong>"Why do I need to write Lua code inside a YAML configuration file?"</strong></p>
+
+    <h3>The Role of the Code</h3>
+    <p>
+        The Lua script is the <strong>brain</strong> of your model. It tells Hekate
+        <strong>what</strong> to do with your population data. Think of it this way:
+    </p>
+
+    <table>
+        <thead><tr><th>Component</th><th>What it does</th><th>Analogy</th></tr></thead>
+        <tbody>
+            <tr><td><strong>CSV</strong></td><td>Stores your data</td><td>The raw ingredients</td></tr>
+            <tr><td><strong>YAML</strong></td><td>Configures the simulation</td><td>The recipe book</td></tr>
+            <tr><td><strong>Lua</strong></td><td>Defines the logic</td><td>The cooking instructions</td></tr>
+        </tbody>
+    </table>
+
+    <p>Without the Lua script, Hekate wouldn't know:</p>
+    <ul>
+        <li>How people should age</li>
+        <li>Who should die and when</li>
+        <li>Who should have children</li>
+        <li>How people should move between areas</li>
+    </ul>
+
+    <h3>The Advantages</h3>
+
+    <p><strong>1. You Can Change Behavior Without Changing Code</strong></p>
+    <p>
+        Traditional microsimulation systems require you to edit and recompile the source code
+        to change model behavior. With Hekate, you just edit the Lua script in the YAML file:
+    </p>
+    <pre><code># Change this:
+person.age = person.age + 1
+
+# To this:
+person.age = person.age + 2</code></pre>
+    <p>No recompilation needed! Just edit, save, and rerun.</p>
+
+    <p><strong>2. Models Are Self-Documenting</strong></p>
+    <p>The Lua script is right there in the configuration file. You can read exactly what the model does:</p>
+    <pre><code>-- This is easy to understand!
+if person.alive == true then
+  person.age = person.age + 1  -- Everyone alive gets older
+end</code></pre>
+
+    <p><strong>3. Models Are Portable</strong></p>
+    <p>
+        Because the model logic is in the YAML file, you can share it with colleagues. They
+        can run your exact model without needing to install or compile anything.
+    </p>
+
+    <p><strong>4. Models Are Auditable</strong></p>
+    <p>
+        You can version control your models (using Git, for example). Every change to the
+        model is tracked and visible.
+    </p>
+
+    <p><strong>5. You Can Experiment Freely</strong></p>
+    <p>
+        Want to try a different aging rule? Edit the script and rerun. Want to test a new
+        fertility model? Edit the script. No waiting for compilation, no complex development
+        environment.
+    </p>
+
+    <h3>Why Lua?</h3>
+    <p><strong>Lua is a scripting language designed to be embedded in other applications.</strong> It's:</p>
+    <table>
+        <thead><tr><th>Feature</th><th>Why It Matters</th></tr></thead>
+        <tbody>
+            <tr><td><strong>Simple</strong></td><td>Lua has a very small set of concepts to learn. You can learn the basics in minutes.</td></tr>
+            <tr><td><strong>Readable</strong></td><td>Lua reads like plain English. <code>if person.alive == true then</code> makes immediate sense.</td></tr>
+            <tr><td><strong>Fast</strong></td><td>Lua is one of the fastest scripting languages. It can handle populations of millions.</td></tr>
+            <tr><td><strong>Small</strong></td><td>The entire Lua interpreter fits in a tiny binary. No bloat.</td></tr>
+            <tr><td><strong>Embedded</strong></td><td>Lua is designed to be embedded in applications like Hekate. It just works.</td></tr>
+            <tr><td><strong>Proven</strong></td><td>Lua is used in games, embedded systems, and scientific applications worldwide.</td></tr>
+        </tbody>
+    </table>
+
+    <p><strong>What Lua Is NOT:</strong></p>
+    <ul>
+        <li>❌ It's not complex like Python or Java</li>
+        <li>❌ It's not difficult to learn</li>
+        <li>❌ It's not a general-purpose programming language for building applications</li>
+        <li>❌ You don't need to be a programmer to use it</li>
+    </ul>
+
+    <h3>What You Actually Need to Know</h3>
+    <p>For Hekate, you only need to know a handful of Lua concepts:</p>
+    <table>
+        <thead><tr><th>Concept</th><th>What it does</th><th>Example</th></tr></thead>
+        <tbody>
+            <tr><td><code>function</code></td><td>Defines a model</td><td><code>function transition(population, params)</code></td></tr>
+            <tr><td><code>for</code></td><td>Loops through people</td><td><code>for _, person in ipairs(population) do</code></td></tr>
+            <tr><td><code>if</code></td><td>Checks a condition</td><td><code>if person.alive == true then</code></td></tr>
+            <tr><td><code>==</code></td><td>Compares values</td><td><code>person.alive == true</code></td></tr>
+            <tr><td><code>=</code></td><td>Assigns a value</td><td><code>person.age = person.age + 1</code></td></tr>
+            <tr><td><code>return</code></td><td>Returns a result</td><td><code>return population</code></td></tr>
+        </tbody>
+    </table>
+
+    <p><strong>That's it!</strong> These 6 concepts are all you need for most demographic models.</p>
+
+    <hr>
+
+    <h2>Step 1: Create a Population CSV</h2>
+    <p>First, let's create a small population to work with. Create a file called <code>population.csv</code>:</p>
+    <pre><code>person_id,age,sex,area_id,alive
+1,25,F,1,true
+2,30,M,1,true
+3,45,F,1,true
+4,68,M,1,true
+5,82,F,1,true
+6,2,M,1,true
+7,15,F,1,true
+8,35,M,1,true
+9,55,F,1,true
+10,70,M,1,true</code></pre>
+
+    <p>This gives us 10 individuals with various ages. The columns are:</p>
+    <ul>
+        <li><code>person_id</code>: Unique identifier for each person</li>
+        <li><code>age</code>: Age in years</li>
+        <li><code>sex</code>: Gender (M/F)</li>
+        <li><code>area_id</code>: Geographic area (we'll use just one area for now)</li>
+        <li><code>alive</code>: Whether the person is alive (true/false)</li>
+    </ul>
+
+    <p>
+        <strong>Note about <code>area_id</code>:</strong> This column is used by Hekate's
+        streaming mode to process populations area-by-area. Even in bulk mode, it's good
+        practice to include it for future flexibility.
+    </p>
+
+    <h2>Step 2: Understanding YAML</h2>
+    <p>
+        YAML (YAML Ain't Markup Language) is a human-readable data format that Hekate uses
+        for configuration.
+    </p>
+    <p>
+        <strong>Important Rule:</strong> YAML uses <strong>spaces</strong> for indentation,
+        <strong>never tabs</strong>. The number of spaces doesn't matter as long as it's
+        consistent (2 spaces is standard).
+    </p>
+    <p>
+        That's it for now! We'll cover more YAML rules in the next tutorial. For now, just
+        copy the configuration below exactly as shown.
+    </p>
+
+    <h2>Step 3: Create the Configuration File</h2>
+    <p>Create a file called <code>config_aging.yaml</code> and paste in the following:</p>
+    <pre><code># config_aging.yaml
+# A simple aging model configuration
+
+simulation:
+  iterations: 5                    # Run for 5 years
+  population_file: "population.csv" # Input population
+  output_file: "population_aged.csv" # Output after aging
+  random_seed: 42                   # For reproducibility
+  verbose: true                     # Show detailed output
+  id_column: "person_id"            # REQUIRED: Unique identifier column
+
+models:
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Increment everyone's age by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end</code></pre>
+
+    <h2>Step 4: Run the Simulation</h2>
+    <p>Now run Hekate with your configuration:</p>
+    <pre><code># If hekate is in your PATH
+hekate config_aging.yaml
+
+# Or if hekate is in the current directory
+./hekate config_aging.yaml</code></pre>
+
+    <h3>Expected Output</h3>
+    <p>You should see output similar to this:</p>
+    <pre><code>2024/01/15 10:00:00 ═══ Hekate: Microsimulation Engine ═══
+2024/01/15 10:00:00 Iterations: 5
+2024/01/15 10:00:00 Population file: population.csv
+2024/01/15 10:00:00 ID column: person_id
+2024/01/15 10:00:00 Mode: BULK (load all into memory)
+2024/01/15 10:00:00 Models loaded: 1
+2024/01/15 10:00:00 Loaded 10 individuals with 4 columns
+2024/01/15 10:00:00 Columns: [person_id age sex area_id alive]
+2024/01/15 10:00:00 Enabled models: 1
+2024/01/15 10:00:00   - age_increment (priority: 1)
+
+2024/01/15 10:00:00 ═══ Iteration 1/5 ═══
+2024/01/15 10:00:00   ▶ age_increment
+
+2024/01/15 10:00:00 ═══ Iteration 2/5 ═══
+2024/01/15 10:00:00   ▶ age_increment
+
+2024/01/15 10:00:00 ═══ Iteration 3/5 ═══
+2024/01/15 10:00:00   ▶ age_increment
+
+2024/01/15 10:00:00 ═══ Iteration 4/5 ═══
+2024/01/15 10:00:00   ▶ age_increment
+
+2024/01/15 10:00:00 ═══ Iteration 5/5 ═══
+2024/01/15 10:00:00   ▶ age_increment
+
+2024/01/15 10:00:00 ═══ Simulation Complete ═══
+2024/01/15 10:00:00 Results saved to population_aged.csv</code></pre>
+
+    <h2>Step 5: Examine the Output</h2>
+    <p>Open <code>population_aged.csv</code>:</p>
+    <pre><code>person_id,age,sex,area_id,alive
+1,30,F,1,true
+2,35,M,1,true
+3,50,F,1,true
+4,73,M,1,true
+5,87,F,1,true
+6,7,M,1,true
+7,20,F,1,true
+8,40,M,1,true
+9,60,F,1,true
+10,75,M,1,true</code></pre>
+
+    <p>Notice that everyone has aged exactly 5 years:</p>
+    <ul>
+        <li>Person 1: 25 → 30</li>
+        <li>Person 2: 30 → 35</li>
+        <li>Person 3: 45 → 50</li>
+        <li>Person 4: 68 → 73</li>
+        <li>Person 5: 82 → 87</li>
+        <li>Person 6: 2 → 7</li>
+        <li>Person 7: 15 → 20</li>
+        <li>Person 8: 35 → 40</li>
+        <li>Person 9: 55 → 60</li>
+        <li>Person 10: 70 → 75</li>
+    </ul>
+
+    <hr>
+
+    <h2>Optional: Running with Streaming Mode</h2>
+    <p>
+        If you have a large population (1M+ people), you can use Streaming Mode to process
+        it with minimal memory:
+    </p>
+    <pre><code># config_aging_streaming.yaml
+# Streaming mode for large populations
+
+simulation:
+  iterations: 5
+  population_file: "population.csv"
+  output_file: "final_output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+  area_column: "area_id"        # REQUIRED for streaming mode
+  streaming_mode: true          # Enable area-by-area processing
+
+models:
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p><strong>Important:</strong> For streaming mode, your CSV must be <strong>sorted by <code>area_id</code></strong>:</p>
+    <pre><code>person_id,age,sex,area_id,alive
+1,25,F,1,true
+2,30,M,1,true
+3,45,F,1,true
+... all area 1 people together ...
+11,25,F,2,true
+12,30,M,2,true
+... all area 2 people together ...</code></pre>
+
+    <p><strong>When to use streaming mode:</strong></p>
+    <ul>
+        <li>Population &gt; 1 million people</li>
+        <li>Memory is limited (&lt; 4GB)</li>
+        <li>Running on low-cost hardware</li>
+        <li>Large number of geographic areas</li>
+    </ul>
+
+    <p><strong>Output files in streaming mode:</strong></p>
+    <pre><code>year_0.csv  → Initial population (input)
+year_1.csv  → After year 1
+year_2.csv  → After year 2
+...
+final_output.csv → Copy of last year's file</code></pre>
+    <p>
+        These intermediate files are working files written and deleted during the run. If you
+        want per-iteration snapshots that persist, use bulk mode with
+        <code>output_every_iteration: true</code> (see the README).
+    </p>
+
+    <hr>
+
+    <h2>Understanding Your Configuration</h2>
+    <p>Now let's break down what the configuration does. The structure is simple — two main sections:</p>
+
+    <h3>1. The Simulation Section</h3>
+    <pre><code>simulation:
+  iterations: 5                    # Run for 5 years
+  population_file: "population.csv" # Input population
+  output_file: "population_aged.csv" # Output after aging
+  random_seed: 42                   # For reproducibility
+  verbose: true                     # Show detailed output
+  id_column: "person_id"            # REQUIRED: Unique identifier column
+  # Optional for streaming mode:
+  # area_column: "area_id"          # Column to group by
+  # streaming_mode: true            # Enable area-by-area processing</code></pre>
+
+    <p>This tells Hekate:</p>
+    <ul>
+        <li><strong>How many times</strong> to run the model (<code>iterations: 5</code>)</li>
+        <li><strong>Where to read</strong> the population from (<code>population_file</code>)</li>
+        <li><strong>Where to save</strong> the results (<code>output_file</code>)</li>
+        <li><strong>What random seed</strong> to use for reproducible results (<code>random_seed: 42</code>)</li>
+        <li><strong>Whether to show detailed output</strong> (<code>verbose: true</code>)</li>
+        <li><strong>Which column is the unique identifier</strong> (<code>id_column: "person_id"</code>)</li>
+    </ul>
+
+    <p>
+        <strong>Why is <code>id_column</code> required?</strong> Every individual in your
+        population needs a unique identifier. This is how Hekate keeps track of each person
+        throughout the simulation. When people age, die, or have children, Hekate uses this
+        ID to ensure it's updating the right person. Without a unique ID column, Hekate
+        wouldn't be able to distinguish between individuals or link family members together.
+        The <code>id_column</code> tells Hekate which column in your CSV contains these
+        unique identifiers. Ordering the output by this column is a secondary benefit that
+        makes it easier to compare results across different runs.
+    </p>
+
+    <h3>2. The Models Section</h3>
+    <pre><code>models:
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Increment everyone's age by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p>This defines our aging model:</p>
+    <ul>
+        <li><strong><code>name</code></strong>: A descriptive name for the model</li>
+        <li><strong><code>type</code></strong>: The type of model (<code>lua_model</code> means it's a Lua script)</li>
+        <li><strong><code>priority</code></strong>: The order to run models (lower numbers run first)</li>
+        <li><strong><code>enabled</code></strong>: Whether this model is active (<code>true</code> or <code>false</code>)</li>
+        <li><strong><code>description</code></strong>: Human-readable description</li>
+        <li><strong><code>parameters.script</code></strong>: The Lua code that does the work</li>
+    </ul>
+
+    <hr>
+
+    <h2>Understanding the Lua Script (In Detail)</h2>
+    <p>Let's look at our model's Lua script:</p>
+    <pre><code>function transition(population, params)
+  for _, person in ipairs(population) do
+    if person.alive == true then
+      person.age = person.age + 1
+    end
+  end
+  return population
+end</code></pre>
+
+    <p><strong>First, what does this Lua do in plain English?</strong></p>
+    <blockquote>
+        <p>"Go through everyone in the population. For each person who is alive, take their current age, add 1 to it, and save that new age back to the population."</p>
+    </blockquote>
+
+    <h3>Model Functions</h3>
+    <p>Each individual model is described as a Lua function. All model functions are called <strong><code>transition</code></strong> functions. This is a requirement of Hekate.</p>
+
+    <h3>Why Are They Called <code>transition</code> Functions?</h3>
+    <p>In demographic modeling, a <strong>transition</strong> is a change from one state to another. For example:</p>
+    <ul>
+        <li><strong>Age transition</strong>: Moving from age 25 to age 26</li>
+        <li><strong>Mortality transition</strong>: Moving from "alive" to "dead"</li>
+        <li><strong>Migration transition</strong>: Moving from "area 1" to "area 2"</li>
+    </ul>
+    <p>
+        Each year, Hekate runs your <code>transition</code> functions to apply these changes
+        to your population. That's why they're called transition functions — they describe
+        how people <strong>transition</strong> from one state to another.
+    </p>
+
+    <h3>How Hekate Finds Your Transition Function</h3>
+    <p>
+        When Hekate runs your model, it needs to know which function to execute. Rather than
+        guessing, Hekate looks for a function with the exact name <code>transition</code>.
+        This is similar to how:
+    </p>
+    <ul>
+        <li>A car needs a steering wheel (it knows exactly where to look)</li>
+        <li>A TV remote needs a power button (it knows exactly what to press)</li>
+        <li>A recipe needs ingredients (it knows exactly what to add)</li>
+    </ul>
+    <p>By requiring a specific function name, Hekate can reliably find and run your model every year.</p>
+
+    <h3>What Happens If You Use a Different Name?</h3>
+    <p>If you call your model function something else, Hekate won't find it and will throw an error:</p>
+    <pre><code>ERROR: script must define a 'transition' function</code></pre>
+
+    <p><strong>Example:</strong></p>
+    <pre><code>-- ❌ WRONG - Hekate won't find this
+function my_model(population, params)
+  for _, person in ipairs(population) do
+    person.age = person.age + 1
+  end
+  return population
+end
+
+-- ✅ CORRECT - Hekate finds this
+function transition(population, params)
+  for _, person in ipairs(population) do
+    person.age = person.age + 1
+  end
+  return population
+end</code></pre>
+
+    <h3>Summary</h3>
+    <table>
+        <thead><tr><th>Script Type</th><th>Required Function Name</th><th>What It Does</th></tr></thead>
+        <tbody>
+            <tr><td>Model</td><td><code>transition(population, params)</code></td><td>Runs each year, transforms the population</td></tr>
+        </tbody>
+    </table>
+
+    <p><strong>Remember:</strong> The function name must be <strong>exactly</strong> <code>transition</code> — case-sensitive!</p>
+    <table>
+        <thead><tr><th>Correct</th><th>Incorrect</th></tr></thead>
+        <tbody>
+            <tr><td><code>function transition(population, params)</code></td><td><code>function Transition(population, params)</code></td></tr>
+        </tbody>
+    </table>
+
+    <h3>Understanding <code>ipairs</code></h3>
+    <p>You might also wonder: <strong>"What is <code>ipairs</code> and why do we use it?"</strong></p>
+    <p><code>ipairs</code> is a Lua function that helps us <strong>loop through a list in order</strong>. Think of it like this:</p>
+    <pre><code>for _, person in ipairs(population) do
+  -- Do something with each person
+end</code></pre>
+
+    <p><strong>In plain English:</strong> "For each person in the population list, one at a time, do the following..."</p>
+
+    <p><strong>Breaking down the parts:</strong></p>
+    <table>
+        <thead><tr><th>Part</th><th>What it means</th><th>In plain English</th></tr></thead>
+        <tbody>
+            <tr><td><code>for</code></td><td>Start a loop</td><td>"For each..."</td></tr>
+            <tr><td><code>_</code></td><td>The position/index (we don't need it)</td><td>"Ignore the position number"</td></tr>
+            <tr><td><code>person</code></td><td>The current item</td><td>"...this person..."</td></tr>
+            <tr><td><code>in</code></td><td>From the list</td><td>"...from the list..."</td></tr>
+            <tr><td><code>ipairs(population)</code></td><td>The list to loop through</td><td>"...the population list, in order"</td></tr>
+            <tr><td><code>do</code></td><td>Start the instructions</td><td>"...do this:"</td></tr>
+        </tbody>
+    </table>
+
+        <p><strong>Why do we use <code>ipairs</code> and not just <code>for</code>?</strong></p>
+    <p>Lua has two ways to loop through lists:</p>
+    <table>
+        <thead><tr><th>Method</th><th>What it does</th><th>When to use</th></tr></thead>
+        <tbody>
+            <tr><td><code>ipairs(list)</code></td><td>Loops in order, stops at first nil</td><td>For lists like our population</td></tr>
+            <tr><td><code>pairs(list)</code></td><td>Loops in any order, includes all items</td><td>For dictionaries/maps</td></tr>
+        </tbody>
+    </table>
+
+    <p>Since our population is a simple list of people in order, we use <code>ipairs</code>.</p>
+
+    <p><strong>What about the underscore (<code>_</code>)?</strong></p>
+    <p>In Lua, <code>_</code> is a convention meaning "I don't need this value." When we loop with <code>ipairs</code>, we get both the position number and the person:</p>
+    <pre><code>for index, person in ipairs(population) do
+  -- index = 1, 2, 3, ...
+  -- person = the person at that position
+end</code></pre>
+
+    <p>Since we only care about the person, not their position, we use <code>_</code> instead of <code>index</code>:</p>
+    <pre><code>for _, person in ipairs(population) do
+  -- We ignore the position and just work with each person
+end</code></pre>
+
+    <h3>How CSV Headers Link to <code>person.age</code></h3>
+    <p>This is a crucial question: <strong>"How does <code>person.age</code> connect to my CSV column called <code>age</code>?"</strong></p>
+    <p><strong>The short answer:</strong> When Hekate loads your CSV, it creates a table (Lua's version of a dictionary/object) for each person. The column names become the <strong>keys</strong>, and the values become the <strong>values</strong>.</p>
+
+    <p><strong>Here's how it works:</strong></p>
+
+    <p><strong>1. Your CSV file:</strong></p>
+    <pre><code>person_id,age,sex,area_id,alive
+1,25,F,1,true
+2,30,M,1,true</code></pre>
+
+    <p><strong>2. Hekate loads each row as a Lua table:</strong></p>
+    <p>When Hekate reads row 1, it creates a table like this:</p>
+    <pre><code>{
+  person_id = 1,
+  age = 25,
+  sex = "F",
+  area_id = 1,
+  alive = true
+}</code></pre>
+
+    <p><strong>3. You access these values using the column names:</strong></p>
+    <pre><code>-- Access the age column
+person.age        -- Returns 25
+
+-- Access the sex column
+person.sex        -- Returns "F"
+
+-- Access the alive column
+person.alive      -- Returns true</code></pre>
+
+    <p><strong>The key point:</strong> <strong>The column names in your CSV become the property names in Lua.</strong></p>
+
+    <p><strong>Examples:</strong></p>
+    <table>
+        <thead><tr><th>CSV Column Name</th><th>Lua Access</th><th>Value for Row 1</th></tr></thead>
+        <tbody>
+            <tr><td><code>person_id</code></td><td><code>person.person_id</code></td><td>1</td></tr>
+            <tr><td><code>age</code></td><td><code>person.age</code></td><td>25</td></tr>
+            <tr><td><code>sex</code></td><td><code>person.sex</code></td><td>"F"</td></tr>
+            <tr><td><code>area_id</code></td><td><code>person.area_id</code></td><td>1</td></tr>
+            <tr><td><code>alive</code></td><td><code>person.alive</code></td><td>true</td></tr>
+        </tbody>
+    </table>
+
+    <p><strong>Important:</strong> The column names are <strong>case-sensitive</strong>!</p>
+    <table>
+        <thead><tr><th>CSV Header</th><th>Lua Access</th><th>Works?</th></tr></thead>
+        <tbody>
+            <tr><td><code>age</code></td><td><code>person.age</code></td><td>✅ Yes</td></tr>
+            <tr><td><code>age</code></td><td><code>person.Age</code></td><td>❌ No</td></tr>
+            <tr><td><code>alive</code></td><td><code>person.alive</code></td><td>✅ Yes</td></tr>
+            <tr><td><code>alive</code></td><td><code>person.Alive</code></td><td>❌ No</td></tr>
+            <tr><td><code>person_id</code></td><td><code>person.person_id</code></td><td>✅ Yes</td></tr>
+            <tr><td><code>person_id</code></td><td><code>person.personId</code></td><td>❌ No</td></tr>
+        </tbody>
+    </table>
+
+    <p><strong>Why does this matter?</strong> If you mistype a column name, your script will fail. For example:</p>
+    <pre><code>-- ❌ WRONG - CSV has 'alive' but we wrote 'Alive'
+if person.Alive == true then
+  person.age = person.age + 1
+end
+
+-- ✅ CORRECT - matches CSV header exactly
+if person.alive == true then
+  person.age = person.age + 1
+end</code></pre>
+
+    <h3>The Complete Picture</h3>
+    <p><strong>When you write:</strong></p>
+    <pre><code>person.age = person.age + 1</code></pre>
+
+    <p><strong>Here's what happens step-by-step:</strong></p>
+    <ol>
+        <li>Hekate loads the CSV and creates a <code>person</code> table</li>
+        <li><code>person.age</code> accesses the value from the <code>age</code> column</li>
+        <li><code>person.age + 1</code> calculates the new age</li>
+        <li><code>person.age = ...</code> stores the new value back</li>
+    </ol>
+
+    <p><strong>Example with person 1 (age 25):</strong></p>
+    <table>
+        <thead><tr><th>Step</th><th>Code</th><th>What happens</th></tr></thead>
+        <tbody>
+            <tr><td>1</td><td><code>person.age</code></td><td>Gets 25 from the table</td></tr>
+            <tr><td>2</td><td><code>person.age + 1</code></td><td>Calculates 26</td></tr>
+            <tr><td>3</td><td><code>person.age = 26</code></td><td>Stores 26 back in the table</td></tr>
+        </tbody>
+    </table>
+
+    <p><strong>After the script runs:</strong> Person 1's age is now 26!</p>
+
+    <h3>Visualizing the Data</h3>
+    <p><strong>Before the model runs:</strong></p>
+    <pre><code>Population = {
+  { person_id = 1, age = 25, sex = "F", area_id = 1, alive = true },
+  { person_id = 2, age = 30, sex = "M", area_id = 1, alive = true },
+  ...
+}</code></pre>
+
+    <p><strong>After the model runs:</strong></p>
+    <pre><code>Population = {
+  { person_id = 1, age = 26, sex = "F", area_id = 1, alive = true },
+  { person_id = 2, age = 31, sex = "M", area_id = 1, alive = true },
+  ...
+}</code></pre>
+
+    <h3>Summary of Lua Concepts</h3>
+    <table>
+        <thead><tr><th>Concept</th><th>Explanation</th></tr></thead>
+        <tbody>
+            <tr><td><code>transition</code></td><td><strong>Required name</strong> for model functions</td></tr>
+            <tr><td><code>ipairs</code></td><td>Loops through a list in order</td></tr>
+            <tr><td><code>_</code></td><td>Means "I don't need this value"</td></tr>
+            <tr><td><code>person</code></td><td>The current person being processed</td></tr>
+            <tr><td><code>person.age</code></td><td>Accesses the <code>age</code> column from the CSV</td></tr>
+            <tr><td><code>person.alive</code></td><td>Accesses the <code>alive</code> column from the CSV</td></tr>
+            <tr><td>Column names</td><td>Must match your CSV header exactly (case-sensitive!)</td></tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Understanding the Configuration Structure</h2>
+    <p>Now let's put it all together. The configuration has two main sections:</p>
+
+    <h3>1. Simulation Section</h3>
+    <ul>
+        <li>Controls how the simulation runs</li>
+        <li><code>iterations</code>: How many years</li>
+        <li><code>population_file</code>: Where to read data from</li>
+        <li><code>output_file</code>: Where to save results</li>
+        <li><code>id_column</code>: Which column contains the unique ID (REQUIRED)</li>
+        <li>Optional: <code>area_column</code> and <code>streaming_mode</code> for large populations</li>
+    </ul>
+
+    <h3>2. Models Section</h3>
+    <ul>
+        <li>Defines what happens each year</li>
+        <li>Each model has:
+            <ul>
+                <li><code>name</code>: What to call it</li>
+                <li><code>type</code>: What kind of model (<code>lua_model</code>)</li>
+                <li><code>priority</code>: When to run it (lower = earlier)</li>
+                <li><code>script</code>: The Lua code that does the work (MUST have a <code>transition</code> function)</li>
+            </ul>
+        </li>
+    </ul>
+
+    <hr>
+
+    <h2>Performance and Scalability</h2>
+    <p>Hekate can handle populations of any size:</p>
+    <table>
+        <thead><tr><th>Mode</th><th>Memory Usage</th><th>Best For</th></tr></thead>
+        <tbody>
+            <tr><td><strong>Bulk</strong></td><td>~2MB per 1000 people</td><td>Small populations (&lt;1M), speed</td></tr>
+            <tr><td><strong>Streaming</strong></td><td>~20-50MB constant</td><td>Large populations (1M+), memory efficiency</td></tr>
+        </tbody>
+    </table>
+
+    <p><strong>With streaming mode, Hekate can simulate millions or billions of people on standard hardware!</strong></p>
+
+    <hr>
+
+    <h2>What You've Accomplished</h2>
+    <p>Congratulations! You've successfully:</p>
+    <ol>
+        <li>✅ Created a population CSV file</li>
+        <li>✅ Written a YAML configuration file</li>
+        <li>✅ Run a Hekate simulation</li>
+        <li>✅ Aged an entire population by 5 years</li>
+        <li>✅ Understood how Lua connects to your CSV data</li>
+        <li>✅ Learned that model functions must be called <code>transition</code></li>
+        <li>✅ Understood why the <code>id_column</code> is required</li>
+        <li>✅ Learned about Streaming Mode for large populations</li>
+    </ol>
+
+    <p>You now know the basic workflow for using Hekate.</p>
+
+    <hr>
+
+    <h2>Next Steps</h2>
+    <p>In the next tutorial, we'll dive deeper into YAML and Lua. You'll learn:</p>
+    <ul>
+        <li><strong>YAML rules</strong>: Why indentation matters, why you need the pipe (<code>|</code>) for multi-line strings, and how to avoid common mistakes</li>
+        <li><strong>More Lua</strong>: Working with age and conditions in your models</li>
+        <li><strong>Column name matching</strong>: Why column names must match your CSV exactly</li>
+        <li><strong>Mortality</strong>: Adding a mortality model to make your simulation more realistic</li>
+        <li><strong>Streaming Mode</strong>: How to use it effectively for large populations</li>
+    </ul>
+
+    <p>For now, take a moment to appreciate what you've built — a working demographic microsimulation model!</p>
+
+    <div class="callout">
+        <strong>Tutorial 2 Preview:</strong> We'll explore the YAML and Lua rules in detail and add a mortality model with age-specific death probabilities.
+    </div>
+
+    <div class="bottomnav">
+        <a href="../readme.html">← Back to README</a>
+        <a href="tutorial2_yaml_mortality.html">Tutorial 2: Understanding YAML and Adding Mortality →</a>
+    </div>
+
+    <div class="footer">
+        MIT License · Authors: Nik Lomax, Alison Heppenstall, Hugh Rice, Andreas Hoehn, Ric Colasanti
+    </div>
+
+</div>
+</body>
+</html>

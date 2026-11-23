@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial 5: Large-Scale Simulations with Streaming Mode — Hekate</title>
+
+    <link rel="icon" type="image/png" href="../img/HekateIco.png">
+    <link rel="apple-touch-icon" href="../img/HekateIco.png">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            line-height: 1.65;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        .topnav {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .topnav a { color: #2f6fdd; text-decoration: none; }
+        .topnav a:hover { text-decoration: underline; }
+
+        h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin: 0 0 1rem;
+            line-height: 1.25;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 2.25rem 0 0.75rem;
+            line-height: 1.3;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #e2e4e8;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1.75rem 0 0.5rem;
+            color: #2f6fdd;
+        }
+
+        p { margin: 0.9rem 0; }
+        ul, ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+        li { margin: 0.35rem 0; }
+        a { color: #2f6fdd; }
+        a:hover { color: #1e4fa8; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e2e4e8;
+            margin: 2rem 0;
+        }
+
+        code {
+            font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: #f2f4f7;
+            padding: 0.12em 0.35em;
+            border-radius: 4px;
+            color: #1a1a1a;
+        }
+
+        pre {
+            background: #f6f8fa;
+            border: 1px solid #e2e4e8;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 1rem 0;
+        }
+
+        pre code { background: none; padding: 0; font-size: inherit; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            border: 1px solid #e2e4e8;
+            padding: 0.55rem 0.75rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th { background: #f6f8fa; font-weight: 600; }
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        blockquote {
+            margin: 1.25rem 0;
+            padding: 0.75rem 1rem;
+            border-left: 4px solid #c9d3e0;
+            background: #f8f9fb;
+            color: #333;
+            border-radius: 0 6px 6px 0;
+        }
+        blockquote p { margin: 0.4rem 0; }
+
+        .callout {
+            background: #f5f7fa;
+            border: 1px solid #e2e4e8;
+            border-left: 4px solid #2f6fdd;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout strong { color: #2f6fdd; }
+
+        .warn {
+            background: #fff8e6;
+            border: 1px solid #f0d999;
+            border-left: 4px solid #d49b1c;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .warn strong { color: #a8730f; }
+
+        .bottomnav {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e4e8;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.95rem;
+        }
+        .bottomnav a {
+            color: #2f6fdd;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .bottomnav a:hover { text-decoration: underline; }
+
+        .footer {
+            margin-top: 2rem;
+            color: #666;
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 1.5rem 1rem 3rem; }
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.15rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="topnav">
+        <a href="../readme.html">← Back to README</a>
+    </div>
+
+    <h1>Tutorial 5: Large-Scale Simulations with Streaming Mode</h1>
+
+    <h2>Overview</h2>
+    <p>
+        Hekate's streaming mode allows you to simulate populations of <strong>millions to
+        billions</strong> of individuals using minimal memory. Instead of loading everyone
+        into RAM at once, Hekate processes your population <strong>area by area</strong> —
+        loading, processing, and saving one area at a time.
+    </p>
+    <p>This tutorial will show you how to use streaming mode for large-scale simulations.</p>
+
+    <hr>
+
+    <h2>The Problem: Memory Limitations</h2>
+    <p>Traditional microsimulation loads the entire population into memory:</p>
+    <pre><code>Your Computer: 8GB RAM
+Population: 10 million people
+Memory needed: ~2GB per million people
+Result: OUT OF MEMORY! 💥</code></pre>
+
+    <h3>Memory Requirements Comparison</h3>
+    <table>
+        <thead><tr><th>Population</th><th>Traditional Mode</th><th>Streaming Mode</th></tr></thead>
+        <tbody>
+            <tr><td>100K</td><td>200MB</td><td>~20MB</td></tr>
+            <tr><td>1M</td><td>2GB</td><td>~20MB</td></tr>
+            <tr><td>10M</td><td>20GB ❌</td><td>~20MB ✅</td></tr>
+            <tr><td>100M</td><td>200GB ❌</td><td>~20MB ✅</td></tr>
+        </tbody>
+    </table>
+
+    <p><strong>With streaming mode, memory usage stays constant regardless of population size!</strong></p>
+
+    <hr>
+
+    <h2>Prerequisites</h2>
+    <p>Before starting, make sure you have:</p>
+    <ul>
+        <li>Completed Tutorial 1 (Basic Aging Model)</li>
+        <li>Hekate binary downloaded and working</li>
+        <li>A large population file (or generate one)</li>
+    </ul>
+
+    <hr>
+
+    <h2>Step 1: Generate a Large Population</h2>
+    <p>Create <code>generate_streaming_population.py</code>:</p>
+    <pre><code>#!/usr/bin/env python3
+"""
+Generate a large population sorted by area for streaming mode
+"""
+
+import csv
+import random
+
+random.seed(42)
+
+def generate_population(n=100000, output_file="population_streaming.csv"):
+    """Generate n individuals sorted by area"""
+    
+    print(f"Generating {n:,} individuals...")
+    
+    # Define regions/areas
+    areas = [f"area_{i:05d}" for i in range(1, 21)]  # 20 areas
+    
+    with open(output_file, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            'id', 'age', 'gender', 'income', 'alive', 'area'
+        ])
+        
+        # Generate people area by area (already sorted!)
+        for i in range(1, n + 1):
+            # Choose area (distribute evenly)
+            area = areas[i % len(areas)]
+            
+            # Generate person
+            person_id = f"P{i:08d}"
+            age = random.randint(18, 80)
+            gender = random.choice(['male', 'female'])
+            income = 20000 + age * 200 + random.randint(-5000, 5000)
+            alive = random.random() < 0.95
+            
+            writer.writerow([
+                person_id, age, gender, income, str(alive).lower(), area
+            ])
+            
+            if i % 10000 == 0:
+                print(f"  Generated {i:,} people...")
+    
+    print(f"✅ Generated {n:,} individuals in {output_file}")
+    print(f"   Areas: {len(areas)}")
+
+if __name__ == "__main__":
+    # Generate 100,000 people (increase this for larger tests)
+    generate_population(100000, "population_streaming.csv")</code></pre>
+
+    <p>Run it:</p>
+    <pre><code>python3 generate_streaming_population.py</code></pre>
+
+    <hr>
+
+    <h2>Step 2: Understanding the Streaming Configuration</h2>
+
+    <h3>config_streaming.yaml</h3>
+    <pre><code>simulation:
+  iterations: 3                    # Run for 3 years
+  population_file: population_streaming.csv
+  output_file: output_streaming.csv
+  random_seed: 42
+  verbose: true                    # See what's happening
+  id_column: id                    # Unique identifier
+  area_column: area                # REQUIRED: Column to group by
+  streaming_mode: true             # Enable streaming mode
+
+models:
+  # Model 1: Age everyone (Priority 1)
+  - name: aging_model
+    type: lua_model
+    priority: 1
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                
+                if alive then
+                    person.age = person.age + 1
+                end
+            end
+            return population
+        end
+
+  # Model 2: Predict income (Priority 2)
+  - name: income_model
+    type: lua_model
+    priority: 2
+    enabled: true
+    parameters:
+      coefficients:
+        intercept: 20000
+        age: 300
+      script: |
+        function transition(population, params)
+            local coefs = params.coefficients
+            
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                
+                if alive then
+                    local age = tonumber(person.age) or 30
+                    local income = linear_predict(
+                        coefs.intercept,
+                        coefs.age, age
+                    )
+                    
+                    person.income = math.floor(income + 0.5)
+                end
+            end
+            
+            return population
+        end</code></pre>
+
+    <h3>Key Streaming Settings</h3>
+    <pre><code>simulation:
+  streaming_mode: true      # Enable streaming
+  area_column: area        # Column name to group by</code></pre>
+
+    <p>
+        <strong>Important:</strong> Your CSV must be <strong>sorted by the area
+        column</strong> for streaming to work! Hekate enforces this — an unsorted file
+        aborts the run with a clear error message.
+    </p>
+
+    <hr>
+
+    <h2>Step 3: Run the Streaming Simulation</h2>
+    <pre><code>./hekate-linux-amd64 config_streaming.yaml</code></pre>
+
+    <h3>What You'll See</h3>
+    <pre><code>═══ Hekate: Microsimulation Engine ═══
+Iterations: 3
+Mode: STREAMING (area-by-area)
+Area column: area
+
+--- Using Streaming Area-by-Area Processing ---
+Detected 6 columns
+
+═══ Iteration 1/3 ═══
+  ▶ aging_model
+  ▶ income_model
+  Processed 20 areas
+
+═══ Iteration 2/3 ═══
+  ▶ aging_model
+  ▶ income_model
+  Processed 20 areas
+
+═══ Iteration 3/3 ═══
+  ▶ aging_model
+  ▶ income_model
+  Processed 20 areas
+
+═══ Simulation Complete ═══
+Results saved to output_streaming.csv</code></pre>
+
+    <h3>Intermediate Files</h3>
+    <p>During the run, Hekate writes per-year working files:</p>
+    <pre><code>year_1.csv  → After 1 year
+year_2.csv  → After 2 years
+year_3.csv  → After 3 years</code></pre>
+    <p>
+        When the run completes, Hekate copies <code>year_3.csv</code> to
+        <code>output_streaming.csv</code> and <strong>deletes</strong> the
+        <code>year_N.csv</code> files. They are working files, not outputs. If you want
+        per-iteration snapshots that persist, use bulk mode with
+        <code>output_every_iteration: true</code> (see the README).
+    </p>
+
+    <div class="warn">
+        <strong>output_every_iteration is ignored in streaming mode.</strong> Streaming
+        already writes <code>year_N.csv</code> working files internally; enabling the
+        per-iteration snapshot flag has no effect in this mode. Use bulk mode if you need
+        persistent per-iteration output.
+    </div>
+
+    <hr>
+
+    <h2>Step 4: Monitor Memory Usage</h2>
+    <p>While running, check memory usage in another terminal:</p>
+
+    <p><strong>Linux/macOS:</strong></p>
+    <pre><code># Check Hekate's memory usage
+ps aux | grep hekate
+
+# Or watch it live
+watch -n 1 'ps aux | grep hekate | grep -v grep'</code></pre>
+
+    <p>
+        <strong>Expected:</strong> Memory stays around ~20-30MB regardless of population
+        size!
+    </p>
+
+    <hr>
+
+    <h2>Step 5: Analyze the Results</h2>
+    <p>Create <code>analyze_streaming_results.py</code>:</p>
+    <pre><code>#!/usr/bin/env python3
+"""
+Analyze streaming simulation results
+"""
+
+import csv
+import statistics
+from collections import defaultdict
+
+def analyze_results(filename="output_streaming.csv"):
+    print("=" * 60)
+    print("STREAMING SIMULATION RESULTS")
+    print("=" * 60)
+    
+    # Read data
+    data = []
+    with open(filename, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            row['age'] = int(row['age'])
+            row['income'] = int(row['income'])
+            row['alive'] = row['alive'].lower() == 'true'
+            data.append(row)
+    
+    alive = [p for p in data if p['alive']]
+    dead = [p for p in data if not p['alive']]
+    
+    print(f"\n📊 Population: {len(data):,}")
+    print(f"  Alive: {len(alive):,} ({len(alive)/len(data)*100:.1f}%)")
+    print(f"  Dead:  {len(dead):,} ({len(dead)/len(data)*100:.1f}%)")
+    
+    # Age distribution
+    print(f"\n🎂 Age Distribution:")
+    age_groups = [(18, 30), (30, 50), (50, 65), (65, 90)]
+    labels = ["18-29", "30-49", "50-64", "65+"]
+    
+    for label, (low, high) in zip(labels, age_groups):
+        count = len([p for p in alive if low <= p['age'] < high])
+        if count > 0:
+            print(f"  {label}: {count:,} ({count/len(alive)*100:.1f}%)")
+    
+    # Income stats
+    incomes = [p['income'] for p in alive]
+    print(f"\n💰 Income Statistics:")
+    print(f"  Mean:  ${statistics.mean(incomes):,.0f}")
+    print(f"  Median: ${statistics.median(incomes):,.0f}")
+    print(f"  Min:   ${min(incomes):,.0f}")
+    print(f"  Max:   ${max(incomes):,.0f}")
+    
+    # Check if sorting worked (optional)
+    print(f"\n📂 Checking Areas:")
+    areas = sorted(set([p['area'] for p in data]))
+    print(f"  Number of areas: {len(areas)}")
+    for area in areas[:5]:  # Show first 5
+        count = len([p for p in data if p['area'] == area])
+        print(f"  {area}: {count:,} people")
+    if len(areas) > 5:
+        print(f"  ... and {len(areas)-5} more areas")
+
+if __name__ == "__main__":
+    analyze_results()</code></pre>
+
+    <p>Run it:</p>
+    <pre><code>python3 analyze_streaming_results.py</code></pre>
+
+    <hr>
+
+    <h2>Step 6: Scale Up Your Simulation</h2>
+
+    <h3>Increase Population to 1 Million</h3>
+    <p>Edit <code>generate_streaming_population.py</code>:</p>
+    <pre><code>generate_population(1000000, "population_streaming.csv")  # 1 million</code></pre>
+
+    <h3>Still Only ~20MB Memory!</h3>
+    <p>
+        The beauty of streaming mode: regardless of whether you have 100,000 or 100 million
+        people, memory usage stays the same.
+    </p>
+
+    <h3>Check the File Size</h3>
+    <pre><code>ls -lh population_streaming.csv</code></pre>
+
+    <table>
+        <thead><tr><th>Population</th><th>File Size</th></tr></thead>
+        <tbody>
+            <tr><td>100K</td><td>~5MB</td></tr>
+            <tr><td>1M</td><td>~50MB</td></tr>
+            <tr><td>10M</td><td>~500MB</td></tr>
+            <tr><td>100M</td><td>~5GB</td></tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Streaming Mode Best Practices</h2>
+
+    <h3>1. Sort Your CSV by Area</h3>
+    <p><strong>CRITICAL:</strong> Streaming mode requires the CSV to be sorted by the area column.</p>
+
+    <p><strong>How to sort:</strong></p>
+    <pre><code># Linux/macOS
+(head -n1 population.csv && tail -n+2 population.csv | sort -t, -k6 -n) > population_sorted.csv
+
+# Python
+import pandas as pd
+df = pd.read_csv('population.csv')
+df_sorted = df.sort_values('area')
+df_sorted.to_csv('population_sorted.csv', index=False)</code></pre>
+
+    <h3>2. Choose Your Area Column Wisely</h3>
+    <table>
+        <thead><tr><th>Area Type</th><th>Example</th><th>Good For</th></tr></thead>
+        <tbody>
+            <tr><td>Administrative</td><td>County, District</td><td>Policy analysis</td></tr>
+            <tr><td>Geographic</td><td>Region, State</td><td>Regional comparisons</td></tr>
+            <tr><td>Grid</td><td>1km grid cells</td><td>Spatial modeling</td></tr>
+            <tr><td>Random</td><td>Area_001, Area_002</td><td>Memory testing</td></tr>
+        </tbody>
+    </table>
+
+    <h3>3. Use Meaningful Area Names</h3>
+    <pre><code>simulation:
+  area_column: "region"  # Good: north, south, east, west
+  # area_column: "area_id"  # Also good: 1, 2, 3, ...</code></pre>
+
+    <h3>4. Monitor Performance</h3>
+    <p>If streaming mode is slow:</p>
+    <ul>
+        <li>Check your CSV is sorted properly</li>
+        <li>Use fewer areas (more people per area)</li>
+        <li>Use traditional mode for smaller populations (&lt; 1M)</li>
+    </ul>
+
+    <hr>
+
+    <h2>Performance Tips</h2>
+
+    <h3>Tip 1: Use Fewer Areas</h3>
+    <p>More areas = more files = slower. Use 10-100 areas for best performance.</p>
+
+    <h3>Tip 2: Batch Processing</h3>
+    <p>Hekate automatically batches by area. No additional configuration needed!</p>
+
+    <h3>Tip 3: SSD Storage</h3>
+    <p>Use SSD storage for large populations (HDD will be slower).</p>
+
+    <h3>Tip 4: Reduce Verbose Output</h3>
+    <p>Set <code>verbose: false</code> for large simulations:</p>
+    <pre><code>simulation:
+  verbose: false  # Faster for big populations</code></pre>
+
+    <hr>
+
+    <h2>When to Use Streaming vs Traditional</h2>
+    <table>
+        <thead><tr><th>Factor</th><th>Use Streaming</th><th>Use Traditional</th></tr></thead>
+        <tbody>
+            <tr><td>Population Size</td><td>&gt; 1 million</td><td>&lt; 1 million</td></tr>
+            <tr><td>Memory Available</td><td>&lt; 8GB</td><td>&gt; 8GB</td></tr>
+            <tr><td>Areas</td><td>Many (&gt;10)</td><td>Few or none</td></tr>
+            <tr><td>Speed Priority</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Development</td><td>No</td><td>Yes (faster)</td></tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Bulk vs Streaming: A Note on Reproducibility</h2>
+    <p>
+        Both modes are fully reproducible given a <code>random_seed</code>, but they
+        <strong>produce different results for the same config</strong>. The seed formulas
+        differ:
+    </p>
+    <ul>
+        <li>
+            <strong>Bulk mode:</strong> <code>seed = random_seed + iteration × 1000 +
+            model_index</code>
+        </li>
+        <li>
+            <strong>Streaming mode:</strong> <code>area_seed = random_seed + year × 100000 +
+            area_count</code>, then <code>model_seed = area_seed + model_index</code>
+        </li>
+    </ul>
+    <p>
+        In streaming mode, <code>area_count</code> is the 0-based position of the area in
+        the sorted CSV, not the area's identifier. So reordering the rows in your CSV changes
+        the results. This is deterministic given the file's sort order, but it isn't
+        invariant to it.
+    </p>
+    <p>
+        The practical consequence: don't switch modes mid-project and expect the same
+        numbers. If you want per-iteration snapshots that persist across runs, use bulk mode
+        with <code>output_every_iteration: true</code>.
+    </p>
+
+    <hr>
+
+    <h2>Troubleshooting</h2>
+
+    <h3>"ERROR: area_column is required when streaming_mode is true"</h3>
+    <pre><code>simulation:
+  area_column: "area"  # Add this!</code></pre>
+
+    <h3>"area column 'area' not found"</h3>
+    <p>Check your CSV header. Make sure the column name matches exactly.</p>
+
+    <h3>"CSV is not sorted by area column 'area'"</h3>
+    <p>
+        Hekate detected an area value smaller than the previous one. Sort the file first —
+        see "Sort Your CSV by Area" above.
+    </p>
+
+    <h3>Streaming mode is slow</h3>
+    <ul>
+        <li>Ensure CSV is properly sorted by area</li>
+        <li>Use fewer areas (10-100 recommended)</li>
+        <li>Set <code>verbose: false</code></li>
+    </ul>
+
+    <h3>Out of disk space</h3>
+    <p>
+        Intermediate files add up during the run, but Hekate deletes them automatically at
+        the end. If a run crashes midway, clean up manually:
+    </p>
+    <pre><code>rm year_*.csv  # After a crashed run</code></pre>
+
+    <h3>Memory usage is high</h3>
+    <p>
+        Check that <code>streaming_mode: true</code> is set. If false, it loads everything
+        at once.
+    </p>
+
+    <hr>
+
+    <h2>Summary</h2>
+    <p>You've learned how to:</p>
+    <ol>
+        <li>✅ Enable streaming mode in Hekate</li>
+        <li>✅ Generate large populations sorted by area</li>
+        <li>✅ Run simulations with minimal memory</li>
+        <li>✅ Monitor memory usage during runs</li>
+        <li>✅ Analyze results from streaming simulations</li>
+        <li>✅ Scale from 100K to millions of people</li>
+        <li>✅ Troubleshoot common streaming issues</li>
+    </ol>
+
+    <h3>Key Takeaway</h3>
+    <p>
+        <strong>With Hekate's streaming mode, you're no longer limited by memory!</strong>
+        You can simulate populations of any size on standard hardware.
+    </p>
+
+    <hr>
+
+    <h2>Next Steps</h2>
+    <ul>
+        <li>Try the full 1 million person simulation</li>
+        <li>Add more complex models (fertility, migration, etc.)</li>
+        <li>Compare streaming vs traditional mode performance</li>
+        <li>Run simulations with different area counts</li>
+        <li>Experiment with different population distributions</li>
+    </ul>
+
+    <h2>Complete Example</h2>
+    <p>Here's a complete setup for a 1 million person simulation:</p>
+    <pre><code># config_streaming_full.yaml
+simulation:
+  iterations: 10
+  population_file: population_1m.csv
+  output_file: output_1m.csv
+  random_seed: 42
+  verbose: false
+  id_column: id
+  area_column: area
+  streaming_mode: true
+
+models:
+  - name: aging_model
+    type: lua_model
+    priority: 1
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                if alive then
+                    person.age = person.age + 1
+                end
+            end
+            return population
+        end
+
+  - name: income_model
+    type: lua_model
+    priority: 2
+    enabled: true
+    parameters:
+      coefficients:
+        intercept: 20000
+        age: 300
+      script: |
+        function transition(population, params)
+            local coefs = params.coefficients
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                if alive then
+                    local age = tonumber(person.age) or 30
+                    local income = linear_predict(
+                        coefs.intercept,
+                        coefs.age, age
+                    )
+                    person.income = math.floor(income + 0.5)
+                end
+            end
+            return population
+        end</code></pre>
+
+    <p>Run it:</p>
+    <pre><code># Generate 1 million people
+python3 generate_streaming_population.py  # Modify to 1000000
+
+# Run the simulation
+./hekate-linux-amd64 config_streaming_full.yaml
+
+# Analyze
+python3 analyze_streaming_results.py</code></pre>
+
+    <div class="callout">
+        <strong>Congratulations!</strong> You now have the power to simulate populations of
+        any size with Hekate's streaming mode! 🚀
+    </div>
+
+    <div class="bottomnav">
+        <a href="tutorial_4_regression.html">← Tutorial 4: Regression and Statistical Functions</a>
+        <a href="tutorial_6_stats.html">Tutorial 6: Using Hekate's Statistical Toolkit →</a>
+    </div>
+
+    <div class="footer">
+        MIT License · Authors: Nik Lomax, Alison Heppenstall, Hugh Rice, Andreas Hoehn, Ric Colasanti
+    </div>
+
+</div>
+</body>
+</html>

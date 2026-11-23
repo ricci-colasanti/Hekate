@@ -1,15 +1,9 @@
 <div align="left">
-  <img src="img/hekate_dev.jpeg" alt="Hekate Logo" width="900" height="300">
+  <img src="img/Hekate.png" alt="Hekate Logo" width="900" height="300">
   <p><em>Hekate — Microsimulation Engine</em></p>
 </div>
 
-# Hekate — Microsimulation Engine - dev
-
-## Draw Functions (Temporary Tutorial)
-
-Hekate 0.9.2 introduces nine statistical draw functions — `logistic_draw`, `categorical_draw`, `poisson_draw`, `normal_draw`, `standard_normal_draw`, `uniform_draw`, `exponential_draw`, `bernoulli_draw`, and `lognormal_draw` — all available as bare globals (no `hekate_stats.` prefix). A temporary tutorial with a runnable example config for each function, plus one worked example combining `normal_draw` with `hekate_lookup`, is available here: [Temporary Tutorial: The Draw Functions](DrawTutorial.md). A full tutorial and updated API reference will follow.
-
-
+# Hekate — Microsimulation Engine
 
 Named after the Greek goddess of crossroads, magic, and transitions, Hekate is a self-contained, dynamically configurable demographic microsimulation system written in Go. **Hekate is a general-purpose microsimulation engine** that can simulate population dynamics including migration, aging, mortality, fertility, and other demographic processes. The name reflects the engine's purpose—guiding populations through the crossroads of life events and demographic transitions.
 
@@ -143,7 +137,7 @@ No installation. No compilation. Just download and run.
 
 ### Step 1: Download the Binary
 
-Pick the binary for your platform from the [latest release](https://github.com/your-repo/hekate/releases/latest):
+Pick the binary for your platform from the [latest release](https://github.com/ricci-colasanti/Hekate/releases/latest):
 
 | Platform | Download |
 |----------|----------|
@@ -183,7 +177,7 @@ person_id,age,sex,area_id,alive
 10,70,M,1,true
 ```
 
-**`config.yaml`** — a simple aging + mortality model:
+**`config.yaml`** — an aging + income + mortality model. It uses three of Hekate's built-in statistical functions: `linear_predict`, `normal_draw`, and `bernoulli_draw`.
 
 ```yaml
 simulation:
@@ -211,18 +205,43 @@ models:
           return population
         end
 
-  - name: "mortality"
+  - name: "income"
     type: "lua_model"
     priority: 2
     enabled: true
-    description: "Age-based mortality"
+    description: "Income = 15000 + 300*age + normal noise (sd 4000)"
     parameters:
+      base_mean: 15000
+      age_coef: 300
+      sd: 4000
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              local age = tonumber(person.age) or 0
+              local mean = linear_predict(params.base_mean, params.age_coef, age)
+              person.income = normal_draw(mean, params.sd)
+            end
+          end
+          return population
+        end
+
+  - name: "mortality"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    description: "Bernoulli mortality: 1% base + 0.5% per decade of age"
+    parameters:
+      base_hazard: 0.01
+      decade_coef: 0.005
       script: |
         function transition(population, params)
           for _, person in ipairs(population) do
             if person.alive == true or person.alive == "true" then
               local age = tonumber(person.age) or 40
-              if hekate_stats.logistic_draw(-6.0, 0.09, age) then
+              local p = params.base_hazard + params.decade_coef * (age / 10)
+              if p > 0.5 then p = 0.5 end
+              if bernoulli_draw(p) then
                 person.alive = false
               end
             end
@@ -260,20 +279,22 @@ Population file: population.csv
 ID column: person_id
 Mode: BULK (load all into memory)
 Random seed: 42
-Models loaded: 2
-Enabled models: 2
+Models loaded: 3
+Enabled models: 3
   - aging (priority: 1)
-  - mortality (priority: 2)
+  - income (priority: 2)
+  - mortality (priority: 3)
 
 ════════════════════════════════════════════════════════
   Lua Script Pre-Flight Validation
 ════════════════════════════════════════════════════════
 
   ✅ aging                          (priority: 1)
-  ✅ mortality                      (priority: 2)
+  ✅ income                         (priority: 2)
+  ✅ mortality                      (priority: 3)
 
 ════════════════════════════════════════════════════════
-  ✅ All 2 models validated successfully
+  ✅ All 3 models validated successfully
 ════════════════════════════════════════════════════════
 
 ════════════════════════════════════════════════════════
@@ -283,10 +304,11 @@ Enabled models: 2
   CSV columns: person_id, age, sex, area_id, alive
 
   ✅ aging                          (priority: 1)
-  ✅ mortality                      (priority: 2)
+  ✅ income                         (priority: 2)
+  ✅ mortality                      (priority: 3)
 
 ════════════════════════════════════════════════════════
-  ✅ All 2 models reference valid columns
+  ✅ All 3 models reference valid columns
 ════════════════════════════════════════════════════════
 
 --- Using Bulk Processing (load all into memory) ---
@@ -294,6 +316,7 @@ Loaded 10 individuals with 5 columns
 
 ═══ Iteration 1/5 ═══
   ▶ aging
+  ▶ income
   ▶ mortality
 ...
 
@@ -303,21 +326,23 @@ Results saved to output.csv
 
 ### Step 4: Open the Result
 
-Open `output.csv` in any spreadsheet app or text editor. You'll see the same 10 people, but **5 years older** — and some will have died:
+Open `output.csv` in any spreadsheet app or text editor. You'll see the same 10 people, but **5 years older**, with an `income` column added, and some will have died:
 
 ```csv
-person_id,age,sex,area_id,alive
-1,30,F,1,true
-2,35,M,1,true
-3,50,F,1,true
-4,73,M,1,true
-5,87,F,1,false   ← died
-6,7,M,1,true
-7,20,F,1,true
-8,40,M,1,true
-9,60,F,1,true
-10,75,M,1,true
+person_id,age,sex,area_id,alive,income
+1,30,F,1,true,24685.2518
+2,35,M,1,true,24523.7249
+3,50,F,1,true,27813.0868
+4,73,M,1,true,33257.0189
+5,87,F,1,false,
+6,7,M,1,true,17121.9789
+7,20,F,1,true,22423.5864
+8,40,M,1,true,25513.8577
+9,60,F,1,true,29392.0931
+10,75,M,1,true,
 ```
+
+(Exact values will vary with the seed. Person 5's income is blank because she died during the run — `income` is only assigned to people still alive at the moment the income model ran.)
 
 **That's it.** You've just run a demographic microsimulation in under 5 minutes.
 
@@ -349,7 +374,6 @@ See [Streaming Mode](#-streaming-mode-for-large-populations) for details.
 
 ---
 
-
 ### Tutorials
 
 Get started with Hekate through our step-by-step tutorials. Each tutorial builds on the previous one, taking you from beginner to advanced user.
@@ -359,10 +383,10 @@ Get started with Hekate through our step-by-step tutorials. Each tutorial builds
 | [Tutorial 1: Building an Aging Model](tutorials/tutorial1_aging.md) | Learn the basics by creating a simple aging model. You'll create a population CSV, write your first configuration, run the simulation, and analyze the output. | ⭐ Beginner |
 | [Tutorial 2: Understanding YAML and Adding Mortality](tutorials/tutorial2_yaml_mortality.md) | Dive deeper into YAML rules. Learn how to add a mortality model with age-specific death probabilities and track population changes. | ⭐⭐ Intermediate |
 | [Tutorial 3: Adding Fertility](tutorials/tutorial3_fertility.md) | Complete the demographic cycle by adding fertility. Learn how to create new individuals (births), assign their characteristics, track population growth, and understand the full demographic cycle of aging, mortality, and fertility. | ⭐⭐⭐ Advanced |
-| [Tutorial 4: Regression and Statistical Functions](tutorials/totorial_4_regression.md) | Learn how to use Hekate's statistical toolkit — linear regression, logistic regression, Poisson regression, and softmax — to build realistic models of income, health, education, and fertility. | ⭐⭐⭐ Advanced |
-| [Tutorial 5: Large-Scale Simulations with Streaming Mode](tutorials/totorial_5_streaming.md) | Learn how to use Hekate's streaming mode to simulate populations of millions to billions of people with minimal memory. Includes performance tuning, area-based processing, and best practices for large-scale runs. | ⭐⭐⭐⭐ Advanced User |
+| [Tutorial 4: Regression and Statistical Functions](tutorials/tutorial_4_regression.md) | Learn how to use Hekate's statistical toolkit — linear regression, logistic regression, Poisson regression, and softmax — to build realistic models of income, health, education, and fertility. | ⭐⭐⭐ Advanced |
+| [Tutorial 5: Large-Scale Simulations with Streaming Mode](tutorials/tutorial_5_streaming.md) | Learn how to use Hekate's streaming mode to simulate populations of millions to billions of people with minimal memory. Includes performance tuning, area-based processing, and best practices for large-scale runs. | ⭐⭐⭐⭐ Advanced User |
 | [Tutorial 6: Using Hekate's Statistical Toolkit](tutorials/tutorial_6_stats.md) | Build regression-based models from published coefficients — linear for income, logistic for mortality, Poisson for fertility, softmax for education. Includes a complete worked example combining all four techniques. | ⭐⭐⭐⭐ Advanced |
-
+| [Tutorial 7: The Draw Functions](tutorials/tutorial7_draws.md) | A runnable tour of all nine draw functions — `logistic_draw`, `categorical_draw`, `poisson_draw`, `normal_draw`, `standard_normal_draw`, `uniform_draw`, `exponential_draw`, `bernoulli_draw`, `lognormal_draw` — each with its own config, plus a worked example combining `normal_draw` with `hekate_lookup`. | ⭐⭐⭐⭐ Advanced |
 
 ---
 
@@ -389,7 +413,7 @@ Hekate is a **general-purpose microsimulation engine** that models population dy
 - **Flexible Model Logic**: Easily modify or add new models through YAML configuration
 - **Priority-Based Execution**: Models run in specified priority order
 - **Dynamic Data Handling**: Automatically detects and adapts to any CSV column structure
-- **8 Built-in Statistical Functions**: Linear, logistic, Poisson, softmax regression plus sampling functions
+- **14 Built-in Statistical Functions**: Linear, logistic, Poisson, and softmax regression (5 prediction functions) plus 9 draw functions covering the most common distributions.
 
 ### Example Models
 
@@ -401,7 +425,7 @@ Hekate can model a wide range of demographic processes. Here are some examples:
 
 ```lua
 if person.sex == "F" and age >= 15 and age <= 50 then
-    local children = hekate_stats.poisson_draw(
+    local children = poisson_draw(
         -1.5,
         0.05, age,
         0.5, married_score
@@ -413,7 +437,7 @@ end
 **Mortality Model (Using Logistic Draw)** — People die based on age-specific death probabilities:
 
 ```lua
-if hekate_stats.logistic_draw(
+if logistic_draw(
     -3.5,
     1.2, age / 10,
     0.8, bmi_score
@@ -422,33 +446,33 @@ if hekate_stats.logistic_draw(
 end
 ```
 
+**Income Model (Using Normal Draw + Linear Regression)** — People earn income around a regression-predicted mean, with Gaussian noise:
+
+```lua
+local mean = linear_predict(
+    coefs.intercept,
+    coefs.age, person.age,
+    coefs.education, edu_score
+)
+person.income = normal_draw(mean, coefs.sd)
+```
+
 **Education Model (Using Softmax + Categorical Draw)** — Children transition through education levels:
 
 ```lua
-local probs = hekate_stats.softmax_predict(
+local probs = softmax_predict(
     {0.5, 0.1, age, -0.2, parent_edu},
     {1.0, 0.3, age, 0.5, parent_edu},
     {0.2, 0.5, age, 0.8, parent_edu}
 )
-local idx = hekate_stats.categorical_draw(probs[1], probs[2], probs[3])
+local idx = categorical_draw(probs[1], probs[2], probs[3])
 person.education = ({"primary", "secondary", "tertiary"})[idx]
-```
-
-**Income Model (Using Linear Regression)** — People earn income based on age, education, and sex:
-
-```lua
-person.income = hekate_stats.linear_predict(
-    coefs.intercept,
-    coefs.age, person.age,
-    coefs.education, edu_score,
-    coefs.gender, gender_score
-)
 ```
 
 **Health Risk Model (Using Logistic Regression)** — Health risk is calculated using logistic regression with multiple risk factors:
 
 ```lua
-local risk = hekate_stats.logistic_predict(
+local risk = logistic_predict(
     coefs.intercept,
     coefs.age, age / 10,
     coefs.bmi, bmi_score,
@@ -480,6 +504,8 @@ simulation:
   streaming_mode: true              # Enable streaming area-by-area processing
   strict_mode: false                # Treat validation warnings as errors (CI)
   skip_validation: false            # Disable pre-flight Lua validation
+  data_dir: "data"                  # Base directory for model datafiles
+  output_every_iteration: true      # Write output_N.csv after each iteration (bulk mode only)
 ```
 
 | Setting | Description | Default |
@@ -495,12 +521,19 @@ simulation:
 | `strict_mode` | Treat validation warnings as errors | `false` |
 | `skip_validation` | Skip pre-flight Lua and column validation | `false` |
 | `validation_log_file` | Path to write the failure report | `hekate_validation.log` |
+| `data_dir` | Base directory for model datafile paths | (empty) |
+| `output_every_iteration` | Write `output_N.csv` after every iteration | `false` |
 
-**When to use streaming mode:**
-- Population > 1 million
-- Limited memory available
-- Large number of areas
-- Running on low-cost hardware
+#### ⚠️ Path conventions — read this before setting `population_file` or `datafile`
+
+Hekate resolves two file paths differently, and the asymmetry is deliberate for 0.9.x:
+
+| Config key | Resolved against | Example |
+|------------|------------------|---------|
+| `simulation.population_file` | **The process CWD** — include `data/` in the path if the file is in `data/` | `population_file: "data/population.csv"` |
+| `model.datafile` | **`simulation.data_dir`** — do **not** include `data/` in the path | `datafile: "lookup.csv"` (with `data_dir: "data"`) |
+
+If you set `data_dir: "data"` and then write `datafile: "data/foo.csv"`, Hekate will look for `data/data/foo.csv` and fail. The datafile validator prints the resolved absolute path on failure (`└─ resolved as: /full/path/data/data/foo.csv`) specifically so this class of bug is diagnosed in seconds. This is a known wart; it's slated for change in a future release.
 
 #### Model Definitions
 
@@ -513,7 +546,9 @@ Models define demographic transitions using Lua scripts. Each model has:
 | `priority` | Execution order (lower runs first) |
 | `enabled` | Whether to run this model |
 | `description` | Human-readable description |
+| `datafile` | Optional CSV file, resolved against `data_dir` |
 | `parameters.script` | The Lua `transition(population, params)` function |
+| *(other `parameters.*` keys)* | Free-form data, exposed to Lua as `params.<key>` |
 
 Here's a complete example with multiple models:
 
@@ -528,7 +563,7 @@ models:
         function transition(population, params)
           for _, person in ipairs(population) do
             if person.alive == true or person.alive == "true" then
-              person.age = tonumber(person.age) + 1
+              person.age = (tonumber(person.age) or 0) + 1
             end
           end
           return population
@@ -544,7 +579,7 @@ models:
           for _, person in ipairs(population) do
             if person.alive == true or person.alive == "true" then
               local age = tonumber(person.age) or 40
-              if hekate_stats.logistic_draw(
+              if logistic_draw(
                 -4.0,
                 0.08, age
               ) then
@@ -566,7 +601,7 @@ models:
             if (person.alive == true or person.alive == "true") and person.sex == "F" then
               local age = tonumber(person.age) or 30
               if age >= 15 and age <= 50 then
-                local children = hekate_stats.poisson_draw(
+                local children = poisson_draw(
                   -1.5,
                   0.05, age
                 )
@@ -620,7 +655,7 @@ person_id,age,sex,area_id,alive,previous_area
 
 #### Sorting for Streaming Mode
 
-**IMPORTANT:** For streaming mode to work, your CSV must be **sorted by `area_column`**:
+**IMPORTANT:** For streaming mode to work, your CSV must be **sorted by `area_column`**. Hekate validates this at runtime: if it encounters an area value smaller than the previous one, it aborts with `CSV is not sorted by area column 'X'`. The sort is enforced, not just recommended.
 
 ```
 area_id 1: person 1, person 2, person 3, ...
@@ -653,26 +688,31 @@ The final population state is saved as CSV with all columns preserved, including
 
 **Note:** The output CSV is always ordered by the ID column specified in the configuration.
 
-#### Intermediate Files (Streaming Mode)
-When running in streaming mode, Hekate creates intermediate files for each year:
+#### Intermediate Files
+
+Hekate can produce intermediate CSV files, but the mechanism differs between modes.
+
+**Bulk mode: `output_every_iteration: true`**
+
+When this flag is set, after every iteration Hekate writes a snapshot derived from your `output_file` name:
 
 ```
-year_0.csv  → Initial population (input)
-year_1.csv  → After year 1
-year_2.csv  → After year 2
-year_3.csv  → After year 3
-...
-final_output.csv → Copy of last year's file
+output_file: "output.csv"
+→ output_1.csv, output_2.csv, …, output_<iterations>.csv
+→ output.csv (written after the final iteration)
 ```
 
-These files allow you to:
-- Resume simulations from any year
-- Check intermediate results
-- Debug models more easily
+For `output_file: "results/final.csv"`, the snapshots are `results/final_1.csv`, `results/final_2.csv`, and so on. Snapshots use the same column discovery and ID-sort rules as the final output, so any two are directly comparable.
+
+`output_every_iteration` is **ignored in streaming mode** (see below).
+
+**Streaming mode: `year_N.csv` intermediates**
+
+In streaming mode, Hekate writes `year_1.csv`, `year_2.csv`, …, `year_<iterations>.csv` as it processes each year. These are **working files**: after the run finishes, Hekate copies the last one to `output_file` and then **deletes all `year_N.csv` files.** They are not intended for inspection. If you want per-iteration snapshots from a streaming run, use bulk mode, or modify the streaming code.
 
 ### Pre-Flight Validation
 
-Before running any simulation, Hekate performs **two-stage validation** to catch common mistakes in milliseconds — saving you from hours of wasted computation.
+Before running any simulation, Hekate performs **three-stage validation** to catch common mistakes in milliseconds — saving you from hours of wasted computation.
 
 #### Why This Matters
 
@@ -684,9 +724,19 @@ Hekate compiles every Lua script in a throwaway VM and checks:
 
 - ✅ **Syntax is valid** — no missing `end` keywords, unbalanced brackets, etc.
 - ✅ **A `transition` function exists** — the entry point Hekate needs
-- ⚠️ **Common mistakes** — using `#` for comments, calling `math.randomseed()`
+- ⚠️ **Common mistakes** — using `#` for comments, calling `math.randomseed()`, reading CSVs with `io.lines()` when a `datafile:` would do
 
-#### Stage 2: Column Name Validation
+#### Stage 2: Datafile Validation
+
+For every enabled model with a `datafile:`, Hekate resolves the path against `data_dir` and checks the file exists and is a regular file. Failures show:
+
+- The path as written in the YAML
+- The resolved absolute path
+- A "did you mean" suggestion based on files actually present in `data_dir`
+
+This stage also rejects `datafile` paths that are absolute or escape `data_dir` via `..`. (See [Path conventions](#️-path-conventions--read-this-before-setting-population_file-or-datafile).)
+
+#### Stage 3: Column Name Validation
 
 Hekate scans every script for `person.COLUMN` references and compares them against your CSV header. It catches:
 
@@ -800,7 +850,7 @@ Next steps:
 
 ### Reproducibility Guarantees
 
-**Hekate produces scientifically reproducible results.** When you set a `random_seed` in your configuration, running the same simulation twice will produce byte-for-byte identical output, no matter when, where, or how many times you run it.
+**Hekate produces scientifically reproducible results.** When you set a `random_seed` in your configuration, running the same simulation twice will produce byte-for-byte identical output, no matter when, where, or how many times you run it — *in the same execution mode*.
 
 #### The Promise
 
@@ -828,16 +878,27 @@ diff run1.csv run2.csv
 
 #### How It Works
 
-Hekate uses a **dedicated random number generator (RNG)** for each Lua VM instance, seeded deterministically for each model execution:
+Hekate uses a **dedicated random number generator (RNG)** for each Lua VM instance, seeded deterministically for each model execution. The seed formula differs by mode:
 
+**Bulk mode:**
 ```
-seed = random_seed + (iteration × 1000) + model_index
+seed = random_seed + iteration × 1000 + model_index
 ```
+
+**Streaming mode:**
+```
+area_seed  = random_seed + year × 100000 + area_count
+model_seed = area_seed + model_index
+```
+
+(`area_count` is the 0-based position of the area in the sorted CSV, not the area's identifier. Reordering the CSV changes the results.)
 
 This ensures:
 1. **No dependency on system time** or global random state
 2. **Independent randomness** between different models
-3. **Fully reproducible** results across runs, machines, and time
+3. **Fully reproducible** results across runs, machines, and time (within a mode)
+
+> **⚠️ Bulk and streaming modes produce different results for the same config.** The seed formulas differ (different multipliers, different dimensions), so if you switch modes mid-project, expect different numbers. Both are reproducible, but they are not interchangeable.
 
 #### Requirements for Reproducibility
 
@@ -846,10 +907,11 @@ For reproducible results, you must:
 | Requirement | Why |
 |-------------|-----|
 | **Set `random_seed` in config.yaml** | Provides the base for all derived seeds |
-| **Use `math.random()` in Lua scripts** | Automatically mapped to the VM's dedicated RNG |
+| **Use `math.random()` or any `*_draw()` function in Lua scripts** | Both are backed by the VM's dedicated RNG |
 | **Avoid external randomness** | No `os.time()`, network calls, or filesystem state in models |
 | **Never call `math.randomseed()`** | Hekate handles seeding automatically; calling it manually can break reproducibility |
-| **Use the same version of Hekate** | Future versions may change behavior |
+| **Use the same Hekate version** | Future versions may change behaviour |
+| **Use the same execution mode** | Bulk and streaming derive seeds differently |
 
 #### Verifying Reproducibility
 
@@ -934,7 +996,13 @@ simulation:
   # ... other settings
 ```
 
-**Important:** Your CSV must be **sorted by `area_column`** for streaming mode to work. All people in the same area must be together in the file.
+**Important:** Your CSV must be **sorted by `area_column`** for streaming mode to work. All people in the same area must be together in the file. Hekate enforces this — an unsorted file aborts the run with a clear error.
+
+#### Limitations of Streaming Mode
+
+- **`output_every_iteration` is ignored.** Streaming mode writes `year_N.csv` working files during the run and deletes them afterwards. If you need per-iteration snapshots, use bulk mode.
+- **Seed formula differs from bulk mode.** See [Reproducibility](#how-it-works) for details. Results are not comparable across modes.
+- **`area_count` is positional.** Reordering the rows in your CSV (even keeping the same people in the same areas) changes the seeds and therefore the results.
 
 #### When to Use Streaming Mode
 
@@ -954,23 +1022,25 @@ simulation:
 
 ### Built-in Statistical Functions
 
-Hekate provides a comprehensive statistical toolkit that you can call directly from your Lua scripts. All functions are implemented in Go for speed, numerical accuracy, and **reproducibility**.
+Hekate provides **14 statistical functions**, all implemented in Go for speed, numerical accuracy, and **reproducibility**. They are all exposed to Lua as **bare globals** — no prefix. Write `normal_draw(0, 1)`, not `hekate_stats.normal_draw(0, 1)`.
+
+> **⚠️ Migrating from 0.9.1:** In 0.9.1, these functions lived under the `hekate_stats` table. That table no longer exists. Any config using `hekate_stats.linear_predict(...)` etc. will fail with `attempt to index a nil value (global 'hekate_stats')`. Remove the `hekate_stats.` prefix from every such call. `hekate_rng.*` (for `random`, `randomseed`, `seed`) and `hekate_lookup.*` (for `index`) are unaffected.
 
 #### Function Categories
 
 | Category | Purpose | Randomness? |
 |----------|---------|-------------|
 | **Predictions** (`*_predict`) | Compute a value or probability | No (deterministic) |
-| **Draws** (`*_draw`) | Sample a random outcome | Yes (uses `vm.random`) |
+| **Draws** (`*_draw`, `*_normal_draw`, etc.) | Sample from a distribution | Yes (uses the VM's dedicated RNG) |
 
 #### 📊 Prediction Functions (Deterministic)
 
-**1. Linear Regression: `hekate_stats.linear_predict()`**
+**1. Linear Regression: `linear_predict()`**
 
 Computes: **y = intercept + coef₁×var₁ + coef₂×var₂ + ...**
 
 ```lua
-local result = hekate_stats.linear_predict(
+local result = linear_predict(
     intercept,    -- The constant term
     coef1, var1,  -- First coefficient-variable pair
     coef2, var2,  -- Second coefficient-variable pair
@@ -980,14 +1050,14 @@ local result = hekate_stats.linear_predict(
 
 *Use for:* Income, expenditure, wealth, risk scores, utility calculations.
 
-**2. Linear Predict with Defaults: `hekate_stats.linear_predict_default()`**
+**2. Linear Predict with Defaults: `linear_predict_default()`**
 
 Like `linear_predict()` but handles missing values by substituting a default:
 
 ```lua
-local result = hekate_stats.linear_predict_default(
+local result = linear_predict_default(
     intercept,
-    default_value,  -- Used when variables are nil
+    global_default,       -- Used when a variable is nil and no per-var default given
     coef1, var1, default1,  -- Coef, variable, default if nil
     coef2, var2, default2
 )
@@ -995,12 +1065,12 @@ local result = hekate_stats.linear_predict_default(
 
 *Use for:* Any linear model with missing data.
 
-**3. Logistic Regression: `hekate_stats.logistic_predict()`**
+**3. Logistic Regression: `logistic_predict()`**
 
 Computes: **p = 1 / (1 + e^(-linear))**
 
 ```lua
-local probability = hekate_stats.logistic_predict(
+local probability = logistic_predict(
     intercept,
     coef1, var1,
     coef2, var2,
@@ -1010,12 +1080,12 @@ local probability = hekate_stats.logistic_predict(
 
 *Use for:* Mortality, disease probability, migration likelihood, any binary outcome.
 
-**4. Poisson Regression: `hekate_stats.poisson_predict()`**
+**4. Poisson Regression: `poisson_predict()`**
 
 Computes: **λ = exp(intercept + coef₁×var₁ + ...)** — the expected count for a Poisson-distributed outcome.
 
 ```lua
-local lambda = hekate_stats.poisson_predict(
+local lambda = poisson_predict(
     -1.5,                    -- intercept (base rate)
     0.05, person.age,
     0.5, married_score,
@@ -1025,12 +1095,12 @@ local lambda = hekate_stats.poisson_predict(
 
 *Use for:* Number of children, doctor visits, migrations, events.
 
-**5. Softmax: `hekate_stats.softmax_predict()`**
+**5. Softmax: `softmax_predict()`**
 
 Computes softmax over multiple linear combinations to return probabilities that sum to 1.0.
 
 ```lua
-local probs = hekate_stats.softmax_predict(
+local probs = softmax_predict(
     {base1, coef1a, var1a, coef1b, var1b, ...},  -- category 1
     {base2, coef2a, var2a, coef2b, var2b, ...},  -- category 2
     {base3, coef3a, var3a, coef3b, var3b, ...}   -- category 3
@@ -1040,16 +1110,18 @@ local probs = hekate_stats.softmax_predict(
 
 *Use for:* Education level, marital status, labour market state, migration destination.
 
-#### 🎲 Draw Functions (Use `vm.random` for Reproducibility)
+#### 🎲 Draw Functions
 
-These functions sample from probability distributions and use Hekate's dedicated random source, so they remain fully reproducible.
+All draw functions sample from a probability distribution and use Hekate's dedicated random source, so they remain fully reproducible. Every draw function validates its arguments and raises a Lua error naming the problem and the offending value if the input is invalid.
 
-**6. Logistic Draw: `hekate_stats.logistic_draw()`**
+**The "action" draws** (combine a regression with a sample in one call):
+
+**6. Logistic Draw: `logistic_draw()`**
 
 Logistic predict + Bernoulli sample in one call. Returns `true` if the random draw is less than the computed probability.
 
 ```lua
-if hekate_stats.logistic_draw(
+if logistic_draw(
     -3.5,
     1.2, age / 10,
     0.8, bmi_score,
@@ -1059,48 +1131,120 @@ if hekate_stats.logistic_draw(
 end
 ```
 
-*Use for:* Death events, disease onset, migration events, marriage — anything binary.
+*Use for:* Death events, disease onset, migration events, marriage — anything binary whose probability needs to be computed from a regression.
 
-*Equivalent to:* `logistic_predict()` + `math.random() < p`
+*Equivalent to:* `logistic_predict()` + `bernoulli_draw(p)`
 
-**7. Categorical Draw: `hekate_stats.categorical_draw()`**
+**7. Categorical Draw: `categorical_draw()`**
 
-Sample from a categorical distribution. Returns the 1-based index of the drawn category.
+Sample from a categorical distribution. Returns the 1-based index of the drawn category. Probabilities are auto-normalised if they don't sum to 1.
 
 ```lua
-local idx = hekate_stats.categorical_draw(0.4, 0.5, 0.1)
+local idx = categorical_draw(0.4, 0.5, 0.1)
 local edu_names = {"primary", "secondary", "tertiary"}
 person.education = edu_names[idx]
 ```
 
 *Use for:* Any multi-category outcome where you have probabilities.
 
-**8. Poisson Draw: `hekate_stats.poisson_draw()`**
+**8. Poisson Draw: `poisson_draw()`**
 
-Sample from a Poisson distribution. Returns an integer count.
+Sample from a Poisson distribution. The mean λ is computed from a linear predictor, so this is Poisson regression + sample in one call. Returns a non-negative integer.
 
 ```lua
-local num_children = hekate_stats.poisson_draw(
+local num_children = poisson_draw(
     -1.5,
     0.05, person.age,
     0.5, married_score
 )
 ```
 
-*Use for:* Number of children, events, incidents — any count outcome.
+*Use for:* Number of children, events, incidents — any count outcome whose mean depends on covariates.
+
+**The distribution draws** (sample from a named distribution directly):
+
+**9. Normal Draw: `normal_draw(mean, sd)`**
+
+Sample from N(mean, sd²). **Errors if `sd < 0`.**
+
+```lua
+person.income = normal_draw(30000, 5000)
+```
+
+*Use for:* Continuous quantities whose values cluster symmetrically around a mean — income in the middle of a distribution, height, weight, blood pressure, measurement error. If you've computed a regression prediction and want a plausible spread around it, this is the function to reach for.
+
+**10. Standard Normal Draw: `standard_normal_draw()`**
+
+Sample from N(0, 1) with **no arguments**. `normal_draw(m, s)` is equivalent to `m + s * standard_normal_draw()`.
+
+```lua
+person.weight = 72 + 12 * standard_normal_draw()
+```
+
+*Use for:* When the mean or sd changes per person and you want to do the "mean + sd × z" arithmetic yourself. If mean and sd are fixed, use `normal_draw` directly.
+
+**11. Uniform Draw: `uniform_draw(min, max)`**
+
+Sample from the continuous uniform distribution on [min, max). **Errors if `max <= min`.**
+
+```lua
+local noise = uniform_draw(-2.0, 2.0)   -- ±2 units, flat distribution
+person.weight = 70 + noise
+```
+
+*Use for:* A noise term with no preferred value inside its range, a fraction, a random starting position, jitter in a measurement. For an integer uniform in 1..n, use `math.random(n)` instead.
+
+**12. Exponential Draw: `exponential_draw(rate)`**
+
+Sample from Exponential(rate), mean 1/rate. **Errors if `rate <= 0`.**
+
+```lua
+person.waiting_time_years = exponential_draw(0.2)   -- mean 5 years
+```
+
+*Use for:* Any "how long until the next event?" quantity — time to next job change, time between births, time to equipment failure, waiting time in a queue. The exponential distribution is the standard model for these because of the memorylessness property.
+
+**13. Bernoulli Draw: `bernoulli_draw(p)`**
+
+Returns `true` with probability `p`. **Errors if `p < 0` or `p > 1`.**
+
+```lua
+if bernoulli_draw(0.10) then
+  person.migrated_this_year = true
+end
+```
+
+*Use for:* A yes/no event whose probability you already know — a fixed hazard, a threshold you've decided on, the output of `logistic_predict` (if you want to record the probability *and* make the decision). The difference from `logistic_draw`: `logistic_draw` takes a linear predictor and computes `p` for you; `bernoulli_draw` takes `p` directly.
+
+**14. Lognormal Draw: `lognormal_draw(mu, sigma)`**
+
+Sample from LogNormal(mu, sigma²), i.e. `exp(N(mu, sigma²))`. The result is always positive. **Errors if `sigma < 0`.**
+
+```lua
+local mu = math.log(30000)               -- median = exp(mu) = 30000
+person.income = lognormal_draw(mu, 0.5)  -- right-skewed income
+```
+
+*Use for:* Any positive quantity that is right-skewed — income, wealth, house prices, firm sizes, city sizes, durations. **`mu` and `sigma` are the parameters of the log**, so `median = exp(mu)` and `mean = exp(mu + sigma²/2)`. Use this instead of `normal_draw` whenever the quantity can't be negative and has a long right tail.
 
 #### Summary Table
 
-| # | Function | Type | Returns | Use Case |
-|---|----------|------|---------|----------|
-| 1 | `linear_predict` | Predict | Float | Continuous outcomes |
-| 2 | `linear_predict_default` | Predict | Float | Continuous (with nil handling) |
-| 3 | `logistic_predict` | Predict | Float (0-1) | Binary probability |
-| 4 | `poisson_predict` | Predict | Float (≥0) | Expected count |
-| 5 | `softmax_predict` | Predict | Table | Multi-category probabilities |
-| 6 | `logistic_draw` | Draw | Boolean | Binary outcome + sample |
-| 7 | `categorical_draw` | Draw | Integer (1..N) | Multi-category sample |
-| 8 | `poisson_draw` | Draw | Integer (≥0) | Count sample |
+| # | Function | Type | Returns | Invalid input? |
+|---|----------|------|---------|----------------|
+| 1 | `linear_predict` | Predict | Float | — |
+| 2 | `linear_predict_default` | Predict | Float | — |
+| 3 | `logistic_predict` | Predict | Float (0-1) | — |
+| 4 | `poisson_predict` | Predict | Float (≥0) | — |
+| 5 | `softmax_predict` | Predict | Table | — |
+| 6 | `logistic_draw` | Draw | Boolean | — |
+| 7 | `categorical_draw` | Draw | Integer (1..N) | — |
+| 8 | `poisson_draw` | Draw | Integer (≥0) | — |
+| 9 | `normal_draw(mean, sd)` | Draw | Float | sd < 0 |
+| 10 | `standard_normal_draw()` | Draw | Float | — |
+| 11 | `uniform_draw(min, max)` | Draw | Float | max ≤ min |
+| 12 | `exponential_draw(rate)` | Draw | Float (≥0) | rate ≤ 0 |
+| 13 | `bernoulli_draw(p)` | Draw | Boolean | p ∉ [0, 1] |
+| 14 | `lognormal_draw(mu, sigma)` | Draw | Float (>0) | sigma < 0 |
 
 #### Why Use Go Functions Instead of Pure Lua?
 
@@ -1110,7 +1254,7 @@ local num_children = hekate_stats.poisson_draw(
 | **Precision** | Double precision | Double precision |
 | **Readability** | Clean function call | Complex math code |
 | **Maintainability** | Centralized in Go | Scattered in scripts |
-| **Reproducibility** | Uses `vm.random` | Depends on Lua RNG (broken) |
+| **Reproducibility** | Uses the VM's dedicated RNG | Depends on Lua RNG (broken) |
 | **Error Handling** | Robust type checking | Manual checks needed |
 
 ---
@@ -1166,6 +1310,10 @@ local num_children = hekate_stats.poisson_draw(
 - Verify all rows have the same number of columns
 - Make sure `id_column` matches a column in the CSV
 
+**"CSV is not sorted by area column"**
+- Streaming mode requires the CSV sorted by `area_column`
+- Sort the file: see [Sorting for Streaming Mode](#sorting-for-streaming-mode)
+
 **"Failed to execute Lua script"**
 - Check Lua syntax in the model definition
 - Verify your script defines a `transition(population, params)` function
@@ -1175,25 +1323,28 @@ local num_children = hekate_stats.poisson_draw(
 - Use `tonumber()` to convert string values to numbers
 - Example: `local age = tonumber(person.age) or 0`
 
-**"Attempt to call hekate_stats.logistic_draw on a nil value"**
-- Check that Hekate is a recent version with the draw functions
-- Verify spelling: `hekate_stats.logistic_draw` (with underscore, all lowercase)
+**"attempt to index a nil value (global 'hekate_stats')"**
+- You are using the old 0.9.1 syntax. In 0.9.2 the `hekate_stats` table was removed; all statistical functions are bare globals.
+- Fix: change `hekate_stats.linear_predict(...)` to `linear_predict(...)`, etc.
+- See [Migrating from 0.9.1](#built-in-statistical-functions).
+
+**`normal_draw: sd must be >= 0 (got -1.5)`** (or similar)
+- The draw function rejects the argument. Read the message; it names the parameter and the offending value.
+- `normal_draw` / `lognormal_draw`: sd/sigma must be ≥ 0
+- `uniform_draw`: max must be > min
+- `exponential_draw`: rate must be > 0
+- `bernoulli_draw`: p must be in [0, 1]
 
 **Validation aborted: "column 'agge' not found (did you mean 'age'?)"**
 - The pre-flight validator caught a typo before running
 - Fix the column name in your Lua script
 - See `hekate_validation.log` for full details
 
-**Validation warnings about `tonumber()`**
-- CSV values are loaded as strings; wrap numeric access in `tonumber()`
-- Example: `person.age = (tonumber(person.age) or 0) + 1`
-- Set `strict_mode: true` to make warnings block the run
-
 **Results are not reproducible**
 - Ensure `random_seed` is set in `config.yaml`
-- Ensure you're not using the global `math/rand` package in your Go code
 - **Do not call `math.randomseed()` in Lua scripts** — Hekate handles seeding
 - Check that your Lua scripts don't use `os.time()` or other external state
+- If comparing across modes, note that bulk and streaming use different seed formulas (see [Reproducibility](#how-it-works))
 - Verify you're using the same version of Hekate
 
 **Binary won't run on target system**
@@ -1242,20 +1393,13 @@ Download and install from https://go.dev/dl/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/hekate.git
-cd hekate
-
-# Or create a new project
-mkdir hekate
-cd hekate
+git clone https://github.com/ricci-colasanti/Hekate.git
+cd Hekate/hekate-src
 ```
 
 ### Step 3: Get Dependencies
 
 ```bash
-# Initialize Go module
-go mod init hekate
-
 # Get dependencies (pure-Go Lua, no CGO needed)
 go get github.com/yuin/gopher-lua
 go get gopkg.in/yaml.v3
@@ -1293,32 +1437,6 @@ chmod +x build.sh
 ./build.sh linux        # Build only Linux
 ./build.sh macos-arm    # Build only macOS Apple Silicon
 ./build.sh clean        # Remove all artifacts
-```
-
-Or write your own Makefile:
-
-```makefile
-.PHONY: all linux linux-arm windows mac mac-arm clean
-
-all: linux linux-arm windows mac mac-arm
-
-linux:
-	GOOS=linux GOARCH=amd64 go build -o dist/hekate-linux-amd64 .
-
-linux-arm:
-	GOOS=linux GOARCH=arm64 go build -o dist/hekate-linux-arm64 .
-
-windows:
-	GOOS=windows GOARCH=amd64 go build -o dist/hekate-windows-amd64.exe .
-
-mac:
-	GOOS=darwin GOARCH=amd64 go build -o dist/hekate-darwin-amd64 .
-
-mac-arm:
-	GOOS=darwin GOARCH=arm64 go build -o dist/hekate-darwin-arm64 .
-
-clean:
-	rm -rf dist/
 ```
 
 ### Step 5: Verify Compilation
@@ -1365,14 +1483,18 @@ Hekate is organised into focused files, each with a single responsibility:
 |------|---------|
 | `main.go` | Entry point — parses arguments, loads config, dispatches to simulation mode |
 | `config.go` | Configuration structs, loading, validation |
+| `paths.go` | Datafile path resolution and sandboxing (`ResolveDataPath`) |
 | `lua_vm.go` | **Critical for reproducibility** — LuaVM with dedicated RNG |
 | `lua_conversion.go` | Go ↔ Lua value conversion |
+| `hekate_rng.go` | Self-contained Park-Miller LCG — the deterministic random source |
+| `hekate_stats.go` | Statistical and distribution functions exposed to Lua |
+| `hekate_lookup.go` | `hekate_lookup.index` — nested keyed indexes over datafile rows |
 | `lua_validate.go` | **Pre-flight Lua syntax validation** |
+| `datafile_validate.go` | **Datafile existence validation** |
 | `runtime_validate.go` | **CSV column name validation with fuzzy suggestions** |
-| `hekate_stats.go` | Statistical functions exposed to Lua |
+| `population_io.go` | CSV loading and saving |
 | `simulation_bulk.go` | Bulk simulation mode (loads entire population) |
 | `simulation_streaming.go` | Streaming simulation mode (area-by-area) |
-| `population_io.go` | CSV loading and saving |
 | `helpers.go` | Small utility functions |
 
 **For contributors:** See the extensive comments in each file — especially `lua_vm.go`, which documents the reproducibility design decisions in detail.
@@ -1411,10 +1533,11 @@ models:
 
 To add a new statistical function:
 
-1. Add the function to `hekate_stats.go` (as a method on `HekateStats`)
-2. Register it in `RegisterHekateStats()` in `lua_vm.go`
-3. **If the function uses randomness, use `h.vm.random`** — never the global `rand` package
-4. Document the function signature in this README
+1. Add the method to `HekateStats` in `hekate_stats.go`
+2. Register it in `RegisterHekateStats()` in `lua_vm.go` (as a bare global via `L.SetGlobal(...)`)
+3. **If the function uses randomness, use `h.vm.rng`** — never the global `math/rand` package
+4. Validate your arguments — raise a Lua error naming the parameter and the value if invalid
+5. Document the function signature in this README
 
 ### Reproducibility Rules for Contributors
 
@@ -1423,8 +1546,8 @@ If you contribute to Hekate, please observe these rules:
 | Rule | Why |
 |------|-----|
 | **Never use global `math/rand`** | Go 1.20+ makes it non-reproducible |
-| **Use `vm.random` for all random values** | Ensures reproducibility |
-| **Document any new randomness sources** | Keeps behavior transparent |
+| **Use `h.vm.rng` for all random values** | Ensures reproducibility |
+| **Document any new randomness sources** | Keeps behaviour transparent |
 | **Test with multiple runs** | Verify identical output across runs |
 
 Example test for your contributions:
@@ -1438,11 +1561,11 @@ diff run1.csv run2.csv || echo "REPRODUCIBILITY BROKEN"
 
 #### Important Note for Developers
 
-**Go 1.20+ changed `math/rand.Seed()` to be a no-op.** Hekate handles this internally by using dedicated `rand.Rand` instances, but if you extend Hekate, **never use the global `math/rand` functions**. Always use the VM's random source:
+**Go 1.20+ changed `math/rand.Seed()` to be a no-op.** Hekate handles this internally with a self-contained LCG (`HekateRNG` in `hekate_rng.go`), but if you extend Hekate, **never use the global `math/rand` functions**. Always use the VM's random source:
 
 ```go
 // ✅ CORRECT - Uses the VM's dedicated RNG
-L.Push(lua.LNumber(vm.random.Float64()))
+L.Push(lua.LNumber(vm.rng.Float64()))
 
 // ❌ WRONG - Uses the global RNG (not reproducible)
 L.Push(lua.LNumber(rand.Float64()))
@@ -1488,9 +1611,10 @@ Writing Hekate models is easy, but sometimes you need a little help getting star
 
 The template provides the AI with:
 - **Context**: What Hekate is and how it works
-- **Full statistical toolkit**: All 8 functions with examples
+- **Full statistical toolkit**: All 14 functions with examples
 - **Working models** for aging, mortality, fertility, migration, education, income, and more
-- **Reproducibility guidance**: Never call `math.randomseed()`, always use `hekate_stats.*`
+- **Lookup tables**: How to use `hekate_lookup.index` with `normal_draw` to sample per-group means and SDs
+- **Reproducibility guidance**: Never call `math.randomseed()`, always use `math.random()` or `*_draw`
 - **Common pitfalls**: CSV column types, `tonumber()` usage, and more
 
 ### Example Questions You Can Ask
@@ -1499,7 +1623,8 @@ Once you've pasted the template into your AI assistant, you can ask:
 
 - "I want to add a model where people get married. Women marry at age 20-30, men at 22-35."
 - "I need a fertility model where fertility rates vary by age: 15-19: 2%, 20-24: 8%, 25-29: 10%, 30-34: 8%, 35-39: 4%, 40-44: 1%"
-- "How do I use `hekate_stats.softmax_predict` to model education transitions?"
+- "How do I use `softmax_predict` and `categorical_draw` to model education transitions?"
+- "I have a lookup table of mean income and SD by sex, and I want to draw individual incomes from it — how do I use `hekate_lookup.index` with `normal_draw`?"
 - "I need a household formation model where young adults leave their parents' household."
 
 ### Get the Template

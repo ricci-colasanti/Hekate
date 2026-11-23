@@ -1,8 +1,27 @@
-# Hekate — Temporary Tutorial: The Draw Functions
+# Tutorial 7: The Draw Functions
 
-This is a **temporary tutorial** covering the nine distribution draw functions in Hekate 0.9.2, plus one worked example combining `normal_draw` with `hekate_lookup`. A proper tutorial will follow; this one is designed so you can run each example, inspect the output, and see exactly what each function does.
+## Overview
 
-## What you need
+This tutorial is a hands-on tour of Hekate's nine **distribution draw functions** — `logistic_draw`, `categorical_draw`, `poisson_draw`, `normal_draw`, `standard_normal_draw`, `uniform_draw`, `exponential_draw`, `bernoulli_draw`, and `lognormal_draw` — plus one worked example that combines `normal_draw` with `hekate_lookup`.
+
+Every function has its own runnable config. You can run each one, inspect the output CSV, and see exactly what the function does. Nothing is hidden behind abstraction; the shape of the output tells you the shape of the distribution.
+
+By the end of this tutorial, you'll be able to:
+
+- Recognise which draw function fits which kind of outcome
+- Read and write the YAML for each draw
+- Understand the argument-validation errors each function raises
+- Combine a lookup table with `normal_draw` to sample per-group means and SDs
+- Verify reproducibility for any draw
+
+## Prerequisites
+
+- A working `hekate` binary (0.9.2 or later)
+- Completion of Tutorials 1–3 (or equivalent familiarity with YAML and Lua)
+- Basic understanding of what a probability distribution is — you do **not** need to know the maths, just the shape
+- A text editor and a way to view CSVs
+
+## What you'll need on disk
 
 Ten files in a single directory:
 
@@ -13,50 +32,82 @@ Ten files in a single directory:
 
 You can put them all in one folder. Each config is self-contained; none needs the others.
 
-## Prerequisites
+---
 
-- `hekate` binary (0.9.2 or later)
-- Run every command from the directory containing the files
-- All configs use `random_seed: 42`, so results are reproducible
+## Part 1: Which draw do I need?
 
-## Random seeds
+Before the demos, here's the decision table. It's the most useful page in the tutorial — if you only remember one thing, remember this.
 
-Every config uses `random_seed: 42`. Run any config twice and you'll get byte-identical output   
+| If you want... | Use | Returns |
+|----------------|-----|---------|
+| A yes/no decision whose probability comes from a regression | `logistic_draw(intercept, coef1, var1, ...)` | Boolean |
+| A yes/no decision where you already have `p` in hand | `bernoulli_draw(p)` | Boolean |
+| One of N categories, with probabilities you already have | `categorical_draw(p1, ..., pN)` | Integer (1..N) |
+| A count whose mean comes from a regression | `poisson_draw(intercept, coef1, var1, ...)` | Integer (≥0) |
+| A normal with a fixed mean and sd | `normal_draw(mean, sd)` | Float |
+| A normal whose mean and/or sd varies per person | `mean + sd * standard_normal_draw()` | Float |
+| A positive, right-skewed quantity (income, wealth) | `lognormal_draw(mu, sigma)` | Float (> 0) |
+| A continuous value with no preferred value in a range | `uniform_draw(min, max)` | Float in [min, max) |
+| A waiting time to the next event | `exponential_draw(rate)` | Float (≥ 0), mean 1/rate |
 
-The seeds differ because every model, in every iteration, gets its own independent seed — that's how Hekate ensures each model's random draws are independent from every other model's, while still being fully reproducible. 
-### Why this matters
-Suppose every model got the same seed. Then aging (which draws nothing, in this config) would be harmless, but income_from_lookup and mortality would both start from the same RNG state. mortality draws bernoulli_draw(p) once per living person. If income_from_lookup also drew a number for the first person from the same stream, mortality's first draw would be the second number in the stream, not the first — meaning the income model's per-person draws and the mortality model's per-person draws would be correlated. That's a well-known statistical bug: using the same random numbers for two different decisions couples them in ways that don't reflect reality.
+The three pairs that are easiest to confuse:
 
-## What this tutorial covers
+- **`logistic_draw` vs `bernoulli_draw`**: `logistic_draw` takes a linear predictor and computes `p` for you. `bernoulli_draw` takes `p` directly. If `p` needs to be computed from covariates, use `logistic_draw`; if you already have `p` (a fixed hazard, a threshold, the output of `logistic_predict`), use `bernoulli_draw`.
+- **`normal_draw` vs `standard_normal_draw`**: `normal_draw(m, s)` is exactly `m + s * standard_normal_draw()`. Use `normal_draw` when mean and sd are fixed; use `standard_normal_draw` when they vary per person and you want to write the arithmetic yourself.
+- **`normal_draw` vs `lognormal_draw`**: a normal can produce negative values and is symmetric. A lognormal is always positive and right-skewed. If the quantity can't be negative and has a long right tail (income, wealth, house prices, durations), use lognormal.
 
-| # | Config | Draw function | What it produces |
-|---|---|---|---|
-| 1 | `01_logistic_draw.yaml` | `logistic_draw` | `alive` (boolean) — age-based death decision |
-| 2 | `02_categorical_draw.yaml` | `categorical_draw` | `education` (string) — one of three levels |
-| 3 | `03_poisson_draw.yaml` | `poisson_draw` | `children_this_year` (integer) — annual births per woman |
-| 4 | `04_normal_draw.yaml` | `normal_draw` | `income` (float) — income with Gaussian noise |
-| 5 | `05_standard_normal_draw.yaml` | `standard_normal_draw` | `weight` (float) — weight in kg |
-| 6 | `06_uniform_draw.yaml` | `uniform_draw` | `random_fraction` (float) — in [0, 1) |
-| 7 | `07_exponential_draw.yaml` | `exponential_draw` | `waiting_time_years` (float) — mean 5 years |
-| 8 | `08_bernoulli_draw.yaml` | `bernoulli_draw` | `migrated_this_year` (boolean) — 10% hazard |
-| 9 | `09_lognormal_draw.yaml` | `lognormal_draw` | `income_lognormal` (float) — right-skewed income |
-| 10 | `10_lookup_normal.yaml` | `hekate_lookup.index` + `normal_draw` | `income` (float) — from per-group mean and SD |
+---
 
-## Important: all draws are bare globals
+## Part 2: A note on namespaces
 
-As of Hekate 0.9.2, **every statistical function is a bare global**. Write `normal_draw(0, 1)`, **not** `hekate_stats.normal_draw(0, 1)`. The `hekate_stats` table no longer exists — any existing script using the old prefix will fail with `attempt to index a nil value (global 'hekate_stats')` and needs updating.
+As of Hekate 0.9.2, **every statistical function is a bare global**. Write `normal_draw(0, 1)`, **not** `hekate_stats.normal_draw(0, 1)`. The `hekate_stats` table no longer exists.
 
 The namespace split is:
 
-- **Statistical functions** (`*_predict`, `*_draw`): **bare globals**, no prefix.
+- **Statistical functions** (`*_predict`, `*_draw`, distribution draws): **bare globals**, no prefix.
 - **The raw RNG** (`random`, `randomseed`, `seed`): still namespaced as `hekate_rng.*`.
 - **The lookup builder**: still namespaced as `hekate_lookup.index(...)`.
 
 `math.random` and `math.randomseed` are still overridden to use Hekate's deterministic generator, so `math.random()` and `hekate_rng.random()` give the same values.
 
+**Migration note:** if you have an existing 0.9.1 config that uses `hekate_stats.linear_predict(...)` or `hekate_stats.logistic_draw(...)`, it will now fail with:
+
+```
+attempt to index a nil value (global 'hekate_stats')
+```
+
+Remove the `hekate_stats.` prefix from every such call. The function arguments and behaviour are unchanged.
+
 ---
 
-## Shared files
+## Part 3: About random seeds
+
+Every config in this tutorial uses `random_seed: 42`. Run any config twice and you'll get byte-identical output.
+
+Each **model, in each iteration**, gets its own independent seed. The formulas differ by mode:
+
+**Bulk mode:**
+```
+seed = random_seed + iteration × 1000 + model_index
+```
+
+**Streaming mode:**
+```
+area_seed  = random_seed + year × 100000 + area_count
+model_seed = area_seed + model_index
+```
+
+The seeds differ because every model, in every iteration, gets its own independent seed — that's how Hekate ensures each model's random draws are independent from every other model's, while still being fully reproducible.
+
+### Why this matters
+
+Suppose every model got the same seed. Then aging (which draws nothing, in the `10_lookup_normal.yaml` config) would be harmless, but income-from-lookup and mortality would both start from the same RNG state. Mortality draws `bernoulli_draw(p)` once per living person. If income-from-lookup also drew a number for the first person from the same stream, mortality's first draw would be the *second* number in the stream, not the first — meaning the income model's per-person draws and the mortality model's per-person draws would be **correlated**. That's a well-known statistical bug: using the same random numbers for two different decisions couples them in ways that don't reflect reality.
+
+Hekate's per-model seeding avoids this by construction.
+
+---
+
+## Part 4: Shared files
 
 ### `draws_population.csv`
 
@@ -115,7 +166,7 @@ F,false,0,0
 
 ---
 
-## The nine draw demos
+## Part 5: The nine draw demos
 
 Each config below is complete. To run: `./hekate-linux-amd64 01_logistic_draw.yaml`, etc.
 
@@ -175,8 +226,6 @@ models:
 
 **What to look for in `out_01_logistic.csv`:** almost everyone should still be `alive = true`. The two oldest (ids 4 and 10, ages 68 and 70) have ~12% chance of death; everyone else is under 5%. With ten people across one iteration, expect 0–1 deaths.
 
----
-
 ### 02 — `categorical_draw`
 
 **What it does:** picks one of N categories with given probabilities. Returns the **1-based index** of the drawn category, which you map back to a name.
@@ -229,8 +278,6 @@ models:
 ```
 
 **What to look for:** `education` values distributed roughly 20% `primary`, 50% `secondary`, 30% `tertiary` across the ten people. With only ten draws, expect variation — a handful of `secondary`, a few of each of the others.
-
----
 
 ### 03 — `poisson_draw`
 
@@ -292,8 +339,6 @@ models:
 
 **What to look for:** `children_this_year` for the four women aged 15–50 (ids 1, 3, 7, 9). Most values will be `0`; occasionally a `1`. Men and out-of-range women will have the column blank.
 
----
-
 ### 04 — `normal_draw`
 
 **What it does:** samples a continuous value from `N(mean, sd²)`. **Errors if `sd < 0`.**
@@ -351,8 +396,6 @@ models:
 
 **What to look for:** `income` values clustered around the linear mean (which rises with age) with ±5,000 spread. A few values below 20,000 or above 50,000 are legitimate tail draws.
 
----
-
 ### 05 — `standard_normal_draw`
 
 **What it does:** samples from `N(0, 1)` with **no arguments**. The building block for anything normally distributed. `normal_draw(m, s)` = `m + s * standard_normal_draw()`.
@@ -409,8 +452,6 @@ models:
 
 **What to look for:** `weight` values clustered around 72 kg, most between 60 and 84 (that's ±1 SD), a few outside that range, and roughly 95% between 48 and 96 (±2 SD). Values below 0 or above 200 would be extremely unlikely; if you see one, something's wrong with the SD.
 
----
-
 ### 06 — `uniform_draw`
 
 **What it does:** samples a continuous value from `[min, max)`. **Errors if `max <= min`.**
@@ -466,9 +507,7 @@ models:
         end
 ```
 
-**What to look for**: weight values in [68, 72), spread evenly. Every value should be ≥ 68 and < 72, and you should not see more values near 70 than near 68 or 72 — unlike a normal, where values cluster near the mean. If you plotted a histogram of a large enough sample, it would be flat across [68, 72) and drop to zero outside.
-
----
+**What to look for:** weight values in [68, 72), spread evenly. Every value should be ≥ 68 and < 72, and you should not see more values near 70 than near 68 or 72 — unlike a normal, where values cluster near the mean. If you plotted a histogram of a large enough sample, it would be flat across [68, 72) and drop to zero outside.
 
 ### 07 — `exponential_draw`
 
@@ -520,8 +559,6 @@ models:
 ```
 
 **What to look for:** `waiting_time_years` values all ≥ 0, with mean around 5. Many values will be under 5, a few above 10, occasionally one above 20 — that's the long right tail of the exponential. No negative values are possible.
-
----
 
 ### 08 — `bernoulli_draw`
 
@@ -578,8 +615,6 @@ models:
 ```
 
 **What to look for:** `migrated_this_year` mostly `false`, with roughly 1 in 10 `true`. With ten people, expect 0–2 `true` values.
-
----
 
 ### 09 — `lognormal_draw`
 
@@ -644,7 +679,7 @@ models:
 
 ---
 
-## The lookup + `normal_draw` example
+## Part 6: The lookup + `normal_draw` example
 
 ### 10 — `10_lookup_normal.yaml`
 
@@ -767,10 +802,11 @@ models:
 - **Iterations 2–3:** some people have died. Their income becomes `normal_draw(0, 0) = 0` exactly, because the `(sex, false)` rule has `value=0, sd=0`. If you see a **dead person with `income = 0`**, the lookup is working. If you see a **dead person with `income = something nonzero`**, that's expected only if they died *after* the income model ran in that iteration (model priority 2 runs before priority 3).
 - **Wrong-sex income** would signal the `sex` key isn't matching. **Zero income for alive people** would signal the `alive` key isn't matching. Neither should happen.
 
+**Note on `output_every_iteration`:** config 10 uses it to produce persistent `out_10_lookup_normal_1.csv`, `..._2.csv`, `..._3.csv` snapshots. This only works in **bulk mode**. In streaming mode the flag is ignored — streaming writes and deletes its own `year_N.csv` working files instead.
+
 ---
 
-
-## Reproducibility
+## Part 7: Reproducibility
 
 Every config uses `random_seed: 42`. Run any config twice and you'll get byte-identical output:
 
@@ -784,21 +820,13 @@ Change `random_seed` to any other integer and you'll get different but still rep
 
 **Important:** each config uses the same seed, but they run independently — running `01_logistic_draw.yaml` and `02_categorical_draw.yaml` gives each the seed 42, but the two runs don't share a stream. The seed just ensures each config is reproducible in isolation.
 
-## The one thing that's new in 0.9.2 and will break old scripts
+**One caveat:** if you switch a config from bulk mode to streaming mode, you'll get different results, even with the same seed, because streaming mode derives a different seed per area. Both are reproducible; they aren't interchangeable. (See the README's Reproducibility section.)
 
-**All statistical functions are bare globals.** If you have an existing config that uses `hekate_stats.linear_predict(...)` or `hekate_stats.logistic_draw(...)`, it will now fail with:
+---
 
-```
-attempt to index a nil value (global 'hekate_stats')
-```
+## Part 8: Errors you might see (and what they mean)
 
-Remove the `hekate_stats.` prefix from any such call: `hekate_stats.normal_draw(0, 1)` → `normal_draw(0, 1)`. The function arguments and behaviour are unchanged.
-
-The `hekate_rng.*` namespace (for `random`, `randomseed`, `seed`) and `hekate_lookup.*` (for `index`) still exist and are unaffected.
-
-## Errors you might see (and what they mean)
-
-The new functions validate their arguments. If you see any of these, the config is passing a bad value:
+The draw functions validate their arguments. If you see any of these, the config is passing a bad value:
 
 - `normal_draw: sd must be >= 0 (got -1.5)` — you passed a negative SD
 - `uniform_draw: max must be > min (got min=5, max=5)` — you passed equal or reversed bounds
@@ -816,3 +844,26 @@ If you see `column 'X' not found in CSV` during pre-flight validation, it means 
 
 Then the validator will skip that column.
 
+---
+
+## Part 9: What you've learned
+
+You've now seen all nine draw functions in action. A few things worth remembering:
+
+- **The decision table in Part 1 is the most useful page.** When in doubt, come back to it.
+- **`logistic_draw` vs `bernoulli_draw`** is the easiest pair to confuse. Ask yourself: *do I have a regression, or do I have a probability?*
+- **`normal_draw` vs `standard_normal_draw`** is arithmetic, not statistics: one is `m + s * z`, the other is `z`.
+- **`normal_draw` vs `lognormal_draw`** is about shape: symmetric-and-unbounded vs positive-and-right-skewed.
+- **All draw functions validate their arguments.** If you get an error, the config is wrong; read the message.
+- **All draw functions are reproducible** given a `random_seed`, in the same execution mode.
+
+## Next steps
+
+- Take one of your existing models that uses `math.random() < p` and replace it with `bernoulli_draw(p)` — same result, clearer intent.
+- Take a model that adds hand-rolled noise (like `(2 * math.random() - 1) * sd`) and replace it with `uniform_draw(-sd, sd)`.
+- Build a per-group lookup table for one of your parameters and wire it up with `hekate_lookup.index` + `normal_draw`.
+- Experiment with `lognormal_draw` for any positive, right-skewed quantity in your model. Compare its output shape with `normal_draw`.
+
+---
+
+**Well done for completing Tutorial 7!** You now have the full distribution toolkit in hand. The draw functions are the part of Hekate that most directly turns a regression model into a realistic simulation, and you've seen each one working on a runnable config. That's the foundation for everything you'll build next.
