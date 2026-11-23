@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial 6: Using Hekate's Statistical Toolkit — Hekate</title>
+
+    <link rel="icon" type="image/png" href="../img/HekateIco.png">
+    <link rel="apple-touch-icon" href="../img/HekateIco.png">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            line-height: 1.65;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        .topnav {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .topnav a { color: #2f6fdd; text-decoration: none; }
+        .topnav a:hover { text-decoration: underline; }
+
+        h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin: 0 0 1rem;
+            line-height: 1.25;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 2.25rem 0 0.75rem;
+            line-height: 1.3;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #e2e4e8;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1.75rem 0 0.5rem;
+            color: #2f6fdd;
+        }
+
+        p { margin: 0.9rem 0; }
+        ul, ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+        li { margin: 0.35rem 0; }
+        a { color: #2f6fdd; }
+        a:hover { color: #1e4fa8; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e2e4e8;
+            margin: 2rem 0;
+        }
+
+        code {
+            font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: #f2f4f7;
+            padding: 0.12em 0.35em;
+            border-radius: 4px;
+            color: #1a1a1a;
+        }
+
+        pre {
+            background: #f6f8fa;
+            border: 1px solid #e2e4e8;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 1rem 0;
+        }
+
+        pre code { background: none; padding: 0; font-size: inherit; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            border: 1px solid #e2e4e8;
+            padding: 0.55rem 0.75rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th { background: #f6f8fa; font-weight: 600; }
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        blockquote {
+            margin: 1.25rem 0;
+            padding: 0.75rem 1rem;
+            border-left: 4px solid #c9d3e0;
+            background: #f8f9fb;
+            color: #333;
+            border-radius: 0 6px 6px 0;
+        }
+        blockquote p { margin: 0.4rem 0; }
+
+        .callout {
+            background: #f5f7fa;
+            border: 1px solid #e2e4e8;
+            border-left: 4px solid #2f6fdd;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout strong { color: #2f6fdd; }
+
+        .warn {
+            background: #fff8e6;
+            border: 1px solid #f0d999;
+            border-left: 4px solid #d49b1c;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .warn strong { color: #a8730f; }
+
+        .bottomnav {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e4e8;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.95rem;
+        }
+        .bottomnav a {
+            color: #2f6fdd;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .bottomnav a:hover { text-decoration: underline; }
+
+        .footer {
+            margin-top: 2rem;
+            color: #666;
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 1.5rem 1rem 3rem; }
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.15rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="topnav">
+        <a href="../readme.html">← Back to README</a>
+    </div>
+
+    <h1>Tutorial 6: Using Hekate's Statistical Toolkit</h1>
+
+    <h2>Overview</h2>
+    <p>
+        In this tutorial, you'll learn how to use Hekate's built-in statistical functions to
+        build realistic, evidence-based demographic models. These functions let you translate
+        findings from regression analyses directly into your simulation without hand-coding
+        the math.
+    </p>
+
+    <div class="warn">
+        <strong>Migrating from 0.9.1?</strong> As of Hekate 0.9.2, every statistical function
+        is a <strong>bare global</strong>. Write <code>logistic_draw(...)</code>, not
+        <code>hekate_stats.logistic_draw(...)</code>. The <code>hekate_stats</code> table no
+        longer exists, and any script still using the prefix will fail with
+        <code>attempt to index a nil value (global 'hekate_stats')</code>. This tutorial uses
+        the 0.9.2 syntax throughout.
+    </div>
+
+    <p>By the end of this tutorial, you'll be able to:</p>
+    <ul>
+        <li>Use <strong>linear regression</strong> to predict continuous outcomes like income</li>
+        <li>Use <strong>logistic regression</strong> to model binary outcomes like mortality</li>
+        <li>Use <strong>Poisson regression</strong> to model count outcomes like fertility</li>
+        <li>Use <strong>softmax</strong> to model multi-category outcomes like education</li>
+        <li>Sample from probability distributions reproducibly</li>
+        <li>Combine multiple models into a realistic demographic simulation</li>
+    </ul>
+
+    <h2>Prerequisites</h2>
+    <ul>
+        <li>Completion of Tutorials 1, 2, and 3 (or equivalent knowledge)</li>
+        <li>A working Hekate installation</li>
+        <li>Familiarity with basic Lua (functions, loops, conditionals)</li>
+        <li>Basic understanding of regression (coefficients, intercepts)</li>
+    </ul>
+
+    <hr>
+
+    <h2>Part 1: Why Built-in Statistics?</h2>
+    <p>In earlier tutorials, we hand-coded probabilities directly in Lua:</p>
+    <pre><code>-- Hand-coded mortality
+if age < 30 then
+  prob = 0.001
+else
+  prob = 0.05
+end</code></pre>
+
+    <p>This works for simple cases, but it breaks down when:</p>
+    <ul>
+        <li>The relationship depends on <strong>many variables</strong> (age AND sex AND income AND ...)</li>
+        <li>You have <strong>published regression coefficients</strong> you want to use</li>
+        <li>You need <strong>statistical precision</strong> (log-odds, Poisson means, etc.)</li>
+        <li>You want models that are <strong>scientifically defensible</strong></li>
+    </ul>
+
+    <p>Hekate's statistical functions let you write:</p>
+    <pre><code>-- Regression-based mortality
+local died = logistic_draw(
+  -3.5,               -- intercept
+  1.2, age / 10,      -- age effect (per decade)
+  0.8, smoker,        -- smoking effect
+  0.5, chronic        -- chronic condition effect
+)</code></pre>
+
+    <p>
+        The coefficients come straight from a published study. The math is handled by Go. The
+        results are reproducible.
+    </p>
+
+    <h3>The Two Function Types</h3>
+    <p>Hekate provides two categories of functions:</p>
+    <table>
+        <thead><tr><th>Type</th><th>Purpose</th><th>Randomness?</th></tr></thead>
+        <tbody>
+            <tr><td><strong>Predict</strong> (<code>*_predict</code>)</td><td>Compute a value or probability</td><td>No</td></tr>
+            <tr><td><strong>Draw</strong> (<code>*_draw</code>)</td><td>Sample from a distribution</td><td>Yes</td></tr>
+        </tbody>
+    </table>
+
+    <p>
+        Use <strong>predict</strong> when you want to record the probability, and
+        <strong>draw</strong> when you want to make a decision.
+    </p>
+
+    <hr>
+
+    <h2>Part 2: Linear Regression — Income Model</h2>
+    <p>Let's start with a familiar example: predicting income from age and education.</p>
+
+    <h3>The Regression Equation</h3>
+    <p>A standard earnings regression looks like:</p>
+    <pre><code>income = β₀ + β₁ × age + β₂ × education + β₃ × sex</code></pre>
+
+    <p>Suppose we have these coefficients from a published study:</p>
+    <table>
+        <thead><tr><th>Variable</th><th>Coefficient</th></tr></thead>
+        <tbody>
+            <tr><td>Intercept</td><td>15,000</td></tr>
+            <tr><td>Age</td><td>500</td></tr>
+            <tr><td>Education (per level)</td><td>5,000</td></tr>
+            <tr><td>Sex (female)</td><td>-3,000</td></tr>
+        </tbody>
+    </table>
+
+    <h3>The Model in Hekate</h3>
+    <pre><code>- name: "income"
+  type: "lua_model"
+  priority: 3
+  enabled: true
+  description: "Predict income from age, education, and sex"
+  parameters:
+    coefficients:
+      intercept: 15000
+      age: 500
+      education: 5000
+      sex: -3000
+    script: |
+      function transition(population, params)
+        local coefs = params.coefficients
+        
+        for _, person in ipairs(population) do
+          if person.alive == true or person.alive == "true" then
+            local age = tonumber(person.age) or 30
+            
+            -- Convert education to a numeric score
+            local edu_score = 0
+            if person.education == "primary" then
+              edu_score = 1
+            elseif person.education == "secondary" then
+              edu_score = 2
+            elseif person.education == "tertiary" then
+              edu_score = 3
+            end
+            
+            -- Sex indicator (1 if female, 0 otherwise)
+            local sex_score = 0
+            if person.sex == "F" then
+              sex_score = 1
+            end
+            
+            -- Compute income using Hekate's linear regression
+            local income = linear_predict(
+              coefs.intercept,
+              coefs.age, age,
+              coefs.education, edu_score,
+              coefs.sex, sex_score
+            )
+            
+            -- Add realistic variation
+            local noise = 1 + (math.random() * 0.1 - 0.05)
+            person.income = math.floor(income * noise + 0.5)
+          end
+        end
+        return population
+      end</code></pre>
+
+    <h3>What Happens</h3>
+    <p>For a 40-year-old woman with tertiary education:</p>
+    <pre><code>income = 15000 + 500×40 + 5000×3 + (-3000)×1
+       = 15000 + 20000 + 15000 - 3000
+       = 47000</code></pre>
+
+    <p>
+        The <code>math.random()</code> at the end adds ±5% variation so not everyone with the
+        same characteristics earns the same income.
+    </p>
+
+    <h3>Try It</h3>
+    <ol>
+        <li>Create a small population with varying ages and education levels</li>
+        <li>Run with this model</li>
+        <li>Check the output: income should increase with age and education</li>
+    </ol>
+
+    <hr>
+
+    <h2>Part 3: Logistic Regression — Mortality Model</h2>
+    <p>
+        Logistic regression is the workhorse of demographic modelling. It predicts
+        probabilities for binary outcomes.
+    </p>
+
+    <h3>The Regression Equation</h3>
+    <p>A standard mortality model looks like:</p>
+    <pre><code>log-odds of death = β₀ + β₁ × age + β₂ × smoker</code></pre>
+
+    <p>Which translates to:</p>
+    <pre><code>P(death) = 1 / (1 + exp(-(β₀ + β₁ × age + β₂ × smoker)))</code></pre>
+
+    <p>Suppose we have these coefficients:</p>
+    <table>
+        <thead><tr><th>Variable</th><th>Coefficient</th></tr></thead>
+        <tbody>
+            <tr><td>Intercept</td><td>-4.0</td></tr>
+            <tr><td>Age (per year)</td><td>0.08</td></tr>
+            <tr><td>Smoker (indicator)</td><td>1.5</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Using <code>logistic_predict</code> vs <code>logistic_draw</code></h3>
+    <p>Hekate gives you two options:</p>
+
+    <p><strong>Option A: <code>logistic_predict</code> — compute the probability</strong></p>
+    <pre><code>local death_prob = logistic_predict(
+  -4.0,
+  0.08, age,
+  1.5, smoker_score
+)
+-- Now death_prob is a number between 0 and 1
+-- You can log it, use it in further calculations, etc.</code></pre>
+
+    <p><strong>Option B: <code>logistic_draw</code> — make the decision</strong></p>
+    <pre><code>local died = logistic_draw(
+  -4.0,
+  0.08, age,
+  1.5, smoker_score
+)
+-- Now died is either true or false</code></pre>
+
+    <h3>The Model in Hekate</h3>
+    <pre><code>- name: "mortality"
+  type: "lua_model"
+  priority: 2
+  enabled: true
+  description: "Logistic mortality model with age and smoking"
+  parameters:
+    coefficients:
+      intercept: -4.0
+      age: 0.08
+      smoker: 1.5
+    script: |
+      function transition(population, params)
+        local coefs = params.coefficients
+        
+        for _, person in ipairs(population) do
+          if person.alive == true or person.alive == "true" then
+            local age = tonumber(person.age) or 40
+            
+            -- Convert smoker to numeric indicator
+            local smoker_score = 0
+            if person.smoker == "true" or person.smoker == true then
+              smoker_score = 1
+            end
+            
+            -- Compute mortality probability (for logging)
+            local death_prob = logistic_predict(
+              coefs.intercept,
+              coefs.age, age,
+              coefs.smoker, smoker_score
+            )
+            person.mortality_risk = death_prob
+            
+            -- Make the decision (using the same RNG)
+            local died = logistic_draw(
+              coefs.intercept,
+              coefs.age, age,
+              coefs.smoker, smoker_score
+            )
+            
+            if died then
+              person.alive = false
+            end
+          end
+        end
+        return population
+      end</code></pre>
+
+    <h3>Why Both Functions?</h3>
+    <ul>
+        <li><strong><code>logistic_predict</code></strong> records the probability as a column so you can analyse it</li>
+        <li><strong><code>logistic_draw</code></strong> makes the yes/no decision for this year</li>
+    </ul>
+    <p>They use the <strong>same random source</strong>, so the results are consistent.</p>
+
+    <h3>Sanity Check</h3>
+    <p>For a 70-year-old smoker:</p>
+    <pre><code>linear = -4.0 + 0.08×70 + 1.5×1 = -4.0 + 5.6 + 1.5 = 3.1
+P(death) = 1 / (1 + exp(-3.1)) ≈ 0.957</code></pre>
+
+    <p>That's a 95.7% chance of dying — plausible for that age/risk profile.</p>
+
+    <p>For a 30-year-old non-smoker:</p>
+    <pre><code>linear = -4.0 + 0.08×30 + 1.5×0 = -4.0 + 2.4 = -1.6
+P(death) = 1 / (1 + exp(1.6)) ≈ 0.168</code></pre>
+
+    <p>
+        About 17% — higher than expected, but that's because our intercept is quite high for
+        illustration.
+    </p>
+
+    <hr>
+
+    <h2>Part 4: Poisson Regression — Fertility Model</h2>
+    <p>
+        Poisson regression predicts <strong>counts</strong> — things like number of children,
+        doctor visits, or migrations.
+    </p>
+
+    <h3>The Regression Equation</h3>
+    <p>A Poisson regression looks like:</p>
+    <pre><code>log(λ) = β₀ + β₁ × age + β₂ × married
+λ = exp(β₀ + β₁ × age + β₂ × married)</code></pre>
+
+    <p>Where λ is the expected count.</p>
+
+    <p>Suppose:</p>
+    <table>
+        <thead><tr><th>Variable</th><th>Coefficient</th></tr></thead>
+        <tbody>
+            <tr><td>Intercept</td><td>-1.5</td></tr>
+            <tr><td>Age</td><td>0.05</td></tr>
+            <tr><td>Married (indicator)</td><td>0.8</td></tr>
+        </tbody>
+    </table>
+
+    <h3>The Model in Hekate</h3>
+    <pre><code>- name: "fertility"
+  type: "lua_model"
+  priority: 3
+  enabled: true
+  description: "Poisson fertility model"
+  parameters:
+    coefficients:
+      intercept: -1.5
+      age: 0.05
+      married: 0.8
+    script: |
+      function transition(population, params)
+        local coefs = params.coefficients
+        
+        for _, person in ipairs(population) do
+          if person.alive == true or person.alive == "true" then
+            if person.sex == "F" then
+              local age = tonumber(person.age) or 30
+              
+              -- Only women of childbearing age
+              if age >= 15 and age <= 50 then
+                -- Married indicator
+                local married_score = 0
+                if person.partner_id ~= nil and person.partner_id ~= 0 then
+                  married_score = 1
+                end
+                
+                -- Expected number of children this year
+                local lambda = poisson_predict(
+                  coefs.intercept,
+                  coefs.age, age,
+                  coefs.married, married_score
+                )
+                person.expected_children = lambda
+                
+                -- Sample actual number
+                local new_children = poisson_draw(
+                  coefs.intercept,
+                  coefs.age, age,
+                  coefs.married, married_score
+                )
+                
+                -- Update parity
+                local current_parity = tonumber(person.parity) or 0
+                person.parity = current_parity + new_children
+              end
+            end
+          end
+        end
+        return population
+      end</code></pre>
+
+    <h3>What This Does</h3>
+    <p>For a 30-year-old married woman:</p>
+    <pre><code>λ = exp(-1.5 + 0.05×30 + 0.8×1)
+  = exp(-1.5 + 1.5 + 0.8)
+  = exp(0.8)
+  ≈ 2.2</code></pre>
+
+    <p>
+        She's expected to have ~2.2 children per year. <code>poisson_draw</code> samples from
+        Poisson(2.2), giving 0, 1, 2, 3, etc. with the appropriate probabilities.
+    </p>
+
+    <p>
+        <strong>Wait — 2.2 children per year is very high!</strong> In reality we'd need to
+        scale this down. For a first experiment, use smaller coefficients:
+    </p>
+
+    <pre><code>coefficients:
+  intercept: -4.0
+  age: 0.1
+  married: 0.5</code></pre>
+
+    <p>For a 30-year-old married woman:</p>
+    <pre><code>λ = exp(-4.0 + 0.1×30 + 0.5×1) = exp(-0.5) ≈ 0.61</code></pre>
+
+    <p>About 0.6 children per year — more realistic.</p>
+
+    <p>
+        <strong>Tuning these coefficients is part of the modelling process.</strong>
+        Published studies give you starting points, but you adjust them to match your
+        population's known fertility patterns.
+    </p>
+
+    <hr>
+
+    <h2>Part 5: Softmax and Categorical Draw — Education Model</h2>
+    <p>
+        Softmax is for <strong>multi-category</strong> outcomes: education level, marital
+        status, migration destination.
+    </p>
+
+    <h3>The Idea</h3>
+    <p>
+        Given a set of linear "scores" for each category, softmax converts them into
+        probabilities that sum to 1. Then you sample a category using
+        <code>categorical_draw</code>.
+    </p>
+
+    <h3>The Model in Hekate</h3>
+    <p>
+        Let's model education transitions at age 16. Every 16-year-old chooses between:
+    </p>
+    <ul>
+        <li><strong>Primary</strong> (leave school early)</li>
+        <li><strong>Secondary</strong> (finish secondary school)</li>
+        <li><strong>Tertiary</strong> (go on to university)</li>
+    </ul>
+
+    <pre><code>- name: "education"
+  type: "lua_model"
+  priority: 3
+  enabled: true
+  description: "Education transitions at age 16"
+  parameters:
+    script: |
+      function transition(population, params)
+        for _, person in ipairs(population) do
+          if person.alive == true or person.alive == "true" then
+            local age = tonumber(person.age) or 0
+            
+            -- Only trigger at age 16
+            if age == 16 and person.sex == "F" then
+              -- Parent's education as a numeric score
+              local parent_edu = 0
+              -- (In practice, look up the mother)
+              
+              -- Scores for each category
+              -- Higher score = more likely to be chosen
+              local primary_score = {0.5, 0.1, age, -0.2, parent_edu}
+              local secondary_score = {1.0, 0.3, age, 0.5, parent_edu}
+              local tertiary_score = {0.2, 0.5, age, 0.8, parent_edu}
+              
+              -- Get probabilities via softmax
+              local probs = softmax_predict(
+                primary_score,
+                secondary_score,
+                tertiary_score
+              )
+              
+              -- probs is now a table like {0.15, 0.55, 0.30}
+              
+              -- Sample a category
+              local chosen = categorical_draw(
+                probs[1], probs[2], probs[3]
+              )
+              
+              -- Map the 1-based index back to an education name
+              local education_levels = {"primary", "secondary", "tertiary"}
+              person.education = education_levels[chosen]
+            end
+          end
+        end
+        return population
+      end</code></pre>
+
+    <h3>Understanding Softmax</h3>
+    <p>Given three scores <code>[s1, s2, s3]</code>, softmax computes:</p>
+    <pre><code>p_i = exp(s_i) / (exp(s1) + exp(s2) + exp(s3))</code></pre>
+
+    <p>For example, with scores <code>[0.5, 1.0, 0.2]</code>:</p>
+    <pre><code>p1 = exp(0.5) / (exp(0.5) + exp(1.0) + exp(0.2))
+   = 1.65 / (1.65 + 2.72 + 1.22)
+   = 1.65 / 5.59
+   ≈ 0.29
+
+p2 ≈ 0.49
+p3 ≈ 0.22</code></pre>
+
+    <p>
+        So the middle category is most likely — which makes sense given it has the highest
+        score.
+    </p>
+
+    <h3><code>categorical_draw</code> in Action</h3>
+    <pre><code>local chosen = categorical_draw(0.29, 0.49, 0.22)
+-- chosen is 1, 2, or 3 with the given probabilities</code></pre>
+
+    <h3>Why This Design?</h3>
+    <ul>
+        <li><strong>Softmax</strong> ensures probabilities sum to 1 (mathematically correct)</li>
+        <li><strong>Categorical draw</strong> uses Hekate's dedicated RNG so it's reproducible</li>
+        <li><strong>Vector scores</strong> let you encode multi-variable regressions compactly</li>
+    </ul>
+
+    <hr>
+
+    <h2>Part 6: Putting It All Together</h2>
+    <p>Now let's build a <strong>complete demographic model</strong> with all four techniques.</p>
+
+    <h3>The Population</h3>
+    <p>First, a small test population. Create <code>population_stats.csv</code>:</p>
+    <pre><code>person_id,age,sex,area_id,alive,education,smoker,partner_id,parity
+1,25,F,1,true,secondary,false,2,0
+2,27,M,1,true,secondary,false,1,0
+3,45,F,1,true,tertiary,false,4,2
+4,48,M,1,true,tertiary,false,3,0
+5,70,F,1,true,primary,true,0,3
+6,72,M,1,true,secondary,false,0,0
+7,35,F,1,true,secondary,false,8,1
+8,37,M,1,true,secondary,false,7,0
+9,15,F,1,true,primary,false,0,0
+10,17,M,1,true,primary,false,0,0
+11,60,F,1,true,primary,true,0,2
+12,62,M,1,true,primary,false,0,0</code></pre>
+
+    <h3>The Complete Config</h3>
+    <p>Create <code>config_stats.yaml</code>:</p>
+    <pre><code>simulation:
+  iterations: 20
+  population_file: "population_stats.csv"
+  output_file: "population_stats_output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+
+models:
+  # ---- Priority 1: Aging ----
+  - name: "aging"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              person.age = (tonumber(person.age) or 0) + 1
+            end
+          end
+          return population
+        end
+
+  # ---- Priority 2: Income (linear regression) ----
+  - name: "income"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    parameters:
+      coefficients:
+        intercept: 15000
+        age: 500
+        education: 5000
+        sex: -3000
+      script: |
+        function transition(population, params)
+          local coefs = params.coefficients
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              local age = tonumber(person.age) or 30
+              local edu_score = 0
+              if person.education == "primary" then
+                edu_score = 1
+              elseif person.education == "secondary" then
+                edu_score = 2
+              elseif person.education == "tertiary" then
+                edu_score = 3
+              end
+              local sex_score = 0
+              if person.sex == "F" then
+                sex_score = 1
+              end
+              
+              -- Income only applies to working-age adults
+              if age >= 18 and age <= 65 then
+                local income = linear_predict(
+                  coefs.intercept,
+                  coefs.age, age,
+                  coefs.education, edu_score,
+                  coefs.sex, sex_score
+                )
+                local noise = 1 + (math.random() * 0.1 - 0.05)
+                person.income = math.floor(income * noise + 0.5)
+              else
+                person.income = 0
+              end
+            end
+          end
+          return population
+        end
+
+  # ---- Priority 3: Education transitions (softmax + categorical_draw) ----
+  - name: "education"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              local age = tonumber(person.age) or 0
+              
+              -- Education decision at 16
+              if age == 16 then
+                local primary = {0.0, 0.2, age}
+                local secondary = {1.0, 0.3, age}
+                local tertiary = {-0.5, 0.5, age}
+                
+                local probs = softmax_predict(primary, secondary, tertiary)
+                local chosen = categorical_draw(probs[1], probs[2], probs[3])
+                person.education = ({"primary", "secondary", "tertiary"})[chosen]
+              end
+            end
+          end
+          return population
+        end
+
+  # ---- Priority 4: Fertility (Poisson regression) ----
+  - name: "fertility"
+    type: "lua_model"
+    priority: 4
+    enabled: true
+    parameters:
+      coefficients:
+        intercept: -4.0
+        age: 0.1
+        married: 0.5
+      script: |
+        function transition(population, params)
+          local coefs = params.coefficients
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              if person.sex == "F" then
+                local age = tonumber(person.age) or 30
+                if age >= 15 and age <= 50 then
+                  local married = 0
+                  if person.partner_id ~= nil and person.partner_id ~= 0 then
+                    married = 1
+                  end
+                  local new_children = poisson_draw(
+                    coefs.intercept,
+                    coefs.age, age,
+                    coefs.married, married
+                  )
+                  local current_parity = tonumber(person.parity) or 0
+                  person.parity = current_parity + new_children
+                end
+              end
+            end
+          end
+          return population
+        end
+
+  # ---- Priority 5: Mortality (logistic regression) ----
+  - name: "mortality"
+    type: "lua_model"
+    priority: 5
+    enabled: true
+    parameters:
+      coefficients:
+        intercept: -6.0
+        age: 0.09
+        smoker: 1.5
+      script: |
+        function transition(population, params)
+          local coefs = params.coefficients
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              local age = tonumber(person.age) or 40
+              local smoker = 0
+              if person.smoker == "true" or person.smoker == true then
+                smoker = 1
+              end
+              
+              local died = logistic_draw(
+                coefs.intercept,
+                coefs.age, age,
+                coefs.smoker, smoker
+              )
+              
+              if died then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end</code></pre>
+
+    <h3>Run It</h3>
+    <pre><code>./hekate config_stats.yaml</code></pre>
+
+    <h3>What You'll See</h3>
+    <p>The output CSV will have <strong>new columns</strong> that weren't in the input:</p>
+    <table>
+        <thead><tr><th>Column</th><th>Added By</th></tr></thead>
+        <tbody>
+            <tr><td><code>income</code></td><td>Income model</td></tr>
+            <tr><td><code>education</code></td><td>Education model (may change)</td></tr>
+            <tr><td><code>parity</code></td><td>Fertility model</td></tr>
+            <tr><td><code>alive</code></td><td>Mortality model (may change)</td></tr>
+        </tbody>
+    </table>
+
+    <p>Over 20 years, you'll see:</p>
+    <ul>
+        <li><strong>Aging</strong>: everyone gets older</li>
+        <li><strong>Income</strong>: working-age adults earn income based on their education</li>
+        <li><strong>Education</strong>: 16-year-olds transition to their final education level</li>
+        <li><strong>Fertility</strong>: women accumulate children</li>
+        <li><strong>Mortality</strong>: older people and smokers die more often</li>
+    </ul>
+
+    <hr>
+
+    <h2>Part 7: Reproducibility Check</h2>
+    <p>
+        The whole point of Hekate's statistical functions is that they're
+        <strong>reproducible</strong>. Let's verify:
+    </p>
+
+    <pre><code># Run twice
+./hekate config_stats.yaml && mv population_stats_output.csv run1.csv
+./hekate config_stats.yaml && mv population_stats_output.csv run2.csv
+
+# Compare
+diff run1.csv run2.csv</code></pre>
+
+    <p>
+        <strong>Expected: no output.</strong> The two runs are byte-for-byte identical.
+    </p>
+
+    <p>Try changing the seed:</p>
+    <pre><code>simulation:
+  random_seed: 999  # Different seed</code></pre>
+
+    <p>
+        Run again. You'll get <strong>different results</strong> — but the results are still
+        reproducible (run it twice with seed 999 and you'll get identical files).
+    </p>
+
+    <hr>
+
+    <h2>Part 8: Debugging Tips</h2>
+
+    <h3>Tip 1: Log the Predicted Values</h3>
+    <p>Before you commit to a draw, log the predicted probability to check your coefficients:</p>
+    <pre><code>local death_prob = logistic_predict(
+  coefs.intercept,
+  coefs.age, age,
+  coefs.smoker, smoker
+)
+log("Person " .. person.person_id .. " age " .. age .. " death prob: " .. death_prob)</code></pre>
+
+    <p>
+        Run once and check the range. If you see probabilities of 0.9999 or 0.0001
+        everywhere, your coefficients are miscalibrated.
+    </p>
+
+    <h3>Tip 2: Check the Sum of Softmax</h3>
+    <p>
+        <code>softmax_predict</code> should always return values that sum to 1. If they
+        don't, you have a bug in the score construction:
+    </p>
+    <pre><code>local probs = softmax_predict(...)
+log("Sum: " .. (probs[1] + probs[2] + probs[3]))
+-- Should be 1.0</code></pre>
+
+    <h3>Tip 3: Watch Out for Extreme Coefficients</h3>
+    <p>The exponential in logistic and Poisson regressions can overflow:</p>
+    <pre><code>-- BAD: exp(100) overflows
+logistic_predict(100, 1.0, age)
+
+-- GOOD: intercepts are typically -10 to +10
+logistic_predict(-3.5, 0.1, age)</code></pre>
+
+    <p>If you see <code>inf</code> or <code>nan</code> in your output, you've likely overflowed.</p>
+
+    <h3>Tip 4: Baseline Before You Model</h3>
+    <p>Before writing the regression, compute a <strong>baseline</strong>. For mortality, ask:</p>
+    <ul>
+        <li>What's the overall annual death rate?</li>
+        <li>What should it be for a 20-year-old? A 70-year-old?</li>
+    </ul>
+
+    <p>Then choose coefficients that produce those rates. You can sanity-check with a simple test:</p>
+    <pre><code>-- Log the probability for a few reference ages
+log("Age 20: " .. logistic_predict(-6.0, 0.09, 20))
+log("Age 50: " .. logistic_predict(-6.0, 0.09, 50))
+log("Age 80: " .. logistic_predict(-6.0, 0.09, 80))</code></pre>
+
+    <p>Adjust the intercept until the numbers look right.</p>
+
+    <h3>Tip 5: Use the Predict Variant First</h3>
+    <p>
+        When building a new model, start with <code>*_predict</code> and log values. Once the
+        numbers look sensible, switch to <code>*_draw</code> and let it decide.
+    </p>
+
+    <hr>
+
+    <h2>Part 9: Summary Table</h2>
+    <p>
+        Hekate provides <strong>14 statistical functions</strong> in total. The five used in
+        this tutorial are the core of regression-based modelling; the other nine are covered
+        in detail in <a href="tutorial7_draws.html">Tutorial 7</a>.
+    </p>
+
+    <h3>Prediction functions (deterministic, no randomness)</h3>
+    <table>
+        <thead><tr><th>Function</th><th>Returns</th><th>When to Use</th></tr></thead>
+        <tbody>
+            <tr><td><code>linear_predict</code></td><td>A number</td><td>Continuous outcomes (income, wealth)</td></tr>
+            <tr><td><code>linear_predict_default</code></td><td>A number (nil-safe)</td><td>Same, when data may be missing</td></tr>
+            <tr><td><code>logistic_predict</code></td><td>Probability (0–1)</td><td>Binary outcomes (probability only)</td></tr>
+            <tr><td><code>poisson_predict</code></td><td>Expected count (λ)</td><td>Counts (expected value only)</td></tr>
+            <tr><td><code>softmax_predict</code></td><td>Table of probabilities</td><td>Multi-category (probability only)</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Action draws (regression + sample in one call)</h3>
+    <table>
+        <thead><tr><th>Function</th><th>Returns</th><th>When to Use</th></tr></thead>
+        <tbody>
+            <tr><td><code>logistic_draw</code></td><td>Boolean</td><td>Binary outcomes (make the decision)</td></tr>
+            <tr><td><code>categorical_draw</code></td><td>Integer index</td><td>Multi-category (sample the category)</td></tr>
+            <tr><td><code>poisson_draw</code></td><td>Integer count</td><td>Counts (sample the value)</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Distribution draws (sample from a named distribution)</h3>
+    <table>
+        <thead><tr><th>Function</th><th>Returns</th><th>When to Use</th></tr></thead>
+        <tbody>
+            <tr><td><code>normal_draw(mean, sd)</code></td><td>Float</td><td>Symmetric continuous quantities with a known mean and sd</td></tr>
+            <tr><td><code>standard_normal_draw()</code></td><td>Float</td><td>When mean/sd vary per person and you want to do the arithmetic yourself</td></tr>
+            <tr><td><code>uniform_draw(min, max)</code></td><td>Float</td><td>Noise with no preferred value in a range</td></tr>
+            <tr><td><code>exponential_draw(rate)</code></td><td>Float (≥ 0)</td><td>Waiting times to the next event</td></tr>
+            <tr><td><code>bernoulli_draw(p)</code></td><td>Boolean</td><td>Yes/no decision where <code>p</code> is already in hand</td></tr>
+            <tr><td><code>lognormal_draw(mu, sigma)</code></td><td>Float (&gt; 0)</td><td>Positive, right-skewed quantities (income, wealth)</td></tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Part 10: Where to Go From Here</h2>
+    <p>You've now seen the full regression toolkit in action. A few directions to explore:</p>
+    <ol>
+        <li><strong>Look up published coefficients</strong> for your domain and use them directly</li>
+        <li><strong>Add interactions</strong> — multiply two variables together before passing them in</li>
+        <li><strong>Combine models</strong> — use the output of one regression as input to another</li>
+        <li><strong>Run sensitivity analysis</strong> — change one coefficient by 10% and see how the population changes</li>
+        <li><strong>Build your own composite indicators</strong> — e.g., a "health score" from BMI, smoking, and age</li>
+        <li><strong>Move on to Tutorial 7</strong> for a runnable tour of the nine distribution draws</li>
+    </ol>
+
+    <h3>Further Reading</h3>
+    <ul>
+        <li><strong>Regressions in demography</strong>: The standard textbooks by Preston, Heuveline, and Guillot (Demography) or Vandeschrick (Demographic Analysis)</li>
+        <li><strong>Coefficient sources</strong>: The Human Mortality Database, the World Fertility Survey, and national statistics offices all publish regression results you can use</li>
+        <li><strong>Sensitivity analysis</strong>: Sobol indices, Monte Carlo methods</li>
+    </ul>
+
+    <h3>A Final Note on Scientific Modelling</h3>
+    <p>
+        The point of using regression coefficients isn't to be more "mathematical" — it's to
+        make your model <strong>traceable</strong>. When you write:
+    </p>
+    <pre><code>local died = logistic_draw(-4.0, 0.08, age)</code></pre>
+
+    <p>
+        You can say: <em>"This uses coefficients from Smith et al. (2023), Table 3, Model
+        2."</em>
+    </p>
+
+    <p>
+        If someone challenges your result, you can point to the paper. If someone wants a
+        different assumption, they change the coefficients. The model is transparent,
+        defensible, and easy to share.
+    </p>
+
+    <p><strong>That's what makes Hekate's statistical toolkit worth learning.</strong></p>
+
+    <div class="callout">
+        <strong>Well done for completing Tutorial 6!</strong> You now know how to build
+        regression-based demographic models in Hekate. You can predict continuous, binary,
+        count, and categorical outcomes — all reproducible, all shareable as YAML configs.
+    </div>
+
+    <div class="bottomnav">
+        <a href="tutorial_5_streaming.html">← Tutorial 5: Large-Scale Simulations with Streaming Mode</a>
+        <a href="tutorial7_draws.html">Tutorial 7: The Draw Functions →</a>
+    </div>
+
+    <div class="footer">
+        MIT License · Authors: Nik Lomax, Alison Heppenstall, Hugh Rice, Andreas Hoehn, Ric Colasanti
+    </div>
+
+</div>
+</body>
+</html>

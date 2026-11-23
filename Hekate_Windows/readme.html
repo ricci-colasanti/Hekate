@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hekate — Microsimulation Engine</title>
+
+    <link rel="icon" type="image/png" href="img/HekateIco.png">
+    <link rel="apple-touch-icon" href="img/HekateIco.png">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            line-height: 1.65;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2.5rem 1.5rem 4rem;
+        }
+
+        .hero {
+            text-align: left;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero img {
+            max-width: 100%;
+            height: auto;
+            max-height: 220px;
+            margin-bottom: 0.5rem;
+        }
+
+        .tagline {
+            font-size: 1.05rem;
+            color: #666;
+            font-style: italic;
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 1.95rem;
+            font-weight: 700;
+            margin: 1rem 0 1rem;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+        }
+
+        h2 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            margin: 2.25rem 0 0.75rem;
+            line-height: 1.3;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1.75rem 0 0.5rem;
+            color: #2f6fdd;
+        }
+
+        p { margin: 0.9rem 0; }
+
+        ul, ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+        li { margin: 0.35rem 0; }
+
+        a { color: #2f6fdd; }
+        a:hover { color: #1e4fa8; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e2e4e8;
+            margin: 2rem 0;
+        }
+
+        /* Code */
+        code {
+            font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: #f2f4f7;
+            padding: 0.12em 0.35em;
+            border-radius: 4px;
+            color: #1a1a1a;
+        }
+
+        pre {
+            background: #f6f8fa;
+            border: 1px solid #e2e4e8;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 1rem 0;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            font-size: inherit;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            border: 1px solid #e2e4e8;
+            padding: 0.55rem 0.75rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f6f8fa;
+            font-weight: 600;
+        }
+
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        /* Callout */
+        .promise {
+            background: #f5f7fa;
+            border: 1px solid #e2e4e8;
+            border-left: 4px solid #2f6fdd;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.5rem 0;
+        }
+
+        .promise strong { color: #2f6fdd; }
+
+        blockquote {
+            margin: 1.25rem 0;
+            padding: 0.75rem 1rem;
+            border-left: 4px solid #c9d3e0;
+            background: #f8f9fb;
+            color: #333;
+            border-radius: 0 6px 6px 0;
+        }
+
+        blockquote p { margin: 0.4rem 0; }
+
+        /* Links block */
+        .links {
+            margin: 2rem 0 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.7rem 1.15rem;
+            background: #2f6fdd;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .btn:hover { background: #2559b8; color: #fff; }
+
+        .btn.secondary {
+            background: #ffffff;
+            color: #2f6fdd;
+            border: 1px solid #2f6fdd;
+        }
+
+        .btn.secondary:hover { background: #f0f4fc; }
+
+        .footer {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e4e8;
+            color: #666;
+            font-size: 0.875rem;
+        }
+
+        .note {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 2rem 1rem; }
+            h1 { font-size: 1.55rem; }
+            h2 { font-size: 1.2rem; }
+            .hero img { max-height: 150px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="hero">
+        <img src="img/Hekate.png" alt="Hekate Logo">
+        <p class="tagline">Hekate — Microsimulation Engine</p>
+    </div>
+
+    <h1>Hekate — Microsimulation Engine</h1>
+
+    <p>
+        Named after the Greek goddess of crossroads, magic, and transitions, Hekate is a
+        self-contained, dynamically configurable demographic microsimulation system written
+        in Go. <strong>Hekate is a general-purpose microsimulation engine</strong> that can
+        simulate population dynamics including migration, aging, mortality, fertility, and
+        other demographic processes. The name reflects the engine's purpose—guiding
+        populations through the crossroads of life events and demographic transitions.
+    </p>
+
+    <hr>
+
+    <h2>Contents</h2>
+    <ul>
+        <li><a href="#why-hekate">Why Hekate?</a></li>
+        <li><a href="#try-it-in-5-minutes">⚡ Try It in 5 Minutes</a></li>
+        <li><a href="#tutorials">Tutorials</a></li>
+    </ul>
+
+    <hr>
+
+    <h2 id="why-hekate">Why Hekate?</h2>
+
+    <h3>Think NetLogo for Big Data</h3>
+    <p>If you've used <strong>NetLogo</strong>, you already understand Hekate's philosophy:</p>
+
+    <table>
+        <thead>
+            <tr><th>Feature</th><th>NetLogo</th><th>Hekate</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Single download, everything included</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Easy to learn, shallow learning curve</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Build models without programming experience</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Rapid iteration: edit → run → see results</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Domain-specific language (not general-purpose)</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Built-in functions for common tasks</td><td>✅</td><td>✅</td></tr>
+        </tbody>
+    </table>
+
+    <div class="promise">
+        <strong>The Hekate Promise:</strong> Like NetLogo, you can go from zero to a working
+        model in minutes. Unlike NetLogo, Hekate can scale to millions or billions of
+        individuals with minimal memory — and every result is reproducible.
+    </div>
+
+    <h3>The Problem We're Solving</h3>
+    <p>
+        Traditional microsimulation systems have a fundamental problem: <strong>to change how
+        the model behaves, you need to change the source code and recompile.</strong> This means:
+    </p>
+    <ul>
+        <li>Only programmers can modify models</li>
+        <li>Each change requires a new software release</li>
+        <li>Models are locked inside compiled binaries</li>
+        <li>Collaboration is difficult</li>
+    </ul>
+
+    <h3>Our Solution: Models as Data</h3>
+    <p>Hekate takes a different approach. <strong>Models are defined as data, not code.</strong></p>
+
+    <table>
+        <thead>
+            <tr><th>Traditional Approach</th><th>Hekate Approach</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Model is code</td><td>Model is data (YAML + Lua)</td></tr>
+            <tr><td>Change = recompile</td><td>Change = edit text file</td></tr>
+            <tr><td>Programmers only</td><td>Anyone can modify</td></tr>
+            <tr><td>One model per release</td><td>Many models in one binary</td></tr>
+            <tr><td>Models are hidden</td><td>Models are transparent</td></tr>
+            <tr><td>Hard to share</td><td>Easy to share</td></tr>
+        </tbody>
+    </table>
+
+    <h3>The Three Components</h3>
+
+    <p><strong>1. CSV Files: Your Population Data</strong></p>
+    <p>
+        Your population is stored as a simple CSV file. Each row is one person, each column
+        is a characteristic (age, sex, area, etc.). Hekate automatically detects your
+        columns — no configuration needed.
+    </p>
+
+    <p><strong>2. YAML + Lua: Your Model Instructions</strong></p>
+    <p>Your model is defined in a YAML file with embedded Lua scripts:</p>
+    <ul>
+        <li><strong>YAML</strong> configures the simulation (iterations, file paths, etc.)</li>
+        <li><strong>Lua</strong> defines the logic (how people age, die, move, etc.)</li>
+    </ul>
+    <p>
+        The Lua scripts are the "brain" of your model. They tell Hekate what to do with
+        your population.
+    </p>
+
+    <p><strong>3. Hekate Engine: The Interpreter</strong></p>
+    <p>Hekate is a single, self-contained executable that:</p>
+    <ul>
+        <li>Reads your CSV population</li>
+        <li>Reads your YAML model instructions</li>
+        <li>Executes the Lua scripts on your population</li>
+        <li>Produces CSV results</li>
+    </ul>
+
+    <h3>Why This Works</h3>
+
+    <p><strong>For Non-Programmers:</strong></p>
+    <ul>
+        <li>You only need to learn a few simple Lua concepts</li>
+        <li>Models read like plain English</li>
+        <li>No compilation, no complex setup</li>
+    </ul>
+
+    <p><strong>For Researchers:</strong></p>
+    <ul>
+        <li>Rapid iteration: edit and rerun in seconds</li>
+        <li>Full transparency: the model is visible in the config</li>
+        <li>Easy collaboration: share config files, not code</li>
+        <li>Reproducible: verify others' results independently</li>
+    </ul>
+
+    <p><strong>For Developers:</strong></p>
+    <ul>
+        <li>One binary for all models</li>
+        <li>No dependency management</li>
+        <li>Easy distribution</li>
+        <li>Modular codebase</li>
+    </ul>
+
+    <hr>
+
+    <h2 id="try-it-in-5-minutes">⚡ Try It in 5 Minutes</h2>
+    <p>No installation. No compilation. Just download and run.</p>
+
+    <h3>Step 1: Download the Binary</h3>
+    <p>
+        Pick the binary for your platform from the
+        <a href="https://github.com/ricci-colasanti/Hekate/releases/latest" target="_blank" rel="noopener noreferrer">latest release</a>:
+    </p>
+
+    <table>
+        <thead>
+            <tr><th>Platform</th><th>Download</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><strong>Linux</strong> (x86_64)</td><td><a href="https://github.com/ricci-colasanti/Hekate/raw/dev/hekate-src/dist/hekate-linux-amd64"><code>hekate-linux-amd64</code></a></td></tr>
+            <tr><td><strong>Linux</strong> (ARM64)</td><td><a href="https://github.com/ricci-colasanti/Hekate/raw/dev/hekate-src/dist/hekate-linux-arm64"><code>hekate-linux-arm64</code></a></td></tr>
+            <tr><td><strong>macOS</strong> (Apple Silicon — M1/M2/M3/M4)</td><td><a href="https://github.com/ricci-colasanti/Hekate/raw/dev/hekate-src/dist/hekate-darwin-arm64"><code>hekate-darwin-arm64</code></a></td></tr>
+            <tr><td><strong>macOS</strong> (Intel)</td><td><a href="https://github.com/ricci-colasanti/Hekate/raw/dev/hekate-src/dist/hekate-darwin-amd64"><code>hekate-darwin-amd64</code></a></td></tr>
+            <tr><td><strong>Windows</strong> (x86_64)</td><td><a href="https://github.com/ricci-colasanti/Hekate/raw/dev/hekate-src/dist/hekate-windows-amd64.exe"><code>hekate-windows-amd64.exe</code></a></td></tr>
+        </tbody>
+    </table>
+
+    <blockquote>
+        <p><strong>Not sure which macOS binary you need?</strong> Open Terminal and run <code>uname -m</code>:</p>
+        <ul>
+            <li><code>arm64</code> → use <code>hekate-darwin-arm64</code></li>
+            <li><code>x86_64</code> → use <code>hekate-darwin-amd64</code></li>
+        </ul>
+    </blockquote>
+
+    <p>Make the binary executable (Linux/macOS only):</p>
+    <pre><code>chmod +x hekate-*</code></pre>
+
+    <h3>Step 2: Save the Example Files</h3>
+    <p>Create a new folder and save these two files inside it.</p>
+
+    <p><strong><code>population.csv</code></strong> — a small starting population:</p>
+    <pre><code>person_id,age,sex,area_id,alive
+1,25,F,1,true
+2,30,M,1,true
+3,45,F,1,true
+4,68,M,1,true
+5,82,F,1,true
+6,2,M,1,true
+7,15,F,1,true
+8,35,M,1,true
+9,55,F,1,true
+10,70,M,1,true</code></pre>
+
+    <p>
+        <strong><code>config.yaml</code></strong> — an aging + income + mortality model. It
+        uses three of Hekate's built-in statistical functions: <code>linear_predict</code>,
+        <code>normal_draw</code>, and <code>bernoulli_draw</code>.
+    </p>
+    <pre><code>simulation:
+  iterations: 5
+  population_file: "population.csv"
+  output_file: "output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+
+models:
+  - name: "aging"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Increment everyone's age by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              person.age = (tonumber(person.age) or 0) + 1
+            end
+          end
+          return population
+        end
+
+  - name: "income"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    description: "Income = 15000 + 300*age + normal noise (sd 4000)"
+    parameters:
+      base_mean: 15000
+      age_coef: 300
+      sd: 4000
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              local age = tonumber(person.age) or 0
+              local mean = linear_predict(params.base_mean, params.age_coef, age)
+              person.income = normal_draw(mean, params.sd)
+            end
+          end
+          return population
+        end
+
+  - name: "mortality"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    description: "Bernoulli mortality: 1% base + 0.5% per decade of age"
+    parameters:
+      base_hazard: 0.01
+      decade_coef: 0.005
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true or person.alive == "true" then
+              local age = tonumber(person.age) or 40
+              local p = params.base_hazard + params.decade_coef * (age / 10)
+              if p > 0.5 then p = 0.5 end
+              if bernoulli_draw(p) then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end</code></pre>
+
+    <blockquote>
+        <p>
+            <strong>Note on <code>id_column</code>:</strong> Hekate requires you to specify an
+            ID column that contains unique values for each individual. This determines the
+            order of rows in the output CSV, making results easier to compare across runs. It
+            must match a column in your CSV exactly.
+        </p>
+    </blockquote>
+
+    <h3>Step 3: Run It</h3>
+    <p>From inside that folder:</p>
+    <pre><code># Linux
+./hekate-linux-amd64 config.yaml
+
+# macOS (Apple Silicon)
+./hekate-darwin-arm64 config.yaml
+
+# macOS (Intel)
+./hekate-darwin-amd64 config.yaml
+
+# Windows
+hekate-windows-amd64.exe config.yaml</code></pre>
+
+    <p>You should see something like this:</p>
+    <pre><code>═══ Hekate: Microsimulation Engine ═══
+Iterations: 5
+Population file: population.csv
+ID column: person_id
+Mode: BULK (load all into memory)
+Random seed: 42
+Models loaded: 3
+Enabled models: 3
+  - aging (priority: 1)
+  - income (priority: 2)
+  - mortality (priority: 3)
+
+════════════════════════════════════════════════════════
+  Lua Script Pre-Flight Validation
+════════════════════════════════════════════════════════
+
+  ✅ aging                          (priority: 1)
+  ✅ income                         (priority: 2)
+  ✅ mortality                      (priority: 3)
+
+════════════════════════════════════════════════════════
+  ✅ All 3 models validated successfully
+════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════
+  Runtime Validation: Column Names vs CSV
+════════════════════════════════════════════════════════
+
+  CSV columns: person_id, age, sex, area_id, alive
+
+  ✅ aging                          (priority: 1)
+  ✅ income                         (priority: 2)
+  ✅ mortality                      (priority: 3)
+
+════════════════════════════════════════════════════════
+  ✅ All 3 models reference valid columns
+════════════════════════════════════════════════════════
+
+--- Using Bulk Processing (load all into memory) ---
+Loaded 10 individuals with 5 columns
+
+═══ Iteration 1/5 ═══
+  ▶ aging
+  ▶ income
+  ▶ mortality
+...
+
+═══ Simulation Complete ═══
+Results saved to output.csv</code></pre>
+
+    <h3>Step 4: Open the Result</h3>
+    <p>
+        Open <code>output.csv</code> in any spreadsheet app or text editor. You'll see the
+        same 10 people, but <strong>5 years older</strong>, with an <code>income</code>
+        column added, and some will have died:
+    </p>
+    <pre><code>person_id,age,sex,area_id,alive,income
+1,30,F,1,true,24685.2518
+2,35,M,1,true,24523.7249
+3,50,F,1,true,27813.0868
+4,73,M,1,true,33257.0189
+5,87,F,1,false,
+6,7,M,1,true,17121.9789
+7,20,F,1,true,22423.5864
+8,40,M,1,true,25513.8577
+9,60,F,1,true,29392.0931
+10,75,M,1,true,</code></pre>
+
+    <p>
+        (Exact values will vary with the seed. Person 5's income is blank because she died
+        during the run — <code>income</code> is only assigned to people still alive at the
+        moment the income model ran.)
+    </p>
+
+    <p><strong>That's it.</strong> You've just run a demographic microsimulation in under 5 minutes.</p>
+
+    <h3>✅ Verify Reproducibility</h3>
+    <p>Run it again — you'll get the exact same output:</p>
+    <pre><code>./hekate-linux-amd64 config.yaml
+cp output.csv run1.csv
+./hekate-linux-amd64 config.yaml
+cp output.csv run2.csv
+diff run1.csv run2.csv   # no differences, ever</code></pre>
+
+    <p>
+        Try changing <code>random_seed: 42</code> to <code>random_seed: 999</code>. Different
+        results — but still reproducible.
+    </p>
+
+    <h3>Using Streaming Mode</h3>
+    <p>
+        If your population is large (&gt; 1 million people) or your CSV is sorted by an area
+        column, you can enable streaming mode in your config:
+    </p>
+    <pre><code>simulation:
+  streaming_mode: true
+  area_column: "area_id"  # CSV must be sorted by this column</code></pre>
+
+    <p>
+        See the
+        <a href="https://github.com/ricci-colasanti/Hekate/blob/dev/hekate-src/README.md#-streaming-mode-for-large-populations" target="_blank" rel="noopener noreferrer">Streaming Mode section in the full README</a>
+        for details.
+    </p>
+
+    <hr>
+
+    <h2 id="tutorials">Tutorials</h2>
+    <p>
+        Get started with Hekate through our step-by-step tutorials. Each tutorial builds on
+        the previous one, taking you from beginner to advanced user.
+    </p>
+
+    <table>
+        <thead>
+            <tr><th>Tutorial</th><th>Description</th><th>Level</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><a href="tutorials/tutorial1_aging.html">Tutorial 1: Building an Aging Model</a></td>
+                <td>Learn the basics by creating a simple aging model. You'll create a population CSV, write your first configuration, run the simulation, and analyze the output.</td>
+                <td>⭐ Beginner</td>
+            </tr>
+            <tr>
+                <td><a href="tutorials/tutorial2_yaml_mortality.html">Tutorial 2: Understanding YAML and Adding Mortality</a></td>
+                <td>Dive deeper into YAML rules. Learn how to add a mortality model with age-specific death probabilities and track population changes.</td>
+                <td>⭐⭐ Intermediate</td>
+            </tr>
+            <tr>
+                <td><a href="tutorials/tutorial3_fertility.html">Tutorial 3: Adding Fertility</a></td>
+                <td>Complete the demographic cycle by adding fertility. Learn how to create new individuals (births), assign their characteristics, track population growth, and understand the full demographic cycle of aging, mortality, and fertility.</td>
+                <td>⭐⭐⭐ Advanced</td>
+            </tr>
+            <tr>
+                <td><a href="tutorials/tutorial_4_regression.html">Tutorial 4: Regression and Statistical Functions</a></td>
+                <td>Learn how to use Hekate's statistical toolkit — linear regression, logistic regression, Poisson regression, and softmax — to build realistic models of income, health, education, and fertility.</td>
+                <td>⭐⭐⭐ Advanced</td>
+            </tr>
+            <tr>
+                <td><a href="tutorials/tutorial_5_streaming.html">Tutorial 5: Large-Scale Simulations with Streaming Mode</a></td>
+                <td>Learn how to use Hekate's streaming mode to simulate populations of millions to billions of people with minimal memory. Includes performance tuning, area-based processing, and best practices for large-scale runs.</td>
+                <td>⭐⭐⭐⭐ Advanced User</td>
+            </tr>
+            <tr>
+                <td><a href="tutorials/tutorial_6_stats.html">Tutorial 6: Using Hekate's Statistical Toolkit</a></td>
+                <td>Build regression-based models from published coefficients — linear for income, logistic for mortality, Poisson for fertility, softmax for education. Includes a complete worked example combining all four techniques.</td>
+                <td>⭐⭐⭐⭐ Advanced</td>
+            </tr>
+            <tr>
+                <td><a href="tutorials/tutorial7_draws.html">Tutorial 7: The Draw Functions</a></td>
+                <td>A runnable tour of all nine draw functions — <code>logistic_draw</code>, <code>categorical_draw</code>, <code>poisson_draw</code>, <code>normal_draw</code>, <code>standard_normal_draw</code>, <code>uniform_draw</code>, <code>exponential_draw</code>, <code>bernoulli_draw</code>, <code>lognormal_draw</code> — each with its own config, plus a worked example combining <code>normal_draw</code> with <code>hekate_lookup</code>.</td>
+                <td>⭐⭐⭐⭐ Advanced</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="links">
+        <a class="btn" href="https://github.com/ricci-colasanti/Hekate" target="_blank" rel="noopener noreferrer">
+            View Hekate on GitHub
+        </a>
+        <a class="btn secondary" href="https://github.com/ricci-colasanti/Hekate/blob/dev/hekate-src/README.md" target="_blank" rel="noopener noreferrer">
+            Full README
+        </a>
+        <a class="btn secondary" href="https://github.com/ricci-colasanti/Hekate/tree/dev/hekate-src/tutorials" target="_blank" rel="noopener noreferrer">
+            Tutorials on GitHub
+        </a>
+    </div>
+
+    <p class="note">
+        Documentation in this bundle may lag the latest release. The GitHub repository is
+        always the source of truth.
+    </p>
+
+    <div class="footer">
+        MIT License · Authors: Nik Lomax, Alison Heppenstall, Hugh Rice, Andreas Hoehn, Ric Colasanti
+    </div>
+
+</div>
+</body>
+</html>

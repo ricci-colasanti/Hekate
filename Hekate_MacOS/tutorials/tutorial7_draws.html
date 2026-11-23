@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial 7: The Draw Functions — Hekate</title>
+
+    <link rel="icon" type="image/png" href="../img/HekateIco.png">
+    <link rel="apple-touch-icon" href="../img/HekateIco.png">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            line-height: 1.65;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        .topnav {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .topnav a { color: #2f6fdd; text-decoration: none; }
+        .topnav a:hover { text-decoration: underline; }
+
+        h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin: 0 0 1rem;
+            line-height: 1.25;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 2.25rem 0 0.75rem;
+            line-height: 1.3;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #e2e4e8;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1.75rem 0 0.5rem;
+            color: #2f6fdd;
+        }
+
+        p { margin: 0.9rem 0; }
+        ul, ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+        li { margin: 0.35rem 0; }
+        a { color: #2f6fdd; }
+        a:hover { color: #1e4fa8; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e2e4e8;
+            margin: 2rem 0;
+        }
+
+        code {
+            font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: #f2f4f7;
+            padding: 0.12em 0.35em;
+            border-radius: 4px;
+            color: #1a1a1a;
+        }
+
+        pre {
+            background: #f6f8fa;
+            border: 1px solid #e2e4e8;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 1rem 0;
+        }
+
+        pre code { background: none; padding: 0; font-size: inherit; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            border: 1px solid #e2e4e8;
+            padding: 0.55rem 0.75rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th { background: #f6f8fa; font-weight: 600; }
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        blockquote {
+            margin: 1.25rem 0;
+            padding: 0.75rem 1rem;
+            border-left: 4px solid #c9d3e0;
+            background: #f8f9fb;
+            color: #333;
+            border-radius: 0 6px 6px 0;
+        }
+        blockquote p { margin: 0.4rem 0; }
+
+        .callout {
+            background: #f5f7fa;
+            border: 1px solid #e2e4e8;
+            border-left: 4px solid #2f6fdd;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout strong { color: #2f6fdd; }
+
+        .warn {
+            background: #fff8e6;
+            border: 1px solid #f0d999;
+            border-left: 4px solid #d49b1c;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .warn strong { color: #a8730f; }
+
+        .bottomnav {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e4e8;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.95rem;
+        }
+        .bottomnav a {
+            color: #2f6fdd;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .bottomnav a:hover { text-decoration: underline; }
+
+        .footer {
+            margin-top: 2rem;
+            color: #666;
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 1.5rem 1rem 3rem; }
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.15rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="topnav">
+        <a href="../readme.html">← Back to README</a>
+    </div>
+
+    <h1>Tutorial 7: The Draw Functions</h1>
+
+    <h2>Overview</h2>
+    <p>
+        This tutorial is a hands-on tour of Hekate's nine <strong>distribution draw
+        functions</strong> — <code>logistic_draw</code>, <code>categorical_draw</code>,
+        <code>poisson_draw</code>, <code>normal_draw</code>,
+        <code>standard_normal_draw</code>, <code>uniform_draw</code>,
+        <code>exponential_draw</code>, <code>bernoulli_draw</code>, and
+        <code>lognormal_draw</code> — plus one worked example that combines
+        <code>normal_draw</code> with <code>hekate_lookup</code>.
+    </p>
+    <p>
+        Every function has its own runnable config. You can run each one, inspect the output
+        CSV, and see exactly what the function does. Nothing is hidden behind abstraction;
+        the shape of the output tells you the shape of the distribution.
+    </p>
+
+    <p>By the end of this tutorial, you'll be able to:</p>
+    <ul>
+        <li>Recognise which draw function fits which kind of outcome</li>
+        <li>Read and write the YAML for each draw</li>
+        <li>Understand the argument-validation errors each function raises</li>
+        <li>Combine a lookup table with <code>normal_draw</code> to sample per-group means and SDs</li>
+        <li>Verify reproducibility for any draw</li>
+    </ul>
+
+    <h2>Prerequisites</h2>
+    <ul>
+        <li>A working <code>hekate</code> binary (0.9.2 or later)</li>
+        <li>Completion of Tutorials 1–3 (or equivalent familiarity with YAML and Lua)</li>
+        <li>Basic understanding of what a probability distribution is — you do <strong>not</strong> need to know the maths, just the shape</li>
+        <li>A text editor and a way to view CSVs</li>
+    </ul>
+
+    <h2>What you'll need on disk</h2>
+    <p>Ten files in a single directory:</p>
+    <ul>
+        <li><code>draws_population.csv</code> — the shared population, used by all nine draw demos</li>
+        <li><code>lookup_population.csv</code> — a separate population, used only by the lookup example</li>
+        <li><code>lookup_rules.csv</code> — the lookup table for the lookup example</li>
+        <li>Ten configs: <code>01_logistic_draw.yaml</code> through <code>09_lognormal_draw.yaml</code>, plus <code>10_lookup_normal.yaml</code></li>
+    </ul>
+    <p>You can put them all in one folder. Each config is self-contained; none needs the others.</p>
+
+    <hr>
+
+    <h2>Part 1: Which draw do I need?</h2>
+    <p>
+        Before the demos, here's the decision table. It's the most useful page in the
+        tutorial — if you only remember one thing, remember this.
+    </p>
+
+    <table>
+        <thead><tr><th>If you want...</th><th>Use</th><th>Returns</th></tr></thead>
+        <tbody>
+            <tr><td>A yes/no decision whose probability comes from a regression</td><td><code>logistic_draw(intercept, coef1, var1, ...)</code></td><td>Boolean</td></tr>
+            <tr><td>A yes/no decision where you already have <code>p</code> in hand</td><td><code>bernoulli_draw(p)</code></td><td>Boolean</td></tr>
+            <tr><td>One of N categories, with probabilities you already have</td><td><code>categorical_draw(p1, ..., pN)</code></td><td>Integer (1..N)</td></tr>
+            <tr><td>A count whose mean comes from a regression</td><td><code>poisson_draw(intercept, coef1, var1, ...)</code></td><td>Integer (≥0)</td></tr>
+            <tr><td>A normal with a fixed mean and sd</td><td><code>normal_draw(mean, sd)</code></td><td>Float</td></tr>
+            <tr><td>A normal whose mean and/or sd varies per person</td><td><code>mean + sd * standard_normal_draw()</code></td><td>Float</td></tr>
+            <tr><td>A positive, right-skewed quantity (income, wealth)</td><td><code>lognormal_draw(mu, sigma)</code></td><td>Float (&gt; 0)</td></tr>
+            <tr><td>A continuous value with no preferred value in a range</td><td><code>uniform_draw(min, max)</code></td><td>Float in [min, max)</td></tr>
+            <tr><td>A waiting time to the next event</td><td><code>exponential_draw(rate)</code></td><td>Float (≥ 0), mean 1/rate</td></tr>
+        </tbody>
+    </table>
+
+    <p>The three pairs that are easiest to confuse:</p>
+    <ul>
+        <li><strong><code>logistic_draw</code> vs <code>bernoulli_draw</code></strong>: <code>logistic_draw</code> takes a linear predictor and computes <code>p</code> for you. <code>bernoulli_draw</code> takes <code>p</code> directly. If <code>p</code> needs to be computed from covariates, use <code>logistic_draw</code>; if you already have <code>p</code> (a fixed hazard, a threshold, the output of <code>logistic_predict</code>), use <code>bernoulli_draw</code>.</li>
+        <li><strong><code>normal_draw</code> vs <code>standard_normal_draw</code></strong>: <code>normal_draw(m, s)</code> is exactly <code>m + s * standard_normal_draw()</code>. Use <code>normal_draw</code> when mean and sd are fixed; use <code>standard_normal_draw</code> when they vary per person and you want to write the arithmetic yourself.</li>
+        <li><strong><code>normal_draw</code> vs <code>lognormal_draw</code></strong>: a normal can produce negative values and is symmetric. A lognormal is always positive and right-skewed. If the quantity can't be negative and has a long right tail (income, wealth, house prices, durations), use lognormal.</li>
+    </ul>
+
+    <hr>
+
+    <h2>Part 2: A note on namespaces</h2>
+    <p>
+        As of Hekate 0.9.2, <strong>every statistical function is a bare global</strong>.
+        Write <code>normal_draw(0, 1)</code>, <strong>not</strong>
+        <code>hekate_stats.normal_draw(0, 1)</code>. The <code>hekate_stats</code> table no
+        longer exists.
+    </p>
+
+    <p>The namespace split is:</p>
+    <ul>
+        <li><strong>Statistical functions</strong> (<code>*_predict</code>, <code>*_draw</code>, distribution draws): <strong>bare globals</strong>, no prefix.</li>
+        <li><strong>The raw RNG</strong> (<code>random</code>, <code>randomseed</code>, <code>seed</code>): still namespaced as <code>hekate_rng.*</code>.</li>
+        <li><strong>The lookup builder</strong>: still namespaced as <code>hekate_lookup.index(...)</code>.</li>
+    </ul>
+
+    <p>
+        <code>math.random</code> and <code>math.randomseed</code> are still overridden to use
+        Hekate's deterministic generator, so <code>math.random()</code> and
+        <code>hekate_rng.random()</code> give the same values.
+    </p>
+
+    <div class="warn">
+        <strong>Migration note:</strong> if you have an existing 0.9.1 config that uses
+        <code>hekate_stats.linear_predict(...)</code> or
+        <code>hekate_stats.logistic_draw(...)</code>, it will now fail with
+        <code>attempt to index a nil value (global 'hekate_stats')</code>. Remove the
+        <code>hekate_stats.</code> prefix from every such call. The function arguments and
+        behaviour are unchanged.
+    </div>
+
+    <hr>
+
+    <h2>Part 3: About random seeds</h2>
+    <p>
+        Every config in this tutorial uses <code>random_seed: 42</code>. Run any config twice
+        and you'll get byte-identical output.
+    </p>
+
+    <p>Each <strong>model, in each iteration</strong>, gets its own independent seed. The formulas differ by mode:</p>
+
+    <p><strong>Bulk mode:</strong></p>
+    <pre><code>seed = random_seed + iteration × 1000 + model_index</code></pre>
+
+    <p><strong>Streaming mode:</strong></p>
+    <pre><code>area_seed  = random_seed + year × 100000 + area_count
+model_seed = area_seed + model_index</code></pre>
+
+    <p>
+        The seeds differ because every model, in every iteration, gets its own independent
+        seed — that's how Hekate ensures each model's random draws are independent from every
+        other model's, while still being fully reproducible.
+    </p>
+
+    <h3>Why this matters</h3>
+    <p>
+        Suppose every model got the same seed. Then aging (which draws nothing, in the
+        <code>10_lookup_normal.yaml</code> config) would be harmless, but income-from-lookup
+        and mortality would both start from the same RNG state. Mortality draws
+        <code>bernoulli_draw(p)</code> once per living person. If income-from-lookup also
+        drew a number for the first person from the same stream, mortality's first draw would
+        be the <em>second</em> number in the stream, not the first — meaning the income
+        model's per-person draws and the mortality model's per-person draws would be
+        <strong>correlated</strong>. That's a well-known statistical bug: using the same
+        random numbers for two different decisions couples them in ways that don't reflect
+        reality.
+    </p>
+
+    <p>Hekate's per-model seeding avoids this by construction.</p>
+
+    <hr>
+
+    <h2>Part 4: Shared files</h2>
+
+    <h3><code>draws_population.csv</code></h3>
+    <p>
+        Used by configs 01–09. Ten people, women and men, ages 2–82, all alive, all with a
+        starting income.
+    </p>
+    <pre><code>id,sex,age,alive,area_id,income
+1,F,25,true,1,24000
+2,M,30,true,1,31000
+3,F,45,true,1,42000
+4,M,68,true,1,35000
+5,F,82,true,1,18000
+6,M,2,true,2,0
+7,F,15,true,2,0
+8,M,35,true,2,38000
+9,F,55,true,2,46000
+10,M,70,true,2,22000</code></pre>
+
+    <h3><code>lookup_population.csv</code></h3>
+    <p>
+        Used only by config 10. Fifteen people, women and men, ages 2–82, all alive, all with
+        <code>income = 0</code> (it will be overwritten by the lookup model).
+    </p>
+    <pre><code>id,sex,age,alive,area_id,income
+1,F,25,true,1,0
+2,M,30,true,1,0
+3,F,45,true,1,0
+4,M,68,true,1,0
+5,F,82,true,1,0
+6,M,2,true,2,0
+7,F,15,true,2,0
+8,M,35,true,2,0
+9,F,55,true,2,0
+10,M,70,true,2,0
+11,F,38,true,3,0
+12,M,42,true,3,0
+13,F,29,true,3,0
+14,M,51,true,3,0
+15,F,64,true,3,0</code></pre>
+
+    <h3><code>lookup_rules.csv</code></h3>
+    <p>
+        The lookup table for config 10. One row per <code>(sex, alive)</code> combination,
+        giving the mean (<code>value</code>) and SD (<code>sd</code>) of a normal draw.
+    </p>
+    <pre><code>sex,alive,value,sd
+M,true,30000,4000
+M,false,0,0
+F,true,26000,3500
+F,false,0,0</code></pre>
+
+    <p>
+        <strong>Note the <code>alive</code> column here is text</strong>
+        (<code>"true"</code>/<code>"false"</code>), while in
+        <code>lookup_population.csv</code> the <code>alive</code> column is parsed as a
+        <strong>boolean</strong> by Hekate. The lookup index coerces both to the same string
+        when comparing, so <code>by_key[person.sex][person.alive]</code> works whether
+        <code>person.alive</code> is a Lua <code>true</code> or the string
+        <code>"true"</code>. This is intentional and one of the things the lookup builder is
+        designed to handle.
+    </p>
+
+    <hr>
+
+    <h2>Part 5: The nine draw demos</h2>
+    <p>Each config below is complete. To run: <code>./hekate-linux-amd64 01_logistic_draw.yaml</code>, etc.</p>
+
+    <h3>01 — <code>logistic_draw</code></h3>
+    <p>
+        <strong>What it does:</strong> computes a probability from a linear predictor, then
+        samples a boolean. Combines <code>logistic_predict</code> +
+        <code>bernoulli_draw</code> in one call.
+    </p>
+    <pre><code># 01_logistic_draw.yaml — demonstrate logistic_draw
+#
+# logistic_draw(intercept, coef1, var1, ...) computes
+#   p = 1 / (1 + e^(-(intercept + Σ coefᵢ·varᵢ)))
+# then samples a boolean: true with probability p, false otherwise.
+#
+# Returns: a boolean (true/false). The probability of true is p.
+#
+# Why you'd use this: any yes/no decision that depends on several
+# variables through a regression — mortality, disease onset, marriage,
+# migration, whether someone gets a job. It saves you writing
+# "compute the probability, then compare against math.random()" by hand.
+#
+# This example: age-based one-year mortality probability.
+#   log-odds = -8.0 + 0.10 * age
+#   At age 25 → p ≈ 2%      At age 70 → p ≈ 12%
+# ============================================================================
+
+simulation:
+  iterations: 1
+  population_file: "draws_population.csv"
+  output_file: "out_01_logistic.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+
+models:
+  - name: "one_year_mortality"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Age-based one-year death decision (logistic_draw)"
+    parameters:
+      intercept: -8.0
+      age_coef: 0.10
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              local age = tonumber(person.age) or 40
+              if logistic_draw(params.intercept, params.age_coef, age) then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p>
+        <strong>What to look for in <code>out_01_logistic.csv</code>:</strong> almost everyone
+        should still be <code>alive = true</code>. The two oldest (ids 4 and 10, ages 68 and
+        70) have ~12% chance of death; everyone else is under 5%. With ten people across one
+        iteration, expect 0–1 deaths.
+    </p>
+
+    <h3>02 — <code>categorical_draw</code></h3>
+    <p>
+        <strong>What it does:</strong> picks one of N categories with given probabilities.
+        Returns the <strong>1-based index</strong> of the drawn category, which you map back
+        to a name.
+    </p>
+    <pre><code># 02_categorical_draw.yaml — demonstrate categorical_draw
+#
+# categorical_draw(p1, p2, ..., pN) samples one of N categories and returns
+# the 1-based index. Probabilities are auto-normalised if they don't sum to 1.
+#
+# Returns: an integer in 1..N — the 1-based index of the drawn category.
+#
+# Why you'd use this: any outcome with more than two options, where you
+# have a probability for each — education level, marital status, labour
+# market state, migration destination, type of disease. It saves you
+# writing a cascade of if/elseif comparisons against math.random().
+#
+# This example: assign each living person one of three education levels.
+#   primary   20%
+#   secondary 50%
+#   tertiary  30%
+# ============================================================================
+
+simulation:
+  iterations: 1
+  population_file: "draws_population.csv"
+  output_file: "out_02_categorical.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+
+models:
+  - name: "education_assignment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Pick one of primary/secondary/tertiary (categorical_draw)"
+    parameters:
+      script: |
+        function transition(population, params)
+          local names = {"primary", "secondary", "tertiary"}
+          for _, person in ipairs(population) do
+            if person.alive then
+              local idx = categorical_draw(0.2, 0.5, 0.3)
+              person.education = names[idx]
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p>
+        <strong>What to look for:</strong> <code>education</code> values distributed roughly
+        20% <code>primary</code>, 50% <code>secondary</code>, 30% <code>tertiary</code>
+        across the ten people. With only ten draws, expect variation — a handful of
+        <code>secondary</code>, a few of each of the others.
+    </p>
+
+    <h3>03 — <code>poisson_draw</code></h3>
+    <p>
+        <strong>What it does:</strong> samples a non-negative integer count, with the mean
+        (<code>λ</code>) computed from a linear predictor.
+    </p>
+    <pre><code># 03_poisson_draw.yaml — demonstrate poisson_draw
+#
+# poisson_draw(intercept, coef1, var1, ...) computes
+#   λ = exp(intercept + Σ coefᵢ·varᵢ)
+# then samples from Poisson(λ), returning an integer ≥ 0.
+#
+# Returns: an integer ≥ 0 — the sampled count.
+#
+# Why you'd use this: any "how many?" outcome — number of children, doctor
+# visits, migrations, hospital admissions, accidents. Poisson regression
+# is the standard model for count data, and this function does the
+# regression and the draw in one call. It saves you writing
+# "compute λ, then sample a Poisson count" by hand.
+#
+# This example: annual number of children per woman aged 15–50.
+#   λ = exp(-4.0 + 0.10 * age)
+#   At age 25 → λ ≈ 0.22/yr      At age 35 → λ ≈ 0.61/yr
+# ============================================================================
+
+simulation:
+  iterations: 1
+  population_file: "draws_population.csv"
+  output_file: "out_03_poisson.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+
+models:
+  - name: "births_this_year"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Annual number of children per fertile woman (poisson_draw)"
+    parameters:
+      intercept: -4.0
+      age_coef: 0.10
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive and person.sex == "F" then
+              local age = tonumber(person.age) or 30
+              if age >= 15 and age <= 50 then
+                person.children_this_year = poisson_draw(
+                  params.intercept,
+                  params.age_coef, age
+                )
+              end
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p>
+        <strong>What to look for:</strong> <code>children_this_year</code> for the four women
+        aged 15–50 (ids 1, 3, 7, 9). Most values will be <code>0</code>; occasionally a
+        <code>1</code>. Men and out-of-range women will have the column blank.
+    </p>
+
+    <h3>04 — <code>normal_draw</code></h3>
+    <p>
+        <strong>What it does:</strong> samples a continuous value from
+        <code>N(mean, sd²)</code>. <strong>Errors if <code>sd &lt; 0</code>.</strong>
+    </p>
+    <pre><code># 04_normal_draw.yaml — demonstrate normal_draw
+#
+# normal_draw(mean, sd) samples from N(mean, sd²).
+# sd must be ≥ 0; a negative sd is an error.
+#
+# Returns: a float — one draw from the normal distribution.
+#
+# Why you'd use this: any continuous quantity whose values cluster
+# symmetrically around a mean — income in the middle of a distribution,
+# height, weight, blood pressure, measurement error, unobserved
+# heterogeneity. If you've computed a regression prediction and want a
+# plausible spread around it, this is the one to reach for.
+#
+# This example: income = N(30000 + 300*(age-18), 5000²) for alive adults.
+# ============================================================================
+
+simulation:
+  iterations: 1
+  population_file: "draws_population.csv"
+  output_file: "out_04_normal.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+
+models:
+  - name: "income_with_normal_noise"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Income from a linear mean + Gaussian noise (normal_draw)"
+    parameters:
+      base_mean: 30000
+      age_coef: 300
+      sd: 5000
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive and tonumber(person.age) >= 18 then
+              local age = tonumber(person.age)
+              local mean = linear_predict(
+                params.base_mean,
+                params.age_coef, age - 18
+              )
+              person.income = normal_draw(mean, params.sd)
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p>
+        <strong>What to look for:</strong> <code>income</code> values clustered around the
+        linear mean (which rises with age) with ±5,000 spread. A few values below 20,000 or
+        above 50,000 are legitimate tail draws.
+    </p>
+
+    <h3>05 — <code>standard_normal_draw</code></h3>
+    <p>
+        <strong>What it does:</strong> samples from <code>N(0, 1)</code> with
+        <strong>no arguments</strong>. The building block for anything normally distributed.
+        <code>normal_draw(m, s)</code> = <code>m + s * standard_normal_draw()</code>.
+    </p>
+    <pre><code># 05_standard_normal_draw.yaml — demonstrate standard_normal_draw
+#
+# standard_normal_draw() samples from N(0, 1) with no arguments.
+#
+# Returns: a float — one draw from the standard normal distribution,
+# centred on 0 with standard deviation 1. About 68% of draws fall between
+# -1 and +1, and about 95% between -2 and +2.
+#
+# Why you'd use this: when you want a bare N(0,1) number rather than a
+# distribution with a fixed mean and sd. The usual case is that the mean
+# or sd changes per person — e.g. a weight whose mean depends on age and
+# sex — and you want to do the "mean + sd * z" arithmetic yourself. It's
+# also the raw ingredient if you're building a composite score that needs
+# unit-sd inputs. If your mean and sd are fixed, use normal_draw directly.
+#
+# This example: assign each person a weight drawn from N(72, 12²) kg —
+# a mean of 72 kg with a population SD of 12 kg. The arithmetic is
+# written out so you can see what normal_draw(72, 12) would do for you.
+# ============================================================================
+
+simulation:
+  iterations: 1
+  population_file: "draws_population.csv"
+  output_file: "out_05_standard_normal.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+
+models:
+  - name: "weight"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Weight drawn from N(72, 12²) kg via standard_normal_draw"
+    parameters:
+      mean_weight_kg: 72.0
+      sd_weight_kg: 12.0
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              person.weight = params.mean_weight_kg +
+                params.sd_weight_kg * standard_normal_draw()
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p>
+        <strong>What to look for:</strong> <code>weight</code> values clustered around 72 kg,
+        most between 60 and 84 (that's ±1 SD), a few outside that range, and roughly 95%
+        between 48 and 96 (±2 SD). Values below 0 or above 200 would be extremely unlikely;
+        if you see one, something's wrong with the SD.
+    </p>
+
+    <h3>06 — <code>uniform_draw</code></h3>
+    <p>
+        <strong>What it does:</strong> samples a continuous value from
+        <code>[min, max)</code>. <strong>Errors if <code>max &lt;= min</code>.</strong>
+    </p>
+    <pre><code># 06_uniform_draw.yaml — demonstrate uniform_draw
+#
+# uniform_draw(min, max) samples from the continuous uniform distribution
+# on [min, max). max must be > min; otherwise it errors.
+#
+# Returns: a float in [min, max) — one draw from the uniform distribution.
+#
+# Why you'd use this: any continuous quantity with no preferred value
+# inside its range — a noise term around a value, a fraction, a random
+# choice of starting position, a jitter in a measurement. If every
+# value between min and max is equally likely, this is the one to use.
+# For an integer uniform (1..n), use math.random(n) instead.
+#
+# This example: add ±2 kg of uniform noise to a person's weight.
+#   uniform_draw(-2.0, 2.0) returns a value in [-2, +2), so a 70 kg
+#   person ends up somewhere in [68, 72). Every value in that range
+#   is equally likely — this is the uniform counterpart to the normal
+#   noise that normal_draw produces, and the direct replacement for the
+#   hand-rolled idiom (2 * math.random() - 1) * sd.
+# ============================================================================
+
+simulation:
+  iterations: 1
+  population_file: "draws_population.csv"
+  output_file: "out_06_uniform.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+
+models:
+  - name: "weight_with_uniform_noise"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Add ±2 kg uniform noise to each person's weight (uniform_draw)"
+    parameters:
+      base_weight_kg: 70.0
+      noise_kg: 2.0
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              local noise = uniform_draw(-params.noise_kg, params.noise_kg)
+              person.weight = params.base_weight_kg + noise
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p>
+        <strong>What to look for:</strong> weight values in [68, 72), spread evenly. Every
+        value should be ≥ 68 and &lt; 72, and you should not see more values near 70 than
+        near 68 or 72 — unlike a normal, where values cluster near the mean. If you plotted
+        a histogram of a large enough sample, it would be flat across [68, 72) and drop to
+        zero outside.
+    </p>
+
+    <h3>07 — <code>exponential_draw</code></h3>
+    <p>
+        <strong>What it does:</strong> samples a positive waiting time from
+        <code>Exponential(rate)</code>, mean <code>1/rate</code>. <strong>Errors if
+        <code>rate &lt;= 0</code>.</strong>
+    </p>
+    <pre><code># 07_exponential_draw.yaml — demonstrate exponential_draw
+#
+# exponential_draw(rate) samples from Exponential(rate), mean = 1/rate.
+# rate must be > 0.
+#
+# Returns: a float ≥ 0 — the sampled waiting time.
+#
+# Why you'd use this: any "how long until the next event?" quantity —
+# time to next job change, time between births, time to equipment
+# failure, time until diagnosis, waiting time in a queue. The exponential
+# distribution is the standard model for these because it has the
+# memorylessness property: the chance of the event happening in the next
+# year doesn't depend on how long you've already waited.
+#
+# This example: a per-person waiting time with mean 5 years (rate 0.2).
+# ============================================================================
+
+simulation:
+  iterations: 1
+  population_file: "draws_population.csv"
+  output_file: "out_07_exponential.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+
+models:
+  - name: "waiting_time"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Exponential waiting time with mean 5 years (exponential_draw)"
+    parameters:
+      rate: 0.2
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              person.waiting_time_years = exponential_draw(params.rate)
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p>
+        <strong>What to look for:</strong> <code>waiting_time_years</code> values all ≥ 0,
+        with mean around 5. Many values will be under 5, a few above 10, occasionally one
+        above 20 — that's the long right tail of the exponential. No negative values are
+        possible.
+    </p>
+
+    <h3>08 — <code>bernoulli_draw</code></h3>
+    <p>
+        <strong>What it does:</strong> returns <code>true</code> with probability
+        <code>p</code>, where <code>p</code> is a number you already have.
+        <strong>Errors if <code>p &lt; 0</code> or <code>p &gt; 1</code>.</strong>
+    </p>
+    <p>
+        <strong>The difference from <code>logistic_draw</code>:</strong>
+        <code>logistic_draw</code> takes a <em>linear predictor</em> and computes
+        <code>p</code> for you; <code>bernoulli_draw</code> takes <code>p</code>
+        <em>directly</em>. Use <code>bernoulli_draw</code> when you have a fixed hazard, a
+        threshold, or the output of <code>logistic_predict</code>.
+    </p>
+    <pre><code># 08_bernoulli_draw.yaml — demonstrate bernoulli_draw
+#
+# bernoulli_draw(p) returns true with probability p. p must be in [0, 1].
+#
+# Returns: a boolean (true/false). The probability of true is p.
+#
+# Why you'd use this: any yes/no event whose probability you already
+# know — a fixed hazard, a threshold you've decided on, the output of
+# logistic_predict (if you want to record the probability as well as the
+# decision), a country-level policy change, a diagnostic trigger. If p
+# is a number you have in hand, this is the one to use; if p needs to be
+# computed from a regression, use logistic_draw instead.
+#
+# Difference from logistic_draw:
+#   logistic_draw(intercept, coef, var, ...)  -- linear predictor → p → boolean
+#   bernoulli_draw(p)                         -- p directly → boolean
+#
+# This example: 10% chance of migrating this year.
+# ============================================================================
+
+simulation:
+  iterations: 1
+  population_file: "draws_population.csv"
+  output_file: "out_08_bernoulli.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+
+models:
+  - name: "migration"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "10% annual migration hazard (bernoulli_draw)"
+    parameters:
+      migration_prob: 0.10
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              person.migrated_this_year = bernoulli_draw(params.migration_prob)
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p>
+        <strong>What to look for:</strong> <code>migrated_this_year</code> mostly
+        <code>false</code>, with roughly 1 in 10 <code>true</code>. With ten people, expect
+        0–2 <code>true</code> values.
+    </p>
+
+    <h3>09 — <code>lognormal_draw</code></h3>
+    <p>
+        <strong>What it does:</strong> samples a positive, right-skewed value from
+        <code>LogNormal(mu, sigma²)</code>. <code>mu</code> and <code>sigma</code> are the
+        parameters of the <strong>log</strong>, so <code>median = exp(mu)</code> and
+        <code>mean = exp(mu + sigma²/2)</code>. <strong>Errors if <code>sigma &lt;
+        0</code>.</strong>
+    </p>
+    <pre><code># 09_lognormal_draw.yaml — demonstrate lognormal_draw
+#
+# lognormal_draw(mu, sigma) samples from LogNormal(mu, sigma²), i.e.
+# exp(N(mu, sigma²)). sigma must be ≥ 0; the result is always > 0.
+#
+# Returns: a float > 0 — one draw from the lognormal distribution.
+#
+# Why you'd use this: any positive quantity that is right-skewed —
+# income, wealth, house prices, firm sizes, city sizes, durations.
+# Many people can be a bit below the median but a few can be very far
+# above it, and that asymmetry is exactly what the lognormal gives you.
+# A plain normal distribution would produce negative incomes, which the
+# lognormal avoids by construction. Use this instead of normal_draw
+# whenever the quantity can't be negative and has a long right tail.
+#
+# IMPORTANT: mu and sigma are the parameters of the LOG, not of the value.
+#   median of the result = exp(mu)
+#   mean  of the result = exp(mu + sigma²/2)
+#
+# This example: right-skewed income with median 30,000 and sigma 0.5.
+#   mu = ln(30000) ≈ 10.31
+#   median ≈ 30,000     mean ≈ 30,000 * exp(0.125) ≈ 34,000
+#   Long right tail: some people will have 60,000+; none below ~5,000.
+# ============================================================================
+
+simulation:
+  iterations: 1
+  population_file: "draws_population.csv"
+  output_file: "out_09_lognormal.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+
+models:
+  - name: "income_lognormal"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Right-skewed income with median 30000 (lognormal_draw)"
+    parameters:
+      median: 30000
+      sigma: 0.5
+      script: |
+        function transition(population, params)
+          local mu = math.log(params.median)
+          for _, person in ipairs(population) do
+            if person.alive then
+              person.income_lognormal = lognormal_draw(mu, params.sigma)
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p>
+        <strong>What to look for:</strong> <code>income_lognormal</code> values all positive,
+        median around 30,000, right-skewed. Most values between 15,000 and 50,000; one or two
+        outliers above 60,000 are typical. <strong>The distribution is visibly
+        asymmetric</strong> — you shouldn't see many values below 10,000, but you should see
+        the occasional very large one. This is the shape that distinguishes lognormal from
+        normal.
+    </p>
+
+    <hr>
+
+    <h2>Part 6: The lookup + <code>normal_draw</code> example</h2>
+
+    <h3>10 — <code>10_lookup_normal.yaml</code></h3>
+    <p>
+        <strong>What it does:</strong> combines <code>hekate_lookup.index</code> with
+        <code>normal_draw</code>. Builds a nested keyed index of the rules table, looks up
+        each person's <code>(sex, alive)</code> rule, and draws income from
+        <code>N(rule.value, rule.sd²)</code>.
+    </p>
+    <p>
+        This is the pattern to use when you have a per-group lookup table with means and SDs
+        (income by sex, mortality by age-band, etc.) and want to sample individual values
+        from within each group.
+    </p>
+    <pre><code># 10_lookup_normal.yaml — combine hekate_lookup.index with normal_draw
+#
+# Builds a nested index of lookup_rules.csv keyed by (sex, alive), looks up
+# each person's rule, then draws income from N(rule.value, rule.sd²).
+#
+# Returns: nothing itself — hekate_lookup.index returns a nested table
+# that is then used by normal_draw, which returns a float. Each person's
+# income column ends up as a float.
+#
+# Why you'd use this: whenever your parameters come from a table rather
+# than being hard-coded. Real models usually have dozens or hundreds of
+# per-group means and SDs (income by sex × age-band × region, mortality
+# by age-band × sex × year, and so on), and keeping them in a CSV that
+# the model looks up at runtime lets you change the parameters without
+# editing the Lua. hekate_lookup.index builds the index once per model
+# execution, so the per-person lookup is a plain table access.
+#
+# This is the pattern for per-group means and SDs:
+#   by_key[person.sex][person.alive] -> {sex, alive, value, sd}
+#   person.income = normal_draw(rule.value, rule.sd)
+#
+# The lookup index coerces both the datafile keys and the population keys to
+# strings, so 'alive' as a Lua boolean (from the population CSV) matches
+# 'alive' as the string "true" (from the lookup CSV) without extra work.
+# ============================================================================
+
+simulation:
+  iterations: 3
+  population_file: "lookup_population.csv"
+  output_file: "out_10_lookup_normal.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "id"
+  output_every_iteration: true
+
+models:
+  # --------------------------------------------------------------------------
+  # 1. Aging — so some people age out of the alive state over iterations
+  # --------------------------------------------------------------------------
+  - name: "aging"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Age living people by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              person.age = (tonumber(person.age) or 0) + 1
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 2. Income from lookup: hekate_lookup.index + normal_draw
+  # --------------------------------------------------------------------------
+  - name: "income_from_lookup"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    description: "Income = normal_draw(rule.value, rule.sd), keyed by sex|alive"
+    datafile: "lookup_rules.csv"
+    parameters:
+      script: |
+        function transition(population, params)
+          local by_key = hekate_lookup.index(params.datafile, "sex", "alive")
+
+          for _, person in ipairs(population) do
+            local rule = by_key[person.sex] and by_key[person.sex][person.alive]
+            if rule then
+              person.income = normal_draw(rule.value, rule.sd)
+            else
+              person.income = 0
+            end
+          end
+          return population
+        end
+
+  # --------------------------------------------------------------------------
+  # 3. Mortality — some people die, so later iterations exercise the
+  #    (sex, false) lookup rule (value=0, sd=0 → income becomes exactly 0).
+  # --------------------------------------------------------------------------
+  - name: "mortality"
+    type: "lua_model"
+    priority: 3
+    enabled: true
+    description: "Age-based mortality (bernoulli_draw with a fixed hazard)"
+    parameters:
+      base_hazard: 0.01
+      age_coef: 0.0005
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive then
+              local age = tonumber(person.age) or 40
+              local p = params.base_hazard + params.age_coef * age
+              if p > 0.5 then p = 0.5 end
+              if bernoulli_draw(p) then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end</code></pre>
+
+    <p><strong>What to look for in <code>out_10_lookup_normal.csv</code>:</strong></p>
+    <ul>
+        <li><strong>Iteration 1</strong> (<code>out_10_lookup_normal_1.csv</code>): everyone alive, so everyone matches a <code>(sex, true)</code> rule. Women's income clusters around 26,000 (sd 3,500); men's around 30,000 (sd 4,000). <strong>No one has <code>income = 0</code>.</strong></li>
+        <li><strong>Iterations 2–3:</strong> some people have died. Their income becomes <code>normal_draw(0, 0) = 0</code> exactly, because the <code>(sex, false)</code> rule has <code>value=0, sd=0</code>. If you see a <strong>dead person with <code>income = 0</code></strong>, the lookup is working. If you see a <strong>dead person with <code>income = something nonzero</code></strong>, that's expected only if they died <em>after</em> the income model ran in that iteration (model priority 2 runs before priority 3).</li>
+        <li><strong>Wrong-sex income</strong> would signal the <code>sex</code> key isn't matching. <strong>Zero income for alive people</strong> would signal the <code>alive</code> key isn't matching. Neither should happen.</li>
+    </ul>
+
+    <div class="callout">
+        <strong>Note on <code>output_every_iteration</code>:</strong> config 10 uses it to
+        produce persistent <code>out_10_lookup_normal_1.csv</code>, <code>..._2.csv</code>,
+        <code>..._3.csv</code> snapshots. This only works in <strong>bulk mode</strong>.
+        In streaming mode the flag is ignored — streaming writes and deletes its own
+        <code>year_N.csv</code> working files instead.
+    </div>
+
+    <hr>
+
+    <h2>Part 7: Reproducibility</h2>
+    <p>
+        Every config uses <code>random_seed: 42</code>. Run any config twice and you'll get
+        byte-identical output:
+    </p>
+    <pre><code>./hekate-linux-amd64 03_poisson_draw.yaml && mv out_03_poisson.csv run1.csv
+./hekate-linux-amd64 03_poisson_draw.yaml && mv out_03_poisson.csv run2.csv
+diff run1.csv run2.csv && echo "DETERMINISTIC"</code></pre>
+
+    <p>
+        Change <code>random_seed</code> to any other integer and you'll get different but
+        still reproducible results.
+    </p>
+
+    <p>
+        <strong>Important:</strong> each config uses the same seed, but they run
+        independently — running <code>01_logistic_draw.yaml</code> and
+        <code>02_categorical_draw.yaml</code> gives each the seed 42, but the two runs don't
+        share a stream. The seed just ensures each config is reproducible in isolation.
+    </p>
+
+    <p>
+        <strong>One caveat:</strong> if you switch a config from bulk mode to streaming mode,
+        you'll get different results, even with the same seed, because streaming mode derives
+        a different seed per area. Both are reproducible; they aren't interchangeable. (See
+        the README's Reproducibility section.)
+    </p>
+
+    <hr>
+
+    <h2>Part 8: Errors you might see (and what they mean)</h2>
+    <p>
+        The draw functions validate their arguments. If you see any of these, the config is
+        passing a bad value:
+    </p>
+    <ul>
+        <li><code>normal_draw: sd must be &gt;= 0 (got -1.5)</code> — you passed a negative SD</li>
+        <li><code>uniform_draw: max must be &gt; min (got min=5, max=5)</code> — you passed equal or reversed bounds</li>
+        <li><code>exponential_draw: rate must be &gt; 0 (got 0)</code> — you passed zero or negative rate</li>
+        <li><code>bernoulli_draw: p must be in [0, 1] (got 1.2)</code> — the probability is outside [0, 1]</li>
+        <li><code>lognormal_draw: sigma must be &gt;= 0 (got -0.5)</code> — you passed a negative sigma</li>
+    </ul>
+
+    <p>These are deliberate errors, not bugs. Fix the input value.</p>
+
+    <p>
+        If you see <code>column 'X' not found in CSV</code> during pre-flight validation, it
+        means a script reads <code>person.X</code> where <code>X</code> isn't in the input
+        CSV. For columns that a model <em>creates</em> (rather than reads from the CSV), add
+        a comment anywhere in the script:
+    </p>
+    <pre><code>-- hekate:allow-columns X</code></pre>
+    <p>Then the validator will skip that column.</p>
+
+    <hr>
+
+    <h2>Part 9: What you've learned</h2>
+    <p>You've now seen all nine draw functions in action. A few things worth remembering:</p>
+    <ul>
+        <li><strong>The decision table in Part 1 is the most useful page.</strong> When in doubt, come back to it.</li>
+        <li><strong><code>logistic_draw</code> vs <code>bernoulli_draw</code></strong> is the easiest pair to confuse. Ask yourself: <em>do I have a regression, or do I have a probability?</em></li>
+        <li><strong><code>normal_draw</code> vs <code>standard_normal_draw</code></strong> is arithmetic, not statistics: one is <code>m + s * z</code>, the other is <code>z</code>.</li>
+        <li><strong><code>normal_draw</code> vs <code>lognormal_draw</code></strong> is about shape: symmetric-and-unbounded vs positive-and-right-skewed.</li>
+        <li><strong>All draw functions validate their arguments.</strong> If you get an error, the config is wrong; read the message.</li>
+        <li><strong>All draw functions are reproducible</strong> given a <code>random_seed</code>, in the same execution mode.</li>
+    </ul>
+
+    <h3>Next steps</h3>
+    <ul>
+        <li>Take one of your existing models that uses <code>math.random() &lt; p</code> and replace it with <code>bernoulli_draw(p)</code> — same result, clearer intent.</li>
+        <li>Take a model that adds hand-rolled noise (like <code>(2 * math.random() - 1) * sd</code>) and replace it with <code>uniform_draw(-sd, sd)</code>.</li>
+        <li>Build a per-group lookup table for one of your parameters and wire it up with <code>hekate_lookup.index</code> + <code>normal_draw</code>.</li>
+        <li>Experiment with <code>lognormal_draw</code> for any positive, right-skewed quantity in your model. Compare its output shape with <code>normal_draw</code>.</li>
+    </ul>
+
+    <div class="callout">
+        <strong>Well done for completing Tutorial 7!</strong> You now have the full
+        distribution toolkit in hand. The draw functions are the part of Hekate that most
+        directly turns a regression model into a realistic simulation, and you've seen each
+        one working on a runnable config. That's the foundation for everything you'll build
+        next.
+    </div>
+
+    <div class="bottomnav">
+        <a href="tutorial_6_stats.html">← Tutorial 6: Using Hekate's Statistical Toolkit</a>
+        <a href="../readme.html">Back to README →</a>
+    </div>
+
+    <div class="footer">
+        MIT License · Authors: Nik Lomax, Alison Heppenstall, Hugh Rice, Andreas Hoehn, Ric Colasanti
+    </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial 4: Regression and Statistical Functions — Hekate</title>
+
+    <link rel="icon" type="image/png" href="../img/HekateIco.png">
+    <link rel="apple-touch-icon" href="../img/HekateIco.png">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            line-height: 1.65;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        .topnav {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .topnav a { color: #2f6fdd; text-decoration: none; }
+        .topnav a:hover { text-decoration: underline; }
+
+        h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin: 0 0 1rem;
+            line-height: 1.25;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 2.25rem 0 0.75rem;
+            line-height: 1.3;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #e2e4e8;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1.75rem 0 0.5rem;
+            color: #2f6fdd;
+        }
+
+        p { margin: 0.9rem 0; }
+        ul, ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+        li { margin: 0.35rem 0; }
+        a { color: #2f6fdd; }
+        a:hover { color: #1e4fa8; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e2e4e8;
+            margin: 2rem 0;
+        }
+
+        code {
+            font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: #f2f4f7;
+            padding: 0.12em 0.35em;
+            border-radius: 4px;
+            color: #1a1a1a;
+        }
+
+        pre {
+            background: #f6f8fa;
+            border: 1px solid #e2e4e8;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 1rem 0;
+        }
+
+        pre code { background: none; padding: 0; font-size: inherit; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            border: 1px solid #e2e4e8;
+            padding: 0.55rem 0.75rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th { background: #f6f8fa; font-weight: 600; }
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        blockquote {
+            margin: 1.25rem 0;
+            padding: 0.75rem 1rem;
+            border-left: 4px solid #c9d3e0;
+            background: #f8f9fb;
+            color: #333;
+            border-radius: 0 6px 6px 0;
+        }
+        blockquote p { margin: 0.4rem 0; }
+
+        .callout {
+            background: #f5f7fa;
+            border: 1px solid #e2e4e8;
+            border-left: 4px solid #2f6fdd;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout strong { color: #2f6fdd; }
+
+        .warn {
+            background: #fff8e6;
+            border: 1px solid #f0d999;
+            border-left: 4px solid #d49b1c;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .warn strong { color: #a8730f; }
+
+        .bottomnav {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e4e8;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.95rem;
+        }
+        .bottomnav a {
+            color: #2f6fdd;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .bottomnav a:hover { text-decoration: underline; }
+
+        .footer {
+            margin-top: 2rem;
+            color: #666;
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 1.5rem 1rem 3rem; }
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.15rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="topnav">
+        <a href="../readme.html">← Back to README</a>
+    </div>
+
+    <h1>Tutorial 4: Using Linear Regression in Hekate</h1>
+
+    <h2>Overview</h2>
+    <p>
+        Hekate includes powerful built-in statistical functions that you can call directly
+        from your Lua scripts. In this tutorial, you'll learn how to use the
+        <code>linear_predict()</code> function to build predictive models for continuous
+        outcomes like income, health scores, or any other numeric value.
+    </p>
+
+    <div class="warn">
+        <strong>Migrating from 0.9.1?</strong> As of Hekate 0.9.2, every statistical function
+        is a <strong>bare global</strong>. Write <code>linear_predict(...)</code>, not
+        <code>hekate_stats.linear_predict(...)</code>. The <code>hekate_stats</code> table no
+        longer exists, and any script still using the prefix will fail with
+        <code>attempt to index a nil value (global 'hekate_stats')</code>. This tutorial
+        uses the 0.9.2 syntax throughout.
+    </div>
+
+    <h2>What You'll Learn</h2>
+    <ul>
+        <li>How to use <code>linear_predict()</code> in your Lua scripts</li>
+        <li>How to define coefficients in YAML</li>
+        <li>How to handle categorical variables (education, gender, etc.)</li>
+        <li>How to add randomness to your predictions</li>
+        <li>How to validate your model results</li>
+    </ul>
+
+    <h2>Prerequisites</h2>
+    <p>Before starting this tutorial, you should have:</p>
+    <ul>
+        <li>Completed Tutorial 1: Building an Aging Model</li>
+        <li>Basic understanding of YAML and Lua</li>
+        <li>Hekate binary downloaded and working</li>
+    </ul>
+
+    <hr>
+
+    <h2>Understanding Linear Regression</h2>
+    <p>
+        Linear regression models the relationship between a dependent variable (what you want
+        to predict) and one or more independent variables (what you're using to predict):
+    </p>
+    <p><strong>Formula:</strong> <code>y = intercept + coef₁×var₁ + coef₂×var₂ + ...</code></p>
+    <p>In Hekate, this becomes:</p>
+    <pre><code>local prediction = linear_predict(
+    intercept,    -- The constant term
+    coef1, var1,  -- First coefficient-variable pair
+    coef2, var2,  -- Second coefficient-variable pair
+    ...
+)</code></pre>
+
+    <hr>
+
+    <h2>Step 1: Creating a Population for Income Modeling</h2>
+    <p>Let's create a population with characteristics that influence income.</p>
+
+    <h3>Generate Population</h3>
+    <p>Create a file called <code>generate_income_population.py</code>:</p>
+    <pre><code>#!/usr/bin/env python3
+"""
+Generate population for income modeling tutorial
+"""
+
+import csv
+import random
+
+random.seed(42)
+
+def generate_population(n=10000):
+    with open('population_income.csv', 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            'id', 'age', 'gender', 'education', 'income', 
+            'experience', 'alive', 'region'
+        ])
+        
+        for i in range(n):
+            person_id = f"P{i+1:06d}"
+            
+            # Age (20-70)
+            age = random.randint(20, 70)
+            
+            # Gender
+            gender = random.choice(['male', 'female'])
+            
+            # Education (categorical)
+            education = random.choices(
+                ['none', 'primary', 'secondary', 'tertiary'],
+                weights=[0.10, 0.25, 0.35, 0.30]
+            )[0]
+            
+            # Experience (correlated with age and education)
+            experience = max(0, age - 20 - random.randint(0, 5))
+            if education in ['secondary', 'tertiary']:
+                experience -= 2
+            
+            # Income (will be overwritten by model)
+            base_income = 20000 + age * 200
+            if education == 'tertiary':
+                base_income += 10000
+            elif education == 'secondary':
+                base_income += 5000
+            income = int(base_income + random.gauss(0, 5000))
+            income = max(10000, income)
+            
+            # Alive (95%)
+            alive = random.random() < 0.95
+            
+            # Region
+            region = random.choice(['north', 'south', 'east', 'west'])
+            
+            writer.writerow([
+                person_id, age, gender, education, income,
+                experience, str(alive).lower(), region
+            ])
+    
+    print(f"Generated {n} individuals in population_income.csv")
+
+if __name__ == "__main__":
+    generate_population(10000)</code></pre>
+
+    <p>Run it:</p>
+    <pre><code>python3 generate_income_population.py</code></pre>
+
+    <hr>
+
+    <h2>Step 2: Building a Simple Income Predictor</h2>
+    <p>Now let's create a model that predicts income using <code>linear_predict()</code>.</p>
+
+    <h3>Create config_income.yaml</h3>
+    <pre><code>simulation:
+  iterations: 1
+  population_file: population_income.csv
+  output_file: output_income.csv
+  random_seed: 42
+  verbose: true
+  id_column: id
+  streaming_mode: false
+
+models:
+  - name: income_predictor
+    type: lua_model
+    priority: 1
+    enabled: true
+    description: "Predict income using linear regression"
+    parameters:
+      coefficients:
+        intercept: 15000
+        age: 300
+        education: 5000
+        gender: -2500
+        experience: 400
+      script: |
+        function transition(population, params)
+            local coefs = params.coefficients
+            
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                
+                if alive then
+                    -- Convert education to numeric score
+                    local edu_score = 0
+                    if person.education == "tertiary" then
+                        edu_score = 3
+                    elseif person.education == "secondary" then
+                        edu_score = 2
+                    elseif person.education == "primary" then
+                        edu_score = 1
+                    end
+                    
+                    -- Convert gender to numeric
+                    local gender_score = 0
+                    if person.gender == "female" then
+                        gender_score = 1
+                    end
+                    
+                    -- Predict income using linear regression
+                    local income = linear_predict(
+                        coefs.intercept,
+                        coefs.age, person.age,
+                        coefs.education, edu_score,
+                        coefs.gender, gender_score,
+                        coefs.experience, person.experience
+                    )
+                    
+                    -- Add some randomness
+                    local noise = 1 + (math.random() * 0.1 - 0.05)
+                    person.income = math.floor(income * noise + 0.5)
+                    
+                    -- Ensure minimum income
+                    if person.income < 8000 then
+                        person.income = 8000
+                    end
+                end
+            end
+            
+            return population
+        end</code></pre>
+
+    <h3>Understanding the Model</h3>
+    <p>Let's break down what's happening:</p>
+
+    <p><strong>1. Coefficients defined in YAML:</strong></p>
+    <pre><code>coefficients:
+  intercept: 15000      # Base income
+  age: 300              # $300 per year of age
+  education: 5000       # $5000 per education level
+  gender: -2500         # $2500 less for females
+  experience: 400       # $400 per year of experience</code></pre>
+
+    <p><strong>2. Categorical variables converted to numbers:</strong></p>
+    <pre><code>-- Education: none=0, primary=1, secondary=2, tertiary=3
+local edu_score = 0
+if person.education == "tertiary" then
+    edu_score = 3
+elseif person.education == "secondary" then
+    edu_score = 2
+elseif person.education == "primary" then
+    edu_score = 1
+end
+
+-- Gender: male=0, female=1
+local gender_score = 0
+if person.gender == "female" then
+    gender_score = 1
+end</code></pre>
+
+    <p><strong>3. Linear prediction:</strong></p>
+    <pre><code>local income = linear_predict(
+    coefs.intercept,           -- 15000
+    coefs.age, person.age,     -- 300 * age
+    coefs.education, edu_score, -- 5000 * edu_score
+    coefs.gender, gender_score, -- -2500 * gender_score
+    coefs.experience, person.experience -- 400 * experience
+)</code></pre>
+
+    <p>This computes:</p>
+    <pre><code>income = 15000 + 300*age + 5000*edu_score - 2500*gender_score + 400*experience</code></pre>
+
+    <hr>
+
+    <h2>Step 3: Run the Simulation</h2>
+    <pre><code>./hekate-linux-amd64 config_income.yaml</code></pre>
+
+    <hr>
+
+    <h2>Step 4: Analyze the Results</h2>
+    <p>Create <code>analyze_income_results.py</code>:</p>
+    <pre><code>#!/usr/bin/env python3
+"""
+Analyze income model results
+"""
+
+import csv
+import statistics
+from collections import defaultdict
+
+def analyze_results():
+    # Read data
+    data = []
+    with open('output_income.csv', 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            row['age'] = int(row['age'])
+            row['income'] = int(row['income'])
+            row['experience'] = int(row['experience'])
+            row['alive'] = row['alive'].lower() == 'true'
+            data.append(row)
+    
+    alive = [p for p in data if p['alive']]
+    
+    print("=" * 60)
+    print("INCOME MODEL RESULTS")
+    print("=" * 60)
+    
+    # Overall income
+    incomes = [p['income'] for p in alive]
+    print(f"\nOverall Income:")
+    print(f"  Mean:  ${statistics.mean(incomes):,.0f}")
+    print(f"  Median: ${statistics.median(incomes):,.0f}")
+    print(f"  Min:   ${min(incomes):,.0f}")
+    print(f"  Max:   ${max(incomes):,.0f}")
+    
+    # Income by age
+    print(f"\nIncome by Age Group:")
+    age_groups = [(20, 30), (30, 40), (40, 50), (50, 60), (60, 70)]
+    labels = ["20-29", "30-39", "40-49", "50-59", "60-69"]
+    for label, (low, high) in zip(labels, age_groups):
+        incomes = [p['income'] for p in alive if low <= p['age'] < high]
+        if incomes:
+            print(f"  {label}: ${statistics.mean(incomes):,.0f} (n={len(incomes)})")
+    
+    # Income by education
+    print(f"\nIncome by Education:")
+    edu_order = ['none', 'primary', 'secondary', 'tertiary']
+    for edu in edu_order:
+        incomes = [p['income'] for p in alive if p['education'] == edu]
+        if incomes:
+            print(f"  {edu:10s}: ${statistics.mean(incomes):,.0f} (n={len(incomes)})")
+    
+    # Income by gender
+    print(f"\nIncome by Gender:")
+    for gender in ['male', 'female']:
+        incomes = [p['income'] for p in alive if p['gender'] == gender]
+        if incomes:
+            print(f"  {gender:8s}: ${statistics.mean(incomes):,.0f} (n={len(incomes)})")
+    
+    # Income by experience
+    print(f"\nIncome by Experience:")
+    exp_groups = [(0, 5), (5, 10), (10, 20), (20, 30), (30, 50)]
+    for low, high in exp_groups:
+        incomes = [p['income'] for p in alive if low <= p['experience'] < high]
+        if incomes:
+            label = f"{low}-{high} yrs"
+            print(f"  {label:10s}: ${statistics.mean(incomes):,.0f} (n={len(incomes)})")
+
+if __name__ == "__main__":
+    analyze_results()</code></pre>
+
+    <p>Run it:</p>
+    <pre><code>python3 analyze_income_results.py</code></pre>
+
+    <hr>
+
+    <h2>Step 5: Advanced Example — Income with Interaction Effects</h2>
+    <p>You can create more complex models by adding interaction terms:</p>
+    <pre><code>models:
+  - name: income_predictor_advanced
+    type: lua_model
+    priority: 1
+    enabled: true
+    parameters:
+      coefficients:
+        intercept: 15000
+        age: 200
+        education: 3000
+        gender: -2000
+        experience: 300
+        age_education: 50      # Interaction: age * education
+        gender_education: -1000  # Interaction: gender * education
+      script: |
+        function transition(population, params)
+            local coefs = params.coefficients
+            
+            for _, person in ipairs(population) do
+                if person.alive == true then
+                    local edu_score = 0
+                    if person.education == "tertiary" then
+                        edu_score = 3
+                    elseif person.education == "secondary" then
+                        edu_score = 2
+                    elseif person.education == "primary" then
+                        edu_score = 1
+                    end
+                    
+                    local gender_score = 0
+                    if person.gender == "female" then
+                        gender_score = 1
+                    end
+                    
+                    -- Include interaction terms
+                    local income = linear_predict(
+                        coefs.intercept,
+                        coefs.age, person.age,
+                        coefs.education, edu_score,
+                        coefs.gender, gender_score,
+                        coefs.experience, person.experience,
+                        coefs.age_education, person.age * edu_score,
+                        coefs.gender_education, gender_score * edu_score
+                    )
+                    
+                    person.income = math.floor(income + 0.5)
+                end
+            end
+            
+            return population
+        end</code></pre>
+
+    <p>This model captures:</p>
+    <ul>
+        <li><strong>Age-education interaction</strong>: Education is more valuable for younger people</li>
+        <li><strong>Gender-education interaction</strong>: The gender gap varies by education level</li>
+    </ul>
+
+    <hr>
+
+    <h2>Step 6: Using Logistic Regression for Binary Outcomes</h2>
+    <p>You can also use logistic regression for binary outcomes:</p>
+    <pre><code>models:
+  - name: employment_predictor
+    type: lua_model
+    priority: 2
+    enabled: true
+    parameters:
+      coefficients:
+        intercept: -1.5
+        age: 0.05
+        education: 0.3
+        gender: -0.2
+      script: |
+        function transition(population, params)
+            local coefs = params.coefficients
+            
+            for _, person in ipairs(population) do
+                if person.alive == true then
+                    local edu_score = 0
+                    if person.education == "tertiary" then
+                        edu_score = 3
+                    elseif person.education == "secondary" then
+                        edu_score = 2
+                    end
+                    
+                    local gender_score = 0
+                    if person.gender == "female" then
+                        gender_score = 1
+                    end
+                    
+                    -- Probability of being employed
+                    local prob = logistic_predict(
+                        coefs.intercept,
+                        coefs.age, person.age / 10,
+                        coefs.education, edu_score,
+                        coefs.gender, gender_score
+                    )
+                    
+                    person.employed = math.random() < prob
+                end
+            end
+            
+            return population
+        end</code></pre>
+
+    <p>
+        Note: for this example we still use <code>math.random() &lt; prob</code> so you can
+        see the probability being computed. For cleaner 0.9.2 code, replace the last two
+        lines with <code>person.employed = bernoulli_draw(prob)</code> — same result,
+        clearer intent. Or, if you don't need to record <code>prob</code> at all, use
+        <code>logistic_draw(coefs.intercept, ...)</code> which combines the prediction and
+        the draw in one call.
+    </p>
+
+    <hr>
+
+    <h2>Step 7: Full Example — Income + Health Risk Model</h2>
+    <p>Here's a complete example combining both linear and logistic regression:</p>
+
+    <h3>config_full_example.yaml</h3>
+    <pre><code>simulation:
+  iterations: 1
+  population_file: population_full.csv
+  output_file: output_full.csv
+  random_seed: 42
+  verbose: true
+  id_column: id
+  streaming_mode: false
+
+models:
+  # Model 1: Predict Income (Linear Regression)
+  - name: income_predictor
+    type: lua_model
+    priority: 1
+    enabled: true
+    parameters:
+      coefficients:
+        intercept: 15000
+        age: 300
+        education: 5000
+        gender: -2500
+        experience: 400
+      script: |
+        function transition(population, params)
+            local coefs = params.coefficients
+            
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                
+                if alive then
+                    local edu_score = 0
+                    if person.education == "tertiary" then
+                        edu_score = 3
+                    elseif person.education == "secondary" then
+                        edu_score = 2
+                    elseif person.education == "primary" then
+                        edu_score = 1
+                    end
+                    
+                    local gender_score = 0
+                    if person.gender == "female" then
+                        gender_score = 1
+                    end
+                    
+                    local income = linear_predict(
+                        coefs.intercept,
+                        coefs.age, person.age,
+                        coefs.education, edu_score,
+                        coefs.gender, gender_score,
+                        coefs.experience, person.experience
+                    )
+                    
+                    local noise = 1 + (math.random() * 0.1 - 0.05)
+                    person.income = math.floor(income * noise + 0.5)
+                    
+                    if person.income < 8000 then
+                        person.income = 8000
+                    end
+                end
+            end
+            
+            return population
+        end
+
+  # Model 2: Predict Health Risk (Logistic Regression)
+  - name: health_risk_predictor
+    type: lua_model
+    priority: 2
+    enabled: true
+    parameters:
+      coefficients:
+        intercept: -3.5
+        age: 0.8
+        bmi: 0.6
+        smoker: 1.2
+        income: -0.00001
+      script: |
+        function transition(population, params)
+            local coefs = params.coefficients
+            
+            for _, person in ipairs(population) do
+                local alive = false
+                if person.alive == true or person.alive == "true" then
+                    alive = true
+                end
+                
+                if alive then
+                    local age = tonumber(person.age) or 40
+                    local bmi = tonumber(person.bmi) or 25
+                    local income = tonumber(person.income) or 30000
+                    
+                    local bmi_score = 0
+                    if bmi > 30 then
+                        bmi_score = 2
+                    elseif bmi > 25 then
+                        bmi_score = 1
+                    end
+                    
+                    local smoker_score = 0
+                    if person.smoker == "true" or person.smoker == true then
+                        smoker_score = 1
+                    end
+                    
+                    local risk = logistic_predict(
+                        coefs.intercept,
+                        coefs.age, age / 10,
+                        coefs.bmi, bmi_score,
+                        coefs.smoker, smoker_score,
+                        coefs.income, income / 10000
+                    )
+                    
+                    person.health_risk = math.floor(risk * 100 + 0.5)
+                    
+                    -- High risk individuals may die
+                    if risk > 0.7 and math.random() < 0.05 then
+                        person.alive = false
+                    end
+                end
+            end
+            
+            return population
+        end</code></pre>
+
+    <hr>
+
+    <h2>Best Practices</h2>
+
+    <h3>1. Always Use tonumber()</h3>
+    <p>CSV data comes in as strings. Always convert:</p>
+    <pre><code>local age = tonumber(person.age) or 0</code></pre>
+
+    <h3>2. Handle Missing Values</h3>
+    <pre><code>local edu_score = 0
+if person.education == "tertiary" then
+    edu_score = 3
+elseif person.education == "secondary" then
+    edu_score = 2
+else
+    edu_score = 0
+end</code></pre>
+
+    <h3>3. Add Realistic Noise</h3>
+    <p>Perfect predictions look suspicious. Add noise:</p>
+    <pre><code>local noise = 1 + (math.random() * 0.1 - 0.05)  -- ±5%
+person.income = math.floor(income * noise + 0.5)</code></pre>
+
+    <h3>4. Validate with Python</h3>
+    <p>Always validate your model results using Python or R to ensure they make sense.</p>
+
+    <h3>5. Document Your Coefficients</h3>
+    <p>Add comments explaining what each coefficient means:</p>
+    <pre><code>coefficients:
+  intercept: 15000    # Base income for a 20-year-old with no education
+  age: 300            # Additional income per year of age
+  education: 5000     # Additional income per education level
+  gender: -2500       # Gender penalty (female earns less)</code></pre>
+
+    <h3>6. Check Coefficient Signs</h3>
+    <ul>
+        <li>Age should have a positive coefficient (older = higher income)</li>
+        <li>Education should have a positive coefficient</li>
+        <li>Gender should reflect your expected difference</li>
+    </ul>
+
+    <h3>7. Check Magnitudes</h3>
+    <ul>
+        <li>Does a year of age add $300 to income? That's $30,000 over 100 years — reasonable</li>
+        <li>Does a university degree add $15,000? Depends on your context</li>
+    </ul>
+
+    <hr>
+
+    <h2>Common Pitfalls and How to Avoid Them</h2>
+
+    <h3>Pitfall 1: String vs Number Comparison</h3>
+    <p><strong>Wrong:</strong></p>
+    <pre><code>if person.age > 30 then  -- age is a string!</code></pre>
+    <p><strong>Correct:</strong></p>
+    <pre><code>local age = tonumber(person.age) or 0
+if age > 30 then</code></pre>
+
+    <h3>Pitfall 2: Missing Values</h3>
+    <p><strong>Wrong:</strong></p>
+    <pre><code>local income = linear_predict(
+    coefs.intercept,
+    coefs.age, person.age  -- person.age might be nil
+)</code></pre>
+    <p><strong>Correct:</strong></p>
+    <pre><code>local age = tonumber(person.age) or 0
+local income = linear_predict(
+    coefs.intercept,
+    coefs.age, age
+)</code></pre>
+
+    <h3>Pitfall 3: Forgetting to Handle Alive Status</h3>
+    <p><strong>Wrong:</strong></p>
+    <pre><code>for _, person in ipairs(population) do
+    -- Updates everyone, including dead people!
+    person.income = predict_income(person)
+end</code></pre>
+    <p><strong>Correct:</strong></p>
+    <pre><code>for _, person in ipairs(population) do
+    local alive = false
+    if person.alive == true or person.alive == "true" then
+        alive = true
+    end
+    
+    if alive then
+        person.income = predict_income(person)
+    end
+end</code></pre>
+
+    <hr>
+
+    <h2>Summary</h2>
+    <p>You've learned how to:</p>
+    <ol>
+        <li>✅ Use <code>linear_predict()</code> in Lua scripts</li>
+        <li>✅ Define coefficients in YAML</li>
+        <li>✅ Handle categorical variables (education, gender)</li>
+        <li>✅ Add randomness to make predictions realistic</li>
+        <li>✅ Validate your model results with Python</li>
+        <li>✅ Build more complex models with interaction terms</li>
+        <li>✅ Use logistic regression for binary outcomes</li>
+        <li>✅ Combine multiple models in one simulation</li>
+    </ol>
+
+    <h2>Next Steps</h2>
+    <ul>
+        <li>Try adding more variables to your model (e.g., region, marital status)</li>
+        <li>Use logistic regression for other binary outcomes (marriage, migration)</li>
+        <li>Combine linear regression with other models (aging, mortality)</li>
+        <li>Run the model for multiple years to see how income changes over time</li>
+        <li>Experiment with different coefficient values to see their impact</li>
+        <li>Move on to Tutorial 5 for running this kind of model at scale with streaming mode</li>
+    </ul>
+
+    <h2>Troubleshooting</h2>
+    <table>
+        <thead><tr><th>Error</th><th>Solution</th></tr></thead>
+        <tbody>
+            <tr><td><code>attempt to compare number with string</code></td><td>Use <code>tonumber()</code> to convert string values to numbers</td></tr>
+            <tr><td><code>attempt to index a nil value</code></td><td>Check that the column exists in your CSV and use <code>if person.column_name then</code></td></tr>
+            <tr><td>Predictions are too high/low</td><td>Check your coefficients and add noise to make results more realistic</td></tr>
+            <tr><td>Missing values in output</td><td>Use <code>or</code> to provide defaults: <code>local age = tonumber(person.age) or 0</code></td></tr>
+            <tr><td>Model not running in priority order</td><td>Check your priority numbers — lower numbers run first</td></tr>
+            <tr><td><code>attempt to index a nil value (global 'hekate_stats')</code></td><td>You're using 0.9.1 syntax. Remove the <code>hekate_stats.</code> prefix from every call — in 0.9.2 these are bare globals</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout">
+        <strong>Well done for completing Tutorial 4!</strong> You now know how to use
+        regression to drive individual-level predictions, handle categorical variables, and
+        combine multiple models. Tutorial 5 turns to scale — running these kinds of models
+        over millions of individuals with streaming mode.
+    </div>
+
+    <div class="bottomnav">
+        <a href="tutorial3_fertility.html">← Tutorial 3: Adding Fertility</a>
+        <a href="tutorial_5_streaming.html">Tutorial 5: Large-Scale Simulations with Streaming Mode →</a>
+    </div>
+
+    <div class="footer">
+        MIT License · Authors: Nik Lomax, Alison Heppenstall, Hugh Rice, Andreas Hoehn, Ric Colasanti
+    </div>
+
+</div>
+</body>
+</html>

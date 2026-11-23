@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial 2: Understanding YAML and Adding Mortality — Hekate</title>
+
+    <link rel="icon" type="image/png" href="../img/HekateIco.png">
+    <link rel="apple-touch-icon" href="../img/HekateIco.png">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            line-height: 1.65;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        .topnav {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .topnav a { color: #2f6fdd; text-decoration: none; }
+        .topnav a:hover { text-decoration: underline; }
+
+        h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin: 0 0 1rem;
+            line-height: 1.25;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 2.25rem 0 0.75rem;
+            line-height: 1.3;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #e2e4e8;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1.75rem 0 0.5rem;
+            color: #2f6fdd;
+        }
+
+        p { margin: 0.9rem 0; }
+        ul, ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+        li { margin: 0.35rem 0; }
+        a { color: #2f6fdd; }
+        a:hover { color: #1e4fa8; }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e2e4e8;
+            margin: 2rem 0;
+        }
+
+        code {
+            font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: #f2f4f7;
+            padding: 0.12em 0.35em;
+            border-radius: 4px;
+            color: #1a1a1a;
+        }
+
+        pre {
+            background: #f6f8fa;
+            border: 1px solid #e2e4e8;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 1rem 0;
+        }
+
+        pre code { background: none; padding: 0; font-size: inherit; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            border: 1px solid #e2e4e8;
+            padding: 0.55rem 0.75rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th { background: #f6f8fa; font-weight: 600; }
+        tbody tr:nth-child(even) { background: #fafbfc; }
+
+        blockquote {
+            margin: 1.25rem 0;
+            padding: 0.75rem 1rem;
+            border-left: 4px solid #c9d3e0;
+            background: #f8f9fb;
+            color: #333;
+            border-radius: 0 6px 6px 0;
+        }
+        blockquote p { margin: 0.4rem 0; }
+
+        .callout {
+            background: #f5f7fa;
+            border: 1px solid #e2e4e8;
+            border-left: 4px solid #2f6fdd;
+            border-radius: 6px;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout strong { color: #2f6fdd; }
+
+        .bottomnav {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e4e8;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.95rem;
+        }
+        .bottomnav a {
+            color: #2f6fdd;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .bottomnav a:hover { text-decoration: underline; }
+
+        .footer {
+            margin-top: 2rem;
+            color: #666;
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 1.5rem 1rem 3rem; }
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.15rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <div class="topnav">
+        <a href="../readme.html">← Back to README</a>
+    </div>
+
+    <h1>Tutorial 2: Understanding YAML, Lua, and Adding Mortality with Areas</h1>
+
+    <h2>Overview</h2>
+    <p>
+        In this tutorial, we'll dive deeper into YAML and Lua. You'll learn how YAML rules
+        work, how to add a mortality model to your simulation, and how to track population
+        changes. We'll also introduce <strong>areas</strong> and show how Hekate can process
+        populations area-by-area using streaming mode.
+    </p>
+
+    <h2>What You'll Learn</h2>
+    <p>By the end of this tutorial, you'll be able to:</p>
+    <ul>
+        <li>Understand YAML formatting rules</li>
+        <li>Write a mortality model using Lua</li>
+        <li>Understand Lua in plain English</li>
+        <li>Work with area-based data</li>
+        <li>Use streaming mode for larger populations</li>
+    </ul>
+
+    <h2>Prerequisites</h2>
+    <ul>
+        <li>Completion of Tutorial 1 (or equivalent knowledge)</li>
+        <li>The <code>population.csv</code> file from Tutorial 1</li>
+        <li>A text editor</li>
+    </ul>
+
+    <hr>
+
+    <h2>Part 1: Understanding YAML Rules</h2>
+    <p>
+        In Tutorial 1, we copied a YAML configuration and it just worked. Now let's
+        understand <strong>why</strong> it worked and what the rules are.
+    </p>
+
+    <h3>Rule 1: YAML Uses Spaces, Not Tabs</h3>
+    <p>This is the most common mistake! YAML uses <strong>spaces</strong> for indentation, <strong>never tabs</strong>.</p>
+    <pre><code># ✅ CORRECT - using spaces
+simulation:
+  iterations: 5
+  population_file: "population.csv"
+
+# ❌ WRONG - using tabs (invisible but will cause errors)
+simulation:
+	iterations: 5
+	population_file: "population.csv"</code></pre>
+
+    <p>
+        <strong>Why does this matter?</strong> YAML reads indentation to understand what
+        belongs to what. If you use tabs, YAML gets confused and throws an error.
+    </p>
+
+    <h3>Rule 2: Multi-line Strings Need the Pipe (<code>|</code>)</h3>
+    <p>In Tutorial 1, we used this in our model:</p>
+    <pre><code>script: |
+  function transition(population, params)
+    for _, person in ipairs(population) do
+      if person.alive == true then
+        person.age = person.age + 1
+      end
+    end
+    return population
+  end</code></pre>
+
+    <p>
+        The pipe (<code>|</code>) tells YAML: "Everything that follows, indented, is a
+        single string value." This allows us to write clean, readable Lua scripts that span
+        multiple lines.
+    </p>
+
+    <p><strong>What happens without the pipe?</strong></p>
+    <pre><code># ❌ WRONG - YAML sees three separate values
+script: function transition(population, params)
+  for _, person in ipairs(population) do
+    if person.alive == true then
+      person.age = person.age + 1
+    end
+  end
+  return population
+end</code></pre>
+
+    <p>
+        YAML would see this as multiple separate lines and throw an error because it expects
+        a single value after the colon.
+    </p>
+
+    <p><strong>Important:</strong> The content after the pipe must be indented:</p>
+    <pre><code># ✅ CORRECT - content is indented
+script: |
+  function transition(population, params)
+    for _, person in ipairs(population) do
+      if person.alive == true then
+        person.age = person.age + 1
+      end
+    end
+    return population
+  end
+
+# ❌ WRONG - content is not indented
+script: |
+function transition(population, params)
+  for _, person in ipairs(population) do
+    if person.alive == true then
+      person.age = person.age + 1
+    end
+  end
+  return population
+end</code></pre>
+
+    <h3>Rule 3: Column Names Must Match Your CSV Exactly</h3>
+    <p>
+        <strong>This is the most important rule for Hekate!</strong> The column names you use
+        in your Lua scripts must exactly match the column names in your CSV file.
+    </p>
+    <pre><code># CSV column names
+person_id,age,sex,area_id,alive</code></pre>
+
+    <pre><code>-- ✅ CORRECT - matches CSV
+if person.alive == true then
+  person.age = person.age + 1
+end
+
+-- ❌ WRONG - 'Alive' doesn't match 'alive' in CSV
+if person.Alive == true then
+  person.Age = person.Age + 1
+end</code></pre>
+
+    <p>
+        <strong>Why does this matter?</strong> Hekate loads your CSV and creates a data
+        structure with the exact column names from your CSV. If you use <code>Alive</code>
+        but your CSV has <code>alive</code>, Hekate won't find the column.
+    </p>
+
+    <h3>Quick YAML Reference</h3>
+    <table>
+        <thead><tr><th>What you want</th><th>How to write it</th></tr></thead>
+        <tbody>
+            <tr><td>A key-value pair</td><td><code>key: value</code></td></tr>
+            <tr><td>A multi-line string</td><td><code>key: |</code><br><code>  line 1</code><br><code>  line 2</code></td></tr>
+            <tr><td>A list</td><td><code>- item 1</code><br><code>- item 2</code></td></tr>
+            <tr><td>A comment</td><td><code># This is a comment</code></td></tr>
+            <tr><td>Indentation</td><td>Use 2 spaces (or 4, but be consistent)</td></tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Part 2: Understanding Lua (In Plain English)</h2>
+    <p>Before we write more Lua, let's understand what Lua does in plain English.</p>
+    <p><strong>Lua is a simple scripting language that reads like English.</strong></p>
+    <p>Think of your population as a list of people, where each person has properties:</p>
+
+    <table>
+        <thead><tr><th>person_id</th><th>age</th><th>sex</th><th>area_id</th><th>alive</th></tr></thead>
+        <tbody>
+            <tr><td>1</td><td>25</td><td>F</td><td>1</td><td>true</td></tr>
+            <tr><td>2</td><td>30</td><td>M</td><td>1</td><td>true</td></tr>
+            <tr><td>3</td><td>45</td><td>F</td><td>1</td><td>true</td></tr>
+            <tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+        </tbody>
+    </table>
+
+    <p>Lua lets you:</p>
+    <ul>
+        <li><strong>Loop through people</strong>: <code>for _, person in ipairs(population) do</code></li>
+        <li><strong>Check conditions</strong>: <code>if person.alive == true then</code></li>
+        <li><strong>Make changes</strong>: <code>person.age = person.age + 1</code></li>
+        <li><strong>Return results</strong>: <code>return population</code></li>
+    </ul>
+
+    <p>That's it! You don't need to know anything else about programming.</p>
+
+    <h3>The Lua You'll Use in This Tutorial</h3>
+    <table>
+        <thead><tr><th>Lua Concept</th><th>What it does</th><th>Example</th><th>Plain English</th></tr></thead>
+        <tbody>
+            <tr><td><code>function</code></td><td>Define a function</td><td><code>function transition(population, params)</code></td><td>"Here's a model that runs each year"</td></tr>
+            <tr><td><code>for</code></td><td>Loop through a list</td><td><code>for _, person in ipairs(population) do</code></td><td>"For each person in the population..."</td></tr>
+            <tr><td><code>if</code></td><td>Check a condition</td><td><code>if person.alive == true then</code></td><td>"If they are alive..."</td></tr>
+            <tr><td><code>==</code></td><td>Compare values</td><td><code>person.alive == true</code></td><td>"Is alive equal to true?"</td></tr>
+            <tr><td><code>=</code></td><td>Assign a value</td><td><code>person.age = person.age + 1</code></td><td>"Set age to age plus 1"</td></tr>
+            <tr><td><code>return</code></td><td>Return a value</td><td><code>return population</code></td><td>"Send back the updated population"</td></tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Part 3: Adding a Mortality Model</h2>
+    <p>Now let's add a mortality model to our simulation. This will make our model more realistic by allowing people to die.</p>
+
+    <h3>What We Want to Do</h3>
+    <p>
+        <strong>In plain English:</strong> "Each year, check every person. If they are alive
+        and under 30, there's a 0.1% chance they die. If they are alive and 30 or over,
+        there's a 5% chance they die. If they die, mark them as dead."
+    </p>
+
+    <h3>The Mortality Model in YAML with Lua</h3>
+    <p>Here's the mortality model as it appears in your <code>config.yaml</code>:</p>
+    <pre><code># Model 2: Mortality (runs second)
+- name: "mortality"
+  type: "lua_model"
+  priority: 2
+  enabled: true
+  description: "Age-specific mortality: 0.1% for under 30, 5% for 30+"
+  parameters:
+    script: |
+      function transition(population, params)
+        for _, person in ipairs(population) do
+          if person.alive == true then
+            local age = person.age
+            local prob = 0
+            
+            if age < 30 then
+              prob = 0.001  -- 0.1% chance
+            else
+              prob = 0.05   -- 5% chance
+            end
+            
+            if math.random() < prob then
+              person.alive = false
+            end
+          end
+        end
+        return population
+      end</code></pre>
+
+    <p>
+        <strong>First, in plain English:</strong> "Go through everyone in the population. For
+        each person who is alive, check their age. If they are under 30, flip a coin with a
+        0.1% chance of coming up heads. If heads, mark them as dead. If they are 30 or over,
+        flip a coin with a 5% chance of coming up heads. If heads, mark them as dead."
+    </p>
+
+    <p><strong>Let's break down what each part does:</strong></p>
+    <table>
+        <thead><tr><th>Part</th><th>What it does</th><th>In plain English</th></tr></thead>
+        <tbody>
+            <tr><td><code>- name: "mortality"</code></td><td>Names the model</td><td>"This model is called 'mortality'"</td></tr>
+            <tr><td><code>type: "lua_model"</code></td><td>Tells Hekate it's a Lua script</td><td>"This is a Lua model"</td></tr>
+            <tr><td><code>priority: 2</code></td><td>Sets execution order</td><td>"Run this after priority 1 models"</td></tr>
+            <tr><td><code>enabled: true</code></td><td>Activates the model</td><td>"This model is turned on"</td></tr>
+            <tr><td><code>script: |</code></td><td>Starts the Lua code</td><td>"Here comes the Lua script..."</td></tr>
+            <tr><td><code>function transition(population, params)</code></td><td>Defines the model</td><td>"This is the model that runs each year"</td></tr>
+            <tr><td><code>for _, person in ipairs(population) do</code></td><td>Loops through people</td><td>"For each person in the population..."</td></tr>
+            <tr><td><code>if person.alive == true then</code></td><td>Checks if alive</td><td>"...if they are alive..."</td></tr>
+            <tr><td><code>local age = person.age</code></td><td>Gets their age</td><td>"...get their age..."</td></tr>
+            <tr><td><code>if age &lt; 30 then</code></td><td>Checks age group</td><td>"...if they're under 30..."</td></tr>
+            <tr><td><code>prob = 0.001</code></td><td>Sets probability</td><td>"...they have a 0.1% chance of dying"</td></tr>
+            <tr><td><code>else</code></td><td>Otherwise</td><td>"...otherwise (they're 30 or over)..."</td></tr>
+            <tr><td><code>prob = 0.05</code></td><td>Sets probability</td><td>"...they have a 5% chance of dying"</td></tr>
+            <tr><td><code>if math.random() &lt; prob then</code></td><td>Rolls the dice</td><td>"...roll a random number..."</td></tr>
+            <tr><td><code>person.alive = false</code></td><td>Marks as dead</td><td>"...if it's less than the probability, mark them as dead"</td></tr>
+            <tr><td><code>return population</code></td><td>Returns updated population</td><td>"Send back the updated population"</td></tr>
+        </tbody>
+    </table>
+
+    <p>
+        <strong>What is <code>math.random()</code>?</strong> In Lua, <code>math.random()</code>
+        generates a random number between 0 and 1. So <code>math.random() &lt; 0.001</code>
+        means "there's a 0.1% chance this is true" (like flipping a weighted coin).
+    </p>
+
+    <hr>
+
+    <h2>Part 4: Creating the Full Configuration</h2>
+    <p>Here's our complete configuration with both aging and mortality:</p>
+    <pre><code># config_aging_mortality.yaml
+# Aging and mortality model with area support
+
+simulation:
+  iterations: 5
+  population_file: "population.csv"
+  output_file: "population_aged_mortality.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+
+models:
+  # Model 1: Age increment (runs first)
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    description: "Increment everyone's age by 1 year"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end
+
+  # Model 2: Mortality (runs second)
+  - name: "mortality"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    description: "Age-specific mortality: 0.1% for under 30, 5% for 30+"
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              local age = person.age
+              local prob = 0
+              
+              if age < 30 then
+                prob = 0.001  -- 0.1% chance
+              else
+                prob = 0.05   -- 5% chance
+              end
+              
+              if math.random() < prob then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end</code></pre>
+
+    <h3>Why Priority Matters</h3>
+    <p>Notice we have <strong>two models</strong> now:</p>
+    <ul>
+        <li><strong>Priority 1</strong>: Age increment (runs first)</li>
+        <li><strong>Priority 2</strong>: Mortality (runs second)</li>
+    </ul>
+    <p>
+        <strong>Why this order?</strong> We want people to age first, then we check if they
+        die at their new age. Someone who turns 30 this year should now face the higher 30+
+        mortality rate.
+    </p>
+
+    <hr>
+
+    <h2>Part 5: Running with Areas and Streaming Mode</h2>
+
+    <h3>Adding an Area Column</h3>
+    <p>
+        For streaming mode to work, your CSV needs an <code>area_id</code> column. Let's
+        create a slightly larger population with multiple areas:
+    </p>
+    <pre><code>person_id,age,sex,area_id,alive
+1,25,F,1,true
+2,30,M,1,true
+3,45,F,1,true
+4,68,M,1,true
+5,82,F,1,true
+6,2,M,2,true
+7,15,F,2,true
+8,35,M,2,true
+9,55,F,2,true
+10,70,M,2,true</code></pre>
+
+    <p>
+        <strong>Important:</strong> For streaming mode, the CSV must be <strong>sorted by
+        <code>area_id</code></strong> (all area 1 first, then area 2, etc.).
+    </p>
+
+    <h3>Streaming Mode Configuration</h3>
+    <pre><code># config_aging_mortality_streaming.yaml
+# Streaming mode with aging and mortality
+
+simulation:
+  iterations: 5
+  population_file: "population_with_areas.csv"
+  output_file: "final_output.csv"
+  random_seed: 42
+  verbose: true
+  id_column: "person_id"
+  area_column: "area_id"          # REQUIRED for streaming mode
+  streaming_mode: true            # Enable area-by-area processing
+
+models:
+  - name: "age_increment"
+    type: "lua_model"
+    priority: 1
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              person.age = person.age + 1
+            end
+          end
+          return population
+        end
+
+  - name: "mortality"
+    type: "lua_model"
+    priority: 2
+    enabled: true
+    parameters:
+      script: |
+        function transition(population, params)
+          for _, person in ipairs(population) do
+            if person.alive == true then
+              local age = person.age
+              local prob = 0
+              
+              if age < 30 then
+                prob = 0.001
+              else
+                prob = 0.05
+              end
+              
+              if math.random() < prob then
+                person.alive = false
+              end
+            end
+          end
+          return population
+        end</code></pre>
+
+    <h3>What Streaming Mode Does</h3>
+    <p>When you run with <code>streaming_mode: true</code>:</p>
+    <ol>
+        <li><strong>Hekate reads the CSV in order</strong>, processing one area at a time</li>
+        <li><strong>Only one area is in memory</strong> at any time</li>
+        <li><strong>All models are applied</strong> to each area</li>
+        <li><strong>Results are written</strong> to intermediate files</li>
+    </ol>
+
+    <h3>Output Files in Streaming Mode</h3>
+    <pre><code>year_1.csv  → After year 1
+year_2.csv  → After year 2
+year_3.csv  → After year 3
+year_4.csv  → After year 4
+year_5.csv  → After year 5
+final_output.csv → Copy of year_5.csv</code></pre>
+    <p>
+        These are working files: Hekate writes them as it processes each year, then copies
+        the last one to <code>output_file</code> and deletes them at the end of the run. If
+        you want per-iteration snapshots that persist, use bulk mode with
+        <code>output_every_iteration: true</code> (see the README).
+    </p>
+
+    <h3>Running Streaming Mode</h3>
+    <pre><code>./hekate config_aging_mortality_streaming.yaml</code></pre>
+
+    <p><strong>Expected Output:</strong></p>
+    <pre><code>2024/01/15 10:00:00 ═══ Hekate: Microsimulation Engine ═══
+2024/01/15 10:00:00 Iterations: 5
+2024/01/15 10:00:00 Population file: population_with_areas.csv
+2024/01/15 10:00:00 ID column: person_id
+2024/01/15 10:00:00 Mode: STREAMING (area-by-area)
+2024/01/15 10:00:00 Area column: area_id
+2024/01/15 10:00:00 Models loaded: 2
+2024/01/15 10:00:00 Detected 5 columns
+2024/01/15 10:00:00 
+═══ Iteration 1/5 ═══
+2024/01/15 10:00:00   ▶ age_increment
+2024/01/15 10:00:00   ▶ mortality
+2024/01/15 10:00:00   Processed 2 areas
+2024/01/15 10:00:00 
+═══ Iteration 2/5 ═══
+2024/01/15 10:00:00   ▶ age_increment
+2024/01/15 10:00:00   ▶ mortality
+2024/01/15 10:00:00   Processed 2 areas
+...</code></pre>
+
+    <p>Notice the "Processed X areas" message — this confirms streaming mode is working!</p>
+
+    <hr>
+
+    <h2>Part 6: Area-Aware Models</h2>
+    <p>
+        Now let's make our models <strong>area-aware</strong>. We'll track mortality by area
+        and see how different areas might have different mortality rates.
+    </p>
+
+    <h3>Area-Specific Mortality</h3>
+    <pre><code># Model 2: Area-specific mortality
+- name: "mortality"
+  type: "lua_model"
+  priority: 2
+  enabled: true
+  description: "Area-specific mortality rates"
+  parameters:
+    script: |
+      function transition(population, params)
+        for _, person in ipairs(population) do
+          if person.alive == true then
+            local age = person.age
+            local area = person.area_id
+            local prob = 0
+            
+            -- Different rates by area
+            if area == 1 then
+              -- Area 1: Lower mortality
+              if age < 30 then
+                prob = 0.0005
+              else
+                prob = 0.03
+              end
+            elseif area == 2 then
+              -- Area 2: Higher mortality
+              if age < 30 then
+                prob = 0.002
+              else
+                prob = 0.08
+              end
+            else
+              -- Default rates
+              if age < 30 then
+                prob = 0.001
+              else
+                prob = 0.05
+              end
+            end
+            
+            if math.random() < prob then
+              person.alive = false
+            end
+          end
+        end
+        return population
+      end</code></pre>
+
+    <p><strong>What this does in plain English:</strong></p>
+    <ul>
+        <li>"If the person is in Area 1, they have lower death rates (0.05% for young, 3% for older)"</li>
+        <li>"If the person is in Area 2, they have higher death rates (0.2% for young, 8% for older)"</li>
+        <li>"For other areas, use standard rates (0.1% for young, 5% for older)"</li>
+    </ul>
+
+    <h3>Why This Matters</h3>
+    <p>Area-aware models allow you to:</p>
+    <ul>
+        <li>Simulate regional differences in health outcomes</li>
+        <li>Model the impact of local healthcare systems</li>
+        <li>Study migration patterns and their effects</li>
+        <li>Analyze policy impacts across different regions</li>
+    </ul>
+
+    <hr>
+
+    <h2>Part 7: What You've Accomplished</h2>
+    <p>Congratulations! You've now learned:</p>
+
+    <ol>
+        <li>
+            ✅ <strong>YAML Rules</strong>:
+            <ul>
+                <li>Use spaces, not tabs</li>
+                <li>Use the pipe (<code>|</code>) for multi-line strings</li>
+                <li>Column names must match your CSV exactly</li>
+            </ul>
+        </li>
+        <li>
+            ✅ <strong>Lua in Plain English</strong>:
+            <ul>
+                <li><code>function</code> = "Here's a model"</li>
+                <li><code>for</code> = "For each person"</li>
+                <li><code>if</code> = "If this is true"</li>
+                <li><code>math.random()</code> = "Roll a dice"</li>
+            </ul>
+        </li>
+        <li>
+            ✅ <strong>Mortality Model</strong>:
+            <ul>
+                <li>Applied age-specific death probabilities</li>
+                <li>Used <code>math.random()</code> for probabilistic events</li>
+                <li>Understood priority ordering (age first, then mortality)</li>
+            </ul>
+        </li>
+        <li>
+            ✅ <strong>Areas and Streaming Mode</strong>:
+            <ul>
+                <li>Added area-based data to your CSV</li>
+                <li>Enabled streaming mode for memory efficiency</li>
+                <li>Created area-specific mortality rates</li>
+                <li>Understood how streaming mode processes areas</li>
+            </ul>
+        </li>
+    </ol>
+
+    <hr>
+
+    <h2>Performance Comparison</h2>
+
+    <h3>Bulk Mode vs. Streaming Mode</h3>
+    <table>
+        <thead><tr><th>Mode</th><th>Memory Usage</th><th>Best For</th><th>Output Files</th></tr></thead>
+        <tbody>
+            <tr><td><strong>Bulk Mode</strong> (Default)</td><td>~2MB per 1000 people</td><td>Small populations (&lt;1M), speed</td><td>Single output file</td></tr>
+            <tr><td><strong>Streaming Mode</strong></td><td>~20-50MB constant</td><td>Large populations (1M+), memory efficiency</td><td>Year-by-year working files (deleted at end)</td></tr>
+        </tbody>
+    </table>
+
+    <p>
+        <strong>For this tutorial's small population (10 people), either mode works fine.</strong>
+        But for larger populations, streaming mode is essential!
+    </p>
+
+    <hr>
+
+    <h2>Summary</h2>
+    <p>In this tutorial, you've learned:</p>
+
+    <ol>
+        <li>
+            <strong>YAML Rules</strong>:
+            <ul>
+                <li>Use spaces, not tabs</li>
+                <li>Use the pipe (<code>|</code>) for multi-line strings</li>
+                <li>Column names must match your CSV exactly</li>
+            </ul>
+        </li>
+        <li>
+            <strong>Lua in Plain English</strong>:
+            <ul>
+                <li>Lua is just instructions that read like English</li>
+                <li><code>function</code> = "Here's a model"</li>
+                <li><code>for</code> = "For each person"</li>
+                <li><code>if</code> = "If this is true"</li>
+                <li><code>math.random()</code> = "Roll a dice"</li>
+            </ul>
+        </li>
+        <li>
+            <strong>Mortality Model</strong>:
+            <ul>
+                <li>Applied age-specific death probabilities</li>
+                <li>Used <code>math.random()</code> for probabilistic events</li>
+                <li>Understood priority ordering (age first, then mortality)</li>
+            </ul>
+        </li>
+        <li>
+            <strong>Areas and Streaming Mode</strong>:
+            <ul>
+                <li>Added area-based data</li>
+                <li>Enabled streaming mode</li>
+                <li>Created area-specific mortality rates</li>
+                <li>Understood the benefits of streaming mode</li>
+            </ul>
+        </li>
+    </ol>
+
+    <hr>
+
+    <h2>Next Steps</h2>
+    <p>In the next tutorial, you'll learn how to:</p>
+    <ul>
+        <li>Add fertility (births) to your model</li>
+        <li>Track population growth</li>
+        <li>Work with household-level data</li>
+        <li>Create complex models like household formation</li>
+        <li>Use streaming mode with millions of people</li>
+    </ul>
+
+    <div class="callout">
+        <strong>Well done for completing Tutorial 2!</strong> You now understand YAML rules,
+        can write Lua models, have built a working aging and mortality model, and know how to
+        use areas and streaming mode. You're ready for more complex models!
+    </div>
+
+    <div class="bottomnav">
+        <a href="tutorial1_aging.html">← Tutorial 1: Building an Aging Model</a>
+        <a href="tutorial3_fertility.html">Tutorial 3: Adding Fertility →</a>
+    </div>
+
+    <div class="footer">
+        MIT License · Authors: Nik Lomax, Alison Heppenstall, Hugh Rice, Andreas Hoehn, Ric Colasanti
+    </div>
+
+</div>
+</body>
+</html>
