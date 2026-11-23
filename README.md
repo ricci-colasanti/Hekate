@@ -205,43 +205,18 @@ models:
           return population
         end
 
-  - name: "income"
+  - name: "mortality"
     type: "lua_model"
     priority: 2
     enabled: true
-    description: "Income = 15000 + 300*age + normal noise (sd 4000)"
+    description: "Age-based mortality"
     parameters:
-      base_mean: 15000
-      age_coef: 300
-      sd: 4000
-      script: |
-        function transition(population, params)
-          for _, person in ipairs(population) do
-            if person.alive == true or person.alive == "true" then
-              local age = tonumber(person.age) or 0
-              local mean = linear_predict(params.base_mean, params.age_coef, age)
-              person.income = normal_draw(mean, params.sd)
-            end
-          end
-          return population
-        end
-
-  - name: "mortality"
-    type: "lua_model"
-    priority: 3
-    enabled: true
-    description: "Bernoulli mortality: 1% base + 0.5% per decade of age"
-    parameters:
-      base_hazard: 0.01
-      decade_coef: 0.005
       script: |
         function transition(population, params)
           for _, person in ipairs(population) do
             if person.alive == true or person.alive == "true" then
               local age = tonumber(person.age) or 40
-              local p = params.base_hazard + params.decade_coef * (age / 10)
-              if p > 0.5 then p = 0.5 end
-              if bernoulli_draw(p) then
+              if hekate_stats.logistic_draw(-6.0, 0.09, age) then
                 person.alive = false
               end
             end
@@ -279,22 +254,20 @@ Population file: population.csv
 ID column: person_id
 Mode: BULK (load all into memory)
 Random seed: 42
-Models loaded: 3
-Enabled models: 3
+Models loaded: 2
+Enabled models: 2
   - aging (priority: 1)
-  - income (priority: 2)
-  - mortality (priority: 3)
+  - mortality (priority: 2)
 
 ════════════════════════════════════════════════════════
   Lua Script Pre-Flight Validation
 ════════════════════════════════════════════════════════
 
   ✅ aging                          (priority: 1)
-  ✅ income                         (priority: 2)
-  ✅ mortality                      (priority: 3)
+  ✅ mortality                      (priority: 2)
 
 ════════════════════════════════════════════════════════
-  ✅ All 3 models validated successfully
+  ✅ All 2 models validated successfully
 ════════════════════════════════════════════════════════
 
 ════════════════════════════════════════════════════════
@@ -304,11 +277,10 @@ Enabled models: 3
   CSV columns: person_id, age, sex, area_id, alive
 
   ✅ aging                          (priority: 1)
-  ✅ income                         (priority: 2)
-  ✅ mortality                      (priority: 3)
+  ✅ mortality                      (priority: 2)
 
 ════════════════════════════════════════════════════════
-  ✅ All 3 models reference valid columns
+  ✅ All 2 models reference valid columns
 ════════════════════════════════════════════════════════
 
 --- Using Bulk Processing (load all into memory) ---
@@ -316,7 +288,6 @@ Loaded 10 individuals with 5 columns
 
 ═══ Iteration 1/5 ═══
   ▶ aging
-  ▶ income
   ▶ mortality
 ...
 
@@ -329,20 +300,19 @@ Results saved to output.csv
 Open `output.csv` in any spreadsheet app or text editor. You'll see the same 10 people, but **5 years older**, with an `income` column added, and some will have died:
 
 ```csv
-person_id,age,sex,area_id,alive,income
-1,30,F,1,true,24685.2518
-2,35,M,1,true,24523.7249
-3,50,F,1,true,27813.0868
-4,73,M,1,true,33257.0189
-5,87,F,1,false,
-6,7,M,1,true,17121.9789
-7,20,F,1,true,22423.5864
-8,40,M,1,true,25513.8577
-9,60,F,1,true,29392.0931
-10,75,M,1,true,
+person_id,age,sex,area_id,alive
+1,30,F,1,true
+2,35,M,1,true
+3,50,F,1,true
+4,73,M,1,true
+5,87,F,1,false   ← died
+6,7,M,1,true
+7,20,F,1,true
+8,40,M,1,true
+9,60,F,1,true
+10,75,M,1,true
 ```
 
-(Exact values will vary with the seed. Person 5's income is blank because she died during the run — `income` is only assigned to people still alive at the moment the income model ran.)
 
 **That's it.** You've just run a demographic microsimulation in under 5 minutes.
 
